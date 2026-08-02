@@ -100,6 +100,15 @@ describe("parseIdeaToSpecWorkspace", () => {
     expect(
       parsed.data.productWorkspaceOverview.authorityBoundary.mayExecutePlatform,
     ).toBe(false);
+    expect(parsed.data.materialization.files[0].displayAlias).toBe(
+      "Calculator product",
+    );
+    expect(parsed.data.materialization.files[1].displayAlias).toBe(
+      "Numeric input",
+    );
+    expect(parsed.data.materialization.canonicalMutationsAllowed).toBe(false);
+    expect(parsed.data.materialization.trackedArtifactsWritten).toBe(false);
+    expect(parsed.data.materialization.reviewContractTrusted).toBe(true);
     expect(parsed.data.managedOperations.available).toBe(false);
     expect(parsed.data.managedOperations.operations).toHaveLength(0);
     expect(parsed.data.managedModeReadiness.available).toBe(false);

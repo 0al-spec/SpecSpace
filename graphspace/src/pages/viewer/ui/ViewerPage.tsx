@@ -1101,6 +1101,8 @@ export function ViewerPage({
       productWorkspaceInitializationExecuteUrl={
         workspaceApiUrls.productWorkspaceInitializationExecute
       }
+      artifactContentUrl={workspaceApiUrls.artifactContent}
+      artifactContentRefreshKey={runsWatchVersion}
       repairRerunRequestsRefreshKey={runsWatchVersion}
       onWorkspaceRefreshRequest={() =>
         setIdeaToSpecWorkspaceRefreshKey((current) => current + 1)

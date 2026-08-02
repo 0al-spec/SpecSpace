@@ -506,6 +506,7 @@ export type IdeaToSpecWorkspaceStateHygiene = {
 
 export type IdeaToSpecMaterializedFile = {
   candidateNodeId: string;
+  displayAlias: string | null;
   materializedId: string;
   path: string;
   promotionPath: string;
@@ -2125,6 +2126,9 @@ export type IdeaToSpecWorkspace = {
   approvalReadiness: IdeaToSpecApprovalReadiness;
   materialization: {
     available: boolean;
+    reviewContractTrusted: boolean;
+    canonicalMutationsAllowed: boolean | null;
+    trackedArtifactsWritten: boolean | null;
     readiness: {
       ready: boolean;
       reviewState: string | null;
@@ -3497,6 +3501,7 @@ function parseMaterializedFile(raw: unknown): IdeaToSpecMaterializedFile | null 
   if (!path) return null;
   return {
     candidateNodeId: stringValue(file.candidate_node_id, "candidate-node"),
+    displayAlias: optionalString(file.display_alias),
     materializedId: stringValue(file.materialized_id, "candidate-spec"),
     path,
     promotionPath: stringValue(file.promotion_path, path),
@@ -6465,6 +6470,15 @@ export function parseIdeaToSpecWorkspace(
       approvalReadiness: parseApprovalReadiness(approvalReadiness),
       materialization: {
         available: materialization.available === true,
+        reviewContractTrusted: materialization.review_contract_trusted === true,
+        canonicalMutationsAllowed:
+          typeof materialization.canonical_mutations_allowed === "boolean"
+            ? materialization.canonical_mutations_allowed
+            : null,
+        trackedArtifactsWritten:
+          typeof materialization.tracked_artifacts_written === "boolean"
+            ? materialization.tracked_artifacts_written
+            : null,
         readiness: parseReadiness(materialization.readiness),
         summary: recordValue(materialization.summary),
         materializationSource: optionalString(

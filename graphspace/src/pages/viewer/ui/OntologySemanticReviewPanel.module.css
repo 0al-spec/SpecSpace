@@ -479,6 +479,107 @@
   border-bottom: 0;
 }
 
+.specificationReviewLayout {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.6fr);
+  min-height: 360px;
+  border-bottom: 1px solid var(--gs-rule-soft);
+  background: var(--gs-paper);
+}
+
+.specificationFileList {
+  max-height: 560px;
+  overflow-y: auto;
+  border-right: 1px solid var(--gs-rule-soft);
+}
+
+.specificationFileButton {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  gap: var(--gs-space-2);
+  border: 0;
+  border-bottom: 1px solid var(--gs-rule-soft);
+  padding: var(--gs-space-4) var(--gs-space-5);
+  background: var(--gs-paper);
+  color: var(--gs-ink);
+  cursor: pointer;
+  text-align: left;
+}
+
+.specificationFileButton:hover,
+.specificationFileButton:focus-visible,
+.specificationFileButtonSelected {
+  background: var(--gs-panel);
+}
+
+.specificationFileButton:focus-visible {
+  outline: 1px solid var(--gs-accent);
+  outline-offset: -1px;
+}
+
+.specificationFileTitle {
+  font-family: var(--gs-serif);
+  font-size: 15px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.specificationFileId,
+.specificationFilePath {
+  color: var(--gs-muted);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.specificationPreview {
+  min-width: 0;
+  min-height: 360px;
+  background: var(--gs-panel);
+}
+
+.specificationPreviewHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--gs-space-4);
+  min-height: 42px;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--gs-rule-soft);
+  padding: var(--gs-space-4) var(--gs-space-5);
+  color: var(--gs-muted);
+  font-family: var(--gs-mono);
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+
+.specificationPreview pre {
+  max-height: 518px;
+  overflow: auto;
+  margin: 0;
+  padding: var(--gs-space-5);
+  color: var(--gs-ink);
+  font-family: var(--gs-mono);
+  font-size: 11px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 760px) {
+  .specificationReviewLayout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .specificationFileList {
+    max-height: 260px;
+    border-right: 0;
+    border-bottom: 1px solid var(--gs-rule-soft);
+  }
+}
+
 .subRow {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.4fr);

@@ -1160,6 +1160,72 @@ class FileSpecGraphProvider:
                     break
         return candidates
 
+    def _resolve_reviewable_candidate_files(
+        self,
+        rows: Any,
+    ) -> list[tuple[str, Path]]:
+        if self.runs_dir is None or not self.runs_dir.is_dir():
+            return []
+        try:
+            allowed_root = self.runs_dir.resolve(strict=True)
+        except OSError:
+            return []
+        if not isinstance(rows, list):
+            return []
+        if self.runs_dir.parent.name == "runs":
+            repository_root = self.runs_dir.parent.parent
+            required_prefix = f"runs/{self.runs_dir.name}/"
+        else:
+            repository_root = self.runs_dir.parent
+            required_prefix = "runs/"
+        candidates: dict[str, Path] = {}
+        for item in rows[: idea_to_spec_workspace.DISPLAY_LIMITS["materialized_files"]]:
+            if not isinstance(item, dict):
+                continue
+            safe_path = safe_manifest_path(item.get("path"))
+            materialized_id = item.get("materialized_id")
+            if (
+                safe_path is None
+                or not safe_path.startswith(required_prefix)
+                or not isinstance(materialized_id, str)
+                or not materialized_id
+            ):
+                continue
+            posix_path = PurePosixPath(safe_path)
+            if (
+                posix_path.suffix not in {".yaml", ".yml"}
+                or posix_path.stem != materialized_id
+                or posix_path.parent.name
+                not in {
+                    "materialized_candidate_specs",
+                    "repaired_materialized_candidate_specs",
+                }
+            ):
+                continue
+            path = repository_root / Path(*posix_path.parts)
+            try:
+                resolved = path.resolve(strict=True)
+                resolved.relative_to(allowed_root)
+            except (OSError, ValueError):
+                continue
+            if path.is_file() and not path.is_symlink():
+                candidates[safe_path] = path
+        return sorted(candidates.items())
+
+    def _local_reviewable_candidate_files(self) -> list[tuple[str, Path]]:
+        status, workspace = self.read_idea_to_spec_workspace()
+        materialization = workspace.get("materialization")
+        if (
+            status != HTTPStatus.OK
+            or not isinstance(materialization, dict)
+            or materialization.get("available") is not True
+            or materialization.get("review_contract_trusted") is not True
+            or materialization.get("canonical_mutations_allowed") is not False
+            or materialization.get("tracked_artifacts_written") is not False
+        ):
+            return []
+        return self._resolve_reviewable_candidate_files(materialization.get("files"))
+
     def _local_artifact_roots(self) -> list[Path]:
         roots: list[Path] = []
         if self.specgraph_dir is not None:
@@ -1225,6 +1291,12 @@ class FileSpecGraphProvider:
             artifact_map[rel] = path
         return artifact_map
 
+    def _file_content_artifact_map(self) -> dict[str, Path]:
+        artifact_map = self._file_artifact_map()
+        for rel, path in self._local_reviewable_candidate_files():
+            artifact_map[rel] = path
+        return artifact_map
+
     def read_artifact_catalog(self) -> tuple[int, dict[str, Any]]:
         artifact_map = self._file_artifact_map()
         artifacts: list[dict[str, Any]] = []
@@ -1260,7 +1332,7 @@ class FileSpecGraphProvider:
                 "reason": "invalid_artifact_path",
                 "path": path,
             }
-        artifact_map = self._file_artifact_map()
+        artifact_map = self._file_content_artifact_map()
         artifact_path = artifact_map.get(safe_path)
         if artifact_path is None:
             return HTTPStatus.NOT_FOUND, {
@@ -1452,6 +1524,25 @@ class ProductWorkspaceFileProvider:
                 artifact_map[f"runs/{filename}"] = path
         return artifact_map
 
+    def _content_artifact_map(self) -> dict[str, Path]:
+        artifact_map = self._artifact_map()
+        status, workspace = self.read_idea_to_spec_workspace()
+        materialization = workspace.get("materialization")
+        if (
+            status != HTTPStatus.OK
+            or not isinstance(materialization, dict)
+            or materialization.get("available") is not True
+            or materialization.get("review_contract_trusted") is not True
+            or materialization.get("canonical_mutations_allowed") is not False
+            or materialization.get("tracked_artifacts_written") is not False
+        ):
+            return artifact_map
+        for rel, path in self.delegate._resolve_reviewable_candidate_files(
+            materialization.get("files")
+        ):
+            artifact_map[rel] = path
+        return artifact_map
+
     def health(self) -> dict[str, Any]:
         base = self.delegate.health()
         runs = self.delegate.runs_health()
@@ -1628,7 +1719,7 @@ class ProductWorkspaceFileProvider:
                 "reason": "invalid_artifact_path",
                 "path": path,
             }
-        artifact_path = self._artifact_map().get(safe_path)
+        artifact_path = self._content_artifact_map().get(safe_path)
         if artifact_path is None:
             return HTTPStatus.NOT_FOUND, {
                 "error": "Artifact is not available from the product workspace.",

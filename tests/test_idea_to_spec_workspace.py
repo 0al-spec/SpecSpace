@@ -1797,6 +1797,16 @@ def _materialization() -> dict:
         "contract_ref": "specgraph.idea-to-spec.candidate-spec-materialization.v0.1",
         "canonical_mutations_allowed": False,
         "tracked_artifacts_written": False,
+        "authority_boundary": {
+            "may_create_branch_or_commit": False,
+            "may_mutate_canonical_specs": False,
+            "may_write_ontology_package": False,
+        },
+        "privacy_boundary": {
+            "raw_intent_text_published": False,
+            "raw_model_output_published": False,
+            "raw_prompt_published": False,
+        },
         "readiness": {
             "ready": True,
             "review_state": "materialized_candidate_review_ready",
@@ -1806,12 +1816,14 @@ def _materialization() -> dict:
         "materialized_files": [
             {
                 "candidate_node_id": "candidate-spec.calculator-product",
+                "display_alias": "Calculator product",
                 "materialized_id": "CANDIDATE-CANDIDATE-SPEC-CALCULATOR-PRODUCT",
                 "path": "runs/materialized_candidate_specs/CANDIDATE-CANDIDATE-SPEC-CALCULATOR-PRODUCT.yaml",
                 "promotion_path": "runs/materialized_candidate_specs/CANDIDATE-CANDIDATE-SPEC-CALCULATOR-PRODUCT.yaml",
             },
             {
                 "candidate_node_id": "candidate-spec.numeric-input",
+                "display_alias": "Numeric input",
                 "materialized_id": "CANDIDATE-CANDIDATE-SPEC-NUMERIC-INPUT",
                 "path": "runs/materialized_candidate_specs/CANDIDATE-CANDIDATE-SPEC-NUMERIC-INPUT.yaml",
                 "promotion_path": "runs/materialized_candidate_specs/CANDIDATE-CANDIDATE-SPEC-NUMERIC-INPUT.yaml",
@@ -4117,6 +4129,13 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             body["materialization"]["files"][1]["candidate_node_id"],
             "candidate-spec.numeric-input",
         )
+        self.assertEqual(
+            body["materialization"]["files"][1]["display_alias"],
+            "Numeric input",
+        )
+        self.assertFalse(body["materialization"]["canonical_mutations_allowed"])
+        self.assertFalse(body["materialization"]["tracked_artifacts_written"])
+        self.assertTrue(body["materialization"]["review_contract_trusted"])
         self.assertEqual(
             body["materialization"]["promotion_request"]["platform_artifact_kind"],
             "platform_graph_repository_promotion_request",
@@ -8527,6 +8546,129 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(content_body["reason"], "missing_artifact")
         self.assertEqual(handoff_content_status, HTTPStatus.NOT_FOUND)
         self.assertEqual(handoff_content_body["reason"], "missing_artifact")
+
+    def test_file_provider_previews_only_bound_materialized_candidate_specs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            workspace_runs = root / "runs" / "pantry-control"
+            review_path = (
+                workspace_runs
+                / "materialized_candidate_specs"
+                / "CANDIDATE-PANTRY-CONTROL.yaml"
+            )
+            review_path.parent.mkdir(parents=True)
+            review_path.write_text("id: CANDIDATE-PANTRY-CONTROL\ntitle: Pantry control\n")
+            foreign_path = root / "runs" / "other-workspace" / "FOREIGN.yaml"
+            foreign_path.parent.mkdir(parents=True)
+            foreign_path.write_text("id: FOREIGN\n")
+            linked_path = workspace_runs / "repaired_materialized_candidate_specs" / "LINK.yaml"
+            linked_path.parent.mkdir(parents=True, exist_ok=True)
+            linked_path.symlink_to(foreign_path)
+            stale_path = (
+                workspace_runs
+                / "repaired_materialized_candidate_specs"
+                / "CANDIDATE-STALE.yaml"
+            )
+            stale_path.parent.mkdir(parents=True, exist_ok=True)
+            stale_path.write_text("id: CANDIDATE-STALE\n")
+            materialization = _materialization()
+            materialization["materialized_files"] = [
+                {
+                    "candidate_node_id": "candidate-spec.pantry-control",
+                    "display_alias": "Pantry control",
+                    "materialized_id": "CANDIDATE-PANTRY-CONTROL",
+                    "path": "runs/pantry-control/materialized_candidate_specs/CANDIDATE-PANTRY-CONTROL.yaml",
+                    "promotion_path": "runs/pantry-control/materialized_candidate_specs/CANDIDATE-PANTRY-CONTROL.yaml",
+                },
+                {
+                    "candidate_node_id": "candidate-spec.foreign",
+                    "materialized_id": "FOREIGN",
+                    "path": "runs/other-workspace/FOREIGN.yaml",
+                    "promotion_path": "runs/other-workspace/FOREIGN.yaml",
+                },
+                {
+                    "candidate_node_id": "candidate-spec.link",
+                    "materialized_id": "LINK",
+                    "path": "runs/pantry-control/repaired_materialized_candidate_specs/LINK.yaml",
+                    "promotion_path": "runs/pantry-control/repaired_materialized_candidate_specs/LINK.yaml",
+                },
+            ]
+            _write_json(
+                workspace_runs
+                / idea_to_spec_workspace.CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT,
+                materialization,
+            )
+            stale_materialization = _materialization()
+            stale_materialization["materialized_files"] = [
+                {
+                    "candidate_node_id": "candidate-spec.stale",
+                    "materialized_id": "CANDIDATE-STALE",
+                    "path": "runs/pantry-control/repaired_materialized_candidate_specs/CANDIDATE-STALE.yaml",
+                    "promotion_path": "runs/pantry-control/repaired_materialized_candidate_specs/CANDIDATE-STALE.yaml",
+                }
+            ]
+            _write_json(
+                workspace_runs
+                / idea_to_spec_workspace.REPAIRED_CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT,
+                stale_materialization,
+            )
+            _write_json(
+                workspace_runs
+                / idea_to_spec_workspace.ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT,
+                {
+                    "artifact_kind": "active_idea_to_spec_candidate",
+                    "candidate": {
+                        "candidate_id": "pantry-control",
+                        "public_route": "/pantry-control",
+                    },
+                    "canonical_mutations_allowed": False,
+                    "authority_boundary": {},
+                },
+            )
+            provider = specspace_provider.ProductWorkspaceFileProvider(
+                delegate=specspace_provider.FileSpecGraphProvider(
+                    spec_nodes_dir=None,
+                    runs_dir=workspace_runs,
+                    specgraph_dir=root,
+                ),
+                workspace_id="pantry-control",
+            )
+
+            catalog_status, catalog = provider.read_artifact_catalog()
+            content_status, content = provider.read_artifact_content(
+                "runs/pantry-control/materialized_candidate_specs/CANDIDATE-PANTRY-CONTROL.yaml"
+            )
+            foreign_status, _ = provider.read_artifact_content(
+                "runs/other-workspace/FOREIGN.yaml"
+            )
+            linked_status, _ = provider.read_artifact_content(
+                "runs/pantry-control/repaired_materialized_candidate_specs/LINK.yaml"
+            )
+            stale_status, _ = provider.read_artifact_content(
+                "runs/pantry-control/repaired_materialized_candidate_specs/CANDIDATE-STALE.yaml"
+            )
+            materialization["authority_boundary"]["may_mutate_canonical_specs"] = True
+            _write_json(
+                workspace_runs
+                / idea_to_spec_workspace.CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT,
+                materialization,
+            )
+            untrusted_status, _ = provider.read_artifact_content(
+                "runs/pantry-control/materialized_candidate_specs/CANDIDATE-PANTRY-CONTROL.yaml"
+            )
+
+        self.assertEqual(catalog_status, HTTPStatus.OK)
+        self.assertNotIn(
+            "runs/pantry-control/materialized_candidate_specs/CANDIDATE-PANTRY-CONTROL.yaml",
+            {entry["path"] for entry in catalog["artifacts"]},
+        )
+        self.assertEqual(content_status, HTTPStatus.OK)
+        self.assertEqual(content["content_kind"], "text")
+        self.assertIn("title: Pantry control", content["text"])
+        self.assertEqual(foreign_status, HTTPStatus.NOT_FOUND)
+        self.assertEqual(linked_status, HTTPStatus.NOT_FOUND)
+        self.assertEqual(stale_status, HTTPStatus.NOT_FOUND)
+        self.assertEqual(untrusted_status, HTTPStatus.NOT_FOUND)
 
     def test_http_provider_reads_workspace_runs_from_manifest(self) -> None:
         workspace_artifacts = _workspace_artifacts()

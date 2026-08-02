@@ -75,6 +75,10 @@ import {
   type UseProjectLocalOntologyReviewDecisionState,
 } from "../model/use-project-local-ontology-review-decisions";
 import { describeHttpErrorDetail } from "../model/live-artifacts";
+import {
+  useArtifactContent,
+  type ArtifactContentState,
+} from "../model/use-artifact-catalog";
 import styles from "./OntologySemanticReviewPanel.module.css";
 
 type Props = {
@@ -100,6 +104,8 @@ type Props = {
   readModelPublicationExecuteUrl?: string;
   projectLocalOntologyReviewDecisionsUrl?: string;
   productWorkspaceInitializationExecuteUrl?: string;
+  artifactContentUrl?: string;
+  artifactContentRefreshKey?: number;
   repairRerunRequestsRefreshKey?: number | string;
   onWorkspaceRefreshRequest?: () => void;
   auxiliaryDataEnabled?: boolean;
@@ -399,9 +405,10 @@ const MATURITY_NAV_ITEMS = [
     detail: "Inspect blockers, stages, and accepted answers.",
   },
   {
-    label: "Promotion preview",
+    label: "Reviewable specifications",
     href: "#idea-to-spec-materialization",
-    detail: "Inspect materialized review-only candidate files.",
+    detail:
+      "Inspect materialized candidate specifications without writing canonical state.",
   },
   {
     label: "Approval readiness",
@@ -516,6 +523,8 @@ export function IdeaToSpecWorkspacePanel({
   readModelPublicationExecuteUrl,
   projectLocalOntologyReviewDecisionsUrl,
   productWorkspaceInitializationExecuteUrl,
+  artifactContentUrl,
+  artifactContentRefreshKey = 0,
   repairRerunRequestsRefreshKey = 0,
   onWorkspaceRefreshRequest,
   auxiliaryDataEnabled = true,
@@ -1263,13 +1272,27 @@ export function IdeaToSpecWorkspacePanel({
       readOnly={readOnly}
     />
   );
+  const specificationReviewSection = (
+    <MaterializationSection
+      key={`${data.selectedWorkspaceId ?? data.workspace.id ?? "workspace"}:${
+        artifactContentUrl ?? "default"
+      }`}
+      state={state}
+      artifactContentUrl={artifactContentUrl}
+      artifactContentRefreshKey={artifactContentRefreshKey}
+    />
+  );
 
   if (demoView) {
     return productDemoPresentationSection;
   }
 
-  const renderDiagnosticSections = (includeIntakeClarification = true) => (
+  const renderDiagnosticSections = (
+    includeIntakeClarification = true,
+    includeSpecificationReview = false,
+  ) => (
     <>
+      {includeSpecificationReview ? specificationReviewSection : null}
       <CandidateOverviewSection overview={data.candidateOverview} />
       <WorkflowSection workflow={data.workflow} />
       <WorkspaceSection workspace={data.workspace} />
@@ -1308,7 +1331,6 @@ export function IdeaToSpecWorkspacePanel({
         onWorkspaceRefreshRequest={onWorkspaceRefreshRequest}
         readOnly={readOnly}
       />
-      <MaterializationSection state={state} />
       <PromotionGateSection state={state} />
       <ApprovalReadinessSection
         readiness={data.approvalReadiness}
@@ -1401,6 +1423,7 @@ export function IdeaToSpecWorkspacePanel({
 
       <div className={styles.entries} onClickCapture={handleWorkspaceAnchorClick}>
         {productWorkspaceOverviewSection}
+        {!freshWorkspaceFocus ? specificationReviewSection : null}
         {managedOperationsSection}
         {freshWorkspaceFocus ? (
           <>
@@ -1432,7 +1455,7 @@ export function IdeaToSpecWorkspacePanel({
                 {!focusShowsIdeaIntake ? ideaIntakeDraftSection : null}
                 {guidedRepairPathSection}
                 {guidedApprovalPathSection}
-                {renderDiagnosticSections(!focusShowsIntakeClarification)}
+                {renderDiagnosticSections(!focusShowsIntakeClarification, true)}
               </div>
             </details>
           </>
@@ -9106,51 +9129,107 @@ function ResolvedGapRow({ gap }: { gap: IdeaToSpecResolvedOntologyGap }) {
 
 function MaterializationSection({
   state,
+  artifactContentUrl,
+  artifactContentRefreshKey,
 }: {
   state: Extract<UseIdeaToSpecWorkspaceState, { kind: "ok" }>;
+  artifactContentUrl?: string;
+  artifactContentRefreshKey: number;
 }) {
   const materialization = state.data.materialization;
   const request = materialization.promotionRequest;
+  const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  const activePath = materialization.files.some((file) => file.path === selectedPath)
+    ? selectedPath
+    : null;
+  const contentState = useArtifactContent({
+    path: activePath,
+    url: artifactContentUrl,
+    refreshKey: artifactContentRefreshKey,
+  });
+  const reviewStatus = !materialization.available
+    ? "not materialized"
+    : materialization.readiness.ready && materialization.files.length > 0
+      ? "ready for review"
+      : "blocked";
   return (
     <section id="idea-to-spec-materialization" className={styles.reviewSection}>
       <SectionHeader
-        title="Promotion preview"
+        title="Reviewable specifications"
         count={materialization.files.length}
       />
       <div className={styles.postureStrip}>
         <PostureItem
-          label="Ready"
-          value={boolText(materialization.readiness.ready)}
-        />
-        <PostureItem
-          label="Review state"
-          value={compact(materialization.readiness.reviewState)}
+          label="Status"
+          value={reviewStatus}
         />
         <PostureItem
           label="Source"
           value={compact(materialization.materializationSource)}
         />
         <PostureItem
-          label="Platform request"
-          value={compact(request.platformArtifactKind)}
+          label="Review only"
+          value={
+            materialization.reviewContractTrusted
+              ? "true"
+              : "unknown"
+          }
+        />
+        <PostureItem
+          label="Canonical writes"
+          value={
+            materialization.canonicalMutationsAllowed === false
+              ? "false"
+              : "unknown"
+          }
         />
       </div>
+      {materialization.available && !materialization.readiness.ready ? (
+        <Status
+          label="Specification review blocked"
+          detail={
+            materialization.readiness.blockedBy.length > 0
+              ? `Resolve: ${materialization.readiness.blockedBy.join(", ")}`
+              : compact(
+                  materialization.readiness.nextArtifact,
+                  "Materialization readiness evidence is incomplete.",
+                )
+          }
+        />
+      ) : null}
       {materialization.files.length === 0 ? (
         <Status
           label="No materialized candidate specs"
-          detail="Candidate materialization report is missing or empty."
+          detail={
+            materialization.readiness.blockedBy.length > 0
+              ? `Resolve: ${materialization.readiness.blockedBy.join(", ")}`
+              : "Build the candidate materialization report after candidate generation or repair."
+          }
         />
-      ) : null}
-      {materialization.files.map((file) => (
-        <MaterializedFileRow key={file.path} file={file} />
-      ))}
+      ) : (
+        <div className={styles.specificationReviewLayout}>
+          <div className={styles.specificationFileList} aria-label="Materialized specifications">
+            {materialization.files.map((file) => (
+              <MaterializedFileRow
+                key={file.path}
+                file={file}
+                selected={file.path === activePath}
+                onSelect={() => setSelectedPath(file.path)}
+              />
+            ))}
+          </div>
+          <MaterializedFilePreview path={activePath} state={contentState} />
+        </div>
+      )}
       <div className={styles.row}>
         <div className={styles.rowHeader}>
-          <span className={styles.rowId}>Platform handoff</span>
-          <Pill value={compact(request.pathArgument, "--path")} />
+          <span className={styles.rowId}>Review handoff</span>
+          <Pill value={compact(materialization.readiness.reviewState, reviewStatus)} />
         </div>
         <div className={styles.metaGrid}>
-          <Meta label="Promotion paths" value={joined(request.paths)} />
+          <Meta label="Selected spec" value={activePath} />
+          <Meta label="Promotion paths" value={`${request.paths.length} bounded paths`} />
+          <Meta label="Platform request" value={request.platformArtifactKind} />
           <Meta label="Next" value={materialization.readiness.nextArtifact} />
         </div>
       </div>
@@ -9158,18 +9237,73 @@ function MaterializationSection({
   );
 }
 
-function MaterializedFileRow({ file }: { file: IdeaToSpecMaterializedFile }) {
+function MaterializedFileRow({
+  file,
+  selected,
+  onSelect,
+}: {
+  file: IdeaToSpecMaterializedFile;
+  selected: boolean;
+  onSelect: () => void;
+}) {
   return (
-    <div className={styles.row}>
-      <div className={styles.rowHeader}>
-        <span className={styles.rowId}>{file.materializedId}</span>
-        <Pill value="review-only" />
+    <button
+      type="button"
+      className={[
+        styles.specificationFileButton,
+        selected ? styles.specificationFileButtonSelected : "",
+      ].filter(Boolean).join(" ")}
+      aria-pressed={selected}
+      onClick={onSelect}
+    >
+      <span className={styles.specificationFileTitle}>
+        {file.displayAlias ?? file.materializedId}
+      </span>
+      <span className={styles.specificationFileId}>{file.materializedId}</span>
+      <span className={styles.specificationFilePath}>{file.path}</span>
+    </button>
+  );
+}
+
+function MaterializedFilePreview({
+  path,
+  state,
+}: {
+  path: string | null;
+  state: ArtifactContentState;
+}) {
+  if (!path || state.kind === "idle") {
+    return (
+      <Status
+        label="Select a specification"
+        detail="Choose a materialized candidate spec to inspect its bounded YAML preview."
+      />
+    );
+  }
+  if (state.kind === "loading") {
+    return <Status label="Loading specification" detail={state.path} />;
+  }
+  if (state.kind === "ok" && state.data.path !== path) {
+    return <Status label="Loading specification" detail={path} />;
+  }
+  if (state.kind !== "ok") {
+    const detail = state.kind === "http-error"
+      ? `HTTP ${state.status} ${state.statusText}`
+      : state.kind === "network-error"
+        ? "SpecSpace backend is unreachable."
+        : state.reason;
+    return <Status label="Specification preview unavailable" detail={detail} />;
+  }
+  const preview = state.data.contentKind === "json"
+    ? JSON.stringify(state.data.data, null, 2)
+    : state.data.text ?? "";
+  return (
+    <div className={styles.specificationPreview}>
+      <div className={styles.specificationPreviewHeader}>
+        <span>{state.data.path}</span>
+        <Pill value={state.data.contentKind} />
       </div>
-      <div className={styles.metaGrid}>
-        <Meta label="Candidate node" value={file.candidateNodeId} />
-        <Meta label="Preview path" value={file.path} />
-        <Meta label="Promotion path" value={file.promotionPath} />
-      </div>
+      <pre>{preview.slice(0, 40_000)}</pre>
     </div>
   );
 }

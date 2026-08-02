@@ -2706,6 +2706,9 @@ export const ideaToSpecWorkspace = {
   },
   materialization: {
     available: true,
+    review_contract_trusted: true,
+    canonical_mutations_allowed: false,
+    tracked_artifacts_written: false,
     readiness: {
       ready: true,
       review_state: "materialized_candidate_review_ready",
@@ -2721,12 +2724,14 @@ export const ideaToSpecWorkspace = {
     files: [
       {
         candidate_node_id: "candidate-spec.calculator-product",
+        display_alias: "Calculator product",
         materialized_id: "CANDIDATE-CANDIDATE-SPEC-CALCULATOR-PRODUCT",
         path: "runs/materialized_candidate_specs/CANDIDATE-CANDIDATE-SPEC-CALCULATOR-PRODUCT.yaml",
         promotion_path: "runs/materialized_candidate_specs/CANDIDATE-CANDIDATE-SPEC-CALCULATOR-PRODUCT.yaml",
       },
       {
         candidate_node_id: "candidate-spec.numeric-input",
+        display_alias: "Numeric input",
         materialized_id: "CANDIDATE-CANDIDATE-SPEC-NUMERIC-INPUT",
         path: "runs/materialized_candidate_specs/CANDIDATE-CANDIDATE-SPEC-NUMERIC-INPUT.yaml",
         promotion_path: "runs/materialized_candidate_specs/CANDIDATE-CANDIDATE-SPEC-NUMERIC-INPUT.yaml",

@@ -4351,12 +4351,32 @@ def _materialized_files(report: dict[str, Any] | None) -> list[dict[str, Any]]:
                 "candidate_node_id": _text(
                     item.get("candidate_node_id"), "candidate-node"
                 ),
+                "display_alias": _optional_text(item.get("display_alias")),
                 "materialized_id": _text(item.get("materialized_id"), "candidate-spec"),
                 "path": path,
                 "promotion_path": promotion_path,
             }
         )
     return rows
+
+
+def _materialization_review_contract_trusted(
+    report: dict[str, Any] | None,
+) -> bool:
+    if (
+        report is None
+        or report.get("canonical_mutations_allowed") is not False
+        or report.get("tracked_artifacts_written") is not False
+    ):
+        return False
+    authority_boundary = _record(report.get("authority_boundary"))
+    privacy_boundary = _record(report.get("privacy_boundary"))
+    return (
+        bool(authority_boundary)
+        and all(value is False for value in authority_boundary.values())
+        and bool(privacy_boundary)
+        and all(value is False for value in privacy_boundary.values())
+    )
 
 
 def _materialized_file_count(report: dict[str, Any] | None) -> int:
@@ -9563,6 +9583,25 @@ def build_idea_to_spec_workspace(
         "approval_readiness": approval_readiness,
         "materialization": {
             "available": selected_materialization is not None,
+            "review_contract_trusted": _materialization_review_contract_trusted(
+                selected_materialization
+            ),
+            "canonical_mutations_allowed": (
+                (selected_materialization or {}).get("canonical_mutations_allowed")
+                if isinstance(
+                    (selected_materialization or {}).get("canonical_mutations_allowed"),
+                    bool,
+                )
+                else None
+            ),
+            "tracked_artifacts_written": (
+                (selected_materialization or {}).get("tracked_artifacts_written")
+                if isinstance(
+                    (selected_materialization or {}).get("tracked_artifacts_written"),
+                    bool,
+                )
+                else None
+            ),
             "readiness": _readiness(selected_materialization),
             "summary": _record((selected_materialization or {}).get("summary")),
             "materialization_source": _optional_text(
