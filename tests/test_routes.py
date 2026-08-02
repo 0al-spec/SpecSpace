@@ -135,6 +135,19 @@ def test_route_table_resolves_product_workspace_initialization_execute() -> None
     assert post_route.pass_parsed is True
 
 
+def test_route_table_resolves_product_workspace_initialization_prepare() -> None:
+    post_route = routes.route_for(
+        "POST", "/api/v1/product-workspace-initialization/prepare"
+    )
+
+    assert post_route is not None
+    assert (
+        post_route.handler
+        == "handle_v1_product_workspace_initialization_prepare_post"
+    )
+    assert post_route.pass_parsed is True
+
+
 def test_route_table_resolves_real_idea_intake_execute() -> None:
     post_route = routes.route_for("POST", "/api/v1/real-idea-intake/execute")
 

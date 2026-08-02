@@ -1003,6 +1003,9 @@ describe("parseIdeaToSpecWorkspace", () => {
       "Track pantry stock before food expires.",
     );
     expect(parsed.data.workspaceInitializationPath.status).toBe("initialized");
+    expect(
+      parsed.data.workspaceInitializationPath.initializationPreparationAvailable,
+    ).toBe(false);
     expect(parsed.data.workspaceInitializationPath.initialIdeaPresent).toBe(true);
     expect(parsed.data.workspaceInitializationPath.nextSafeAction).toBe(
       "Start or continue raw idea intake in this workspace.",

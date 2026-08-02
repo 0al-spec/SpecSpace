@@ -1614,6 +1614,7 @@ export type IdeaToSpecWorkspaceInitializationPath = {
   nextSafeAction: string | null;
   blockers: readonly string[];
   managedExecutionAvailable: boolean;
+  initializationPreparationAvailable: boolean;
 };
 
 export type IdeaToSpecWorkspace = {
@@ -5752,6 +5753,8 @@ function parseWorkspaceInitializationPath(
     nextSafeAction: optionalString(path.next_safe_action),
     blockers: strings(path.blockers),
     managedExecutionAvailable: path.managed_execution_available === true,
+    initializationPreparationAvailable:
+      path.initialization_preparation_available === true,
   };
 }
 
