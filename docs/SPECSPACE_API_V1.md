@@ -756,6 +756,25 @@ idea-to-spec artifacts produced by SpecGraph:
 - `runs/graph_repository_publish_read_model_report.json`;
 - `runs/git_service_promotion_finalization_report.json`.
 
+For a local file-backed product workspace, the UI presents the selected
+materialization as **Reviewable specifications**. The surface reuses the
+existing `materialization.available`, producer-owned `readiness`, and
+`materialized_files` contract; it does not infer readiness from file presence.
+Rows retain the canonical materialized id and may expose the producer's
+presentation-only `display_alias`.
+
+The YAML body is fetched only after an operator selects a row, through the
+operator-scoped `GET /api/v1/artifacts/content` route. The Mac product profile
+enables operator authentication; explicitly auth-disabled local development
+still treats the loopback process boundary as trusted. The file
+provider accepts only `.yaml`/`.yml` paths explicitly listed by the same
+standard or repaired materialization selected by the workspace projection,
+requires report authority flags to remain false, validates the candidate id and
+materialization directory, rejects symlinks and cross-workspace paths, and
+confines reads to the bound workspace `runs` directory. The public artifact
+catalog does not gain these local review files. Reviewing a YAML preview grants
+no canonical spec, Git, Ontology, approval, or publication authority.
+
 The endpoint accepts `?workspace=team-decision-log` so a public product route
 can select a product artifact provider. If no product-specific provider is
 configured, the route reads the default artifact base.

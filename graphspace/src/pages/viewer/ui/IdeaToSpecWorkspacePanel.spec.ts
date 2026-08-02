@@ -564,7 +564,11 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("candidate_quality_improved");
     expect(html).toContain("product-ontology-decision.numeric-input.0");
     expect(html).toContain("rerun_overlay_only");
-    expect(html).toContain("Promotion preview");
+    expect(html).toContain("Reviewable specifications");
+    expect(html).toContain("ready for review");
+    expect(html).toContain("Calculator product");
+    expect(html).toContain("Numeric input");
+    expect(html).toContain("Select a specification");
     expect(html).toContain("materialized_candidate_review_ready");
     expect(html).toContain("CANDIDATE-CANDIDATE-SPEC-NUMERIC-INPUT");
     expect(html).toContain("platform_graph_repository_promotion_request");
@@ -1626,6 +1630,22 @@ describe("IdeaToSpecWorkspacePanel", () => {
       ],
       authority_boundary: raw.guided_flow.authority_boundary,
     };
+    raw.materialization = {
+      available: false,
+      review_contract_trusted: false,
+      canonical_mutations_allowed: null,
+      tracked_artifacts_written: null,
+      readiness: {
+        ready: false,
+        review_state: null,
+        blocked_by: [],
+        next_artifact: "candidate_spec_materialization_report.json",
+      },
+      summary: {},
+      materialization_source: null,
+      files: [],
+      promotion_request: {},
+    };
     const parsedRouteOnly = parseIdeaToSpecWorkspace(raw);
     if (parsedRouteOnly.kind !== "ok") {
       throw new Error("Modified idea-to-spec fixture must parse");
@@ -1642,6 +1662,7 @@ describe("IdeaToSpecWorkspacePanel", () => {
     const rawIdeaIndex = html.indexOf("Start here: raw product idea");
     const candidateGraphIndex = html.indexOf('id="idea-to-spec-candidate-graph"');
     const guidedFlowIndex = html.indexOf("Guided product flow");
+    const specificationsIndex = html.indexOf("Reviewable specifications");
 
     expect(html).toContain('data-testid="fresh-workspace-focus"');
     expect(html).toContain('data-testid="fresh-workspace-diagnostics"');
@@ -1651,7 +1672,32 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(guidedFlowIndex).toBeGreaterThan(diagnosticsIndex);
     expect(rawIdeaIndex).toBeGreaterThan(diagnosticsIndex);
     expect(candidateGraphIndex).toBeGreaterThan(diagnosticsIndex);
+    expect(specificationsIndex).toBeGreaterThan(diagnosticsIndex);
     expect(html).toContain("Create this workspace before raw idea intake.");
+    expect(html).toContain("Reviewable specifications");
+    expect(html.split('id="idea-to-spec-materialization"').length - 1).toBe(1);
+  });
+
+  it("shows producer blockers alongside reviewable specification files", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.materialization.readiness.ready = false;
+    raw.materialization.readiness.review_state = "materialization_blocked";
+    raw.materialization.readiness.blocked_by = ["candidate_gap_unresolved"];
+    const parsedWorkspace = parseIdeaToSpecWorkspace(raw);
+    if (parsedWorkspace.kind !== "ok") {
+      throw new Error("Modified idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedWorkspace.data },
+      }),
+    );
+
+    expect(html).toContain("Specification review blocked");
+    expect(html).toContain("candidate_gap_unresolved");
+    expect(html).toContain("Calculator product");
+    expect(html).toContain("Select a specification");
   });
 
   it("focuses an initialized workspace on raw idea intake", () => {
