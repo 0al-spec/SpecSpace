@@ -181,6 +181,80 @@ class ProductWorkspaceInitializationPreparationTests(unittest.TestCase):
         self.assertEqual(status, HTTPStatus.BAD_REQUEST)
         self.assertEqual(response["fields"], ["path"])
 
+    def test_failed_request_generation_invalidates_previous_request(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            server = self._server(Path(tmp))
+            product_workspace_creation_requests.save_request(
+                server,
+                {
+                    "workspace_id": "pantry-rotation",
+                    "display_name": "Pantry Rotation",
+                },
+                workspace_id="pantry-rotation",
+            )
+
+            def succeed(**kwargs: object) -> tuple[HTTPStatus, None]:
+                command = kwargs["command"]
+                assert isinstance(command, list)
+                self._write_platform_output(command)
+                return HTTPStatus.OK, None
+
+            with mock.patch.object(
+                product_workspace_initialization_execution,
+                "_run_preparation_command",
+                side_effect=succeed,
+            ):
+                first_status, _ = (
+                    product_workspace_initialization_execution.prepare_initialization_request(
+                        server,
+                        {"workspace_id": "pantry-rotation"},
+                        workspace_id="pantry-rotation",
+                    )
+                )
+            self.assertEqual(first_status, HTTPStatus.OK)
+            request_path = (
+                server.runs_dir
+                / "pantry-rotation"
+                / product_workspace_initialization_execution.EXECUTION_REQUEST_ARTIFACT
+            )
+            self.assertTrue(request_path.is_file())
+
+            product_workspace_creation_requests.save_request(
+                server,
+                {
+                    "workspace_id": "pantry-rotation",
+                    "display_name": "Pantry Rotation Updated",
+                },
+                workspace_id="pantry-rotation",
+            )
+            command_count = 0
+
+            def fail_request(**kwargs: object):
+                nonlocal command_count
+                command_count += 1
+                command = kwargs["command"]
+                assert isinstance(command, list)
+                if command_count == 1:
+                    self._write_platform_output(command)
+                    return HTTPStatus.OK, None
+                return HTTPStatus.BAD_GATEWAY, {"error": "request generation failed"}
+
+            with mock.patch.object(
+                product_workspace_initialization_execution,
+                "_run_preparation_command",
+                side_effect=fail_request,
+            ):
+                failed_status, _ = (
+                    product_workspace_initialization_execution.prepare_initialization_request(
+                        server,
+                        {"workspace_id": "pantry-rotation"},
+                        workspace_id="pantry-rotation",
+                    )
+                )
+
+            self.assertEqual(failed_status, HTTPStatus.BAD_GATEWAY)
+            self.assertFalse(request_path.exists())
+
     def test_workspace_projection_exposes_local_preparation_readiness(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             server = self._server(Path(tmp))
@@ -380,6 +454,14 @@ class ProductWorkspaceInitializationPreparationTests(unittest.TestCase):
         self.assertNotIn(
             "active_idea_to_spec_candidate.json",
             provider._workspace_artifacts(),
+        )
+        artifact_paths = {
+            artifact["path"]
+            for artifact in provider.read_artifact_catalog()[1]["artifacts"]
+        }
+        self.assertNotIn(
+            "runs/pantry-rotation/active_idea_to_spec_candidate.json",
+            artifact_paths,
         )
 
 

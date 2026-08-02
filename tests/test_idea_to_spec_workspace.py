@@ -8825,6 +8825,12 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             idea_to_spec_workspace.REPAIRED_CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT,
             None,
         )
+        for filename in (
+            idea_to_spec_workspace.PRODUCT_CANDIDATE_PROMOTION_READ_MODEL_PUBLICATION_REPORT_ARTIFACT,
+            idea_to_spec_workspace.GRAPH_REPOSITORY_PUBLISH_READ_MODEL_REPORT_ARTIFACT,
+            idea_to_spec_workspace.GIT_SERVICE_PROMOTION_FINALIZATION_REPORT_ARTIFACT,
+        ):
+            artifacts.pop(filename, None)
 
         body = idea_to_spec_workspace.build_idea_to_spec_workspace(
             artifacts=artifacts,
@@ -8833,6 +8839,8 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
 
         self.assertFalse(body["materialization"]["available"])
         self.assertFalse(body["materialization"]["review_contract_trusted"])
+        self.assertNotEqual(body["summary"]["status"], "ready")
+        self.assertGreater(body["summary"]["missing_artifact_count"], 0)
 
     def test_materialization_review_contract_requires_complete_boundaries(self) -> None:
         materialization = _materialization()

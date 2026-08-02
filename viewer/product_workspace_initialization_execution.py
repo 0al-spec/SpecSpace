@@ -425,6 +425,9 @@ def _prepare_initialization_request(
             return HTTPStatus.CONFLICT, {
                 "error": "Workspace initialization preparation inputs changed during planning."
             }
+        # Invalidate the previous request before replacing its digest-pinned plan.
+        # A failed second command then projects request-needed instead of a stale pair.
+        request_path.unlink(missing_ok=True)
         os.replace(staged_plan_path, plan_path)
 
         status, error = _run_preparation_command(

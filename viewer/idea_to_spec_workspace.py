@@ -9327,17 +9327,44 @@ def build_idea_to_spec_workspace(
         if repaired_surface_selected and repaired_promotion_gate is not None
         else promotion_gate
     )
+    downstream_promotion_succeeded = (
+        (platform_promotion or {}).get("ok") is True
+        or (
+            product_promotion_execution is not None
+            and _product_promotion_execution(product_promotion_execution)["ok"]
+            and not _product_promotion_execution(product_promotion_execution)["dry_run"]
+        )
+        or (
+            git_service_execution is not None
+            and _git_service_execution(git_service_execution)["ok"]
+            and not _git_service_execution(git_service_execution)["dry_run"]
+        )
+        or _review_status(review_status)["ok"]
+        or _read_model_publication(read_model_publication)["published"]
+        or _promotion_finalization(promotion_finalization)["read_model_published"]
+    )
+    publication_completed = (
+        _read_model_publication(read_model_publication)["published"]
+        or _promotion_finalization(promotion_finalization)["read_model_published"]
+    )
     core_missing_artifact_count = sum(
         1
         for filename in CORE_WORKSPACE_RUN_ARTIFACTS
         if not statuses[ARTIFACT_KEYS[filename]]["available"]
+    )
+    selected_materialization_missing = (
+        repaired_surface_selected
+        and repaired_materialization is None
+        and not publication_completed
     )
     platform_missing_artifact_count = sum(
         1
         for filename in PLATFORM_PROMOTION_ARTIFACTS
         if not statuses[ARTIFACT_KEYS[filename]]["available"]
     )
-    missing_artifact_count = core_missing_artifact_count
+    missing_artifact_count = core_missing_artifact_count + int(
+        selected_materialization_missing
+    )
     available_count = sum(1 for status in statuses.values() if status["available"])
     project_local_ontology_review_lane = _project_local_ontology_review_lane(
         project_local_ontology_review,
@@ -9349,6 +9376,8 @@ def build_idea_to_spec_workspace(
     status = "ready"
     if core_missing_artifact_count:
         status = "partial" if available_count else "unavailable"
+    elif selected_materialization_missing:
+        status = "partial"
     elif _ontology_seed_blocked(candidate_seed) and not ontology_seed_review_resolved:
         status = "blocked"
     elif selected_promotion_gate is not None and not _readiness(selected_promotion_gate)["ready"]:
@@ -9372,22 +9401,6 @@ def build_idea_to_spec_workspace(
         answer_continuation_execution_report=real_idea_answer_continuation_execution,
     )
     repair_session = _repair_session(selected_repair_session_journal)
-    downstream_promotion_succeeded = (
-        (platform_promotion or {}).get("ok") is True
-        or (
-            product_promotion_execution is not None
-            and _product_promotion_execution(product_promotion_execution)["ok"]
-            and not _product_promotion_execution(product_promotion_execution)["dry_run"]
-        )
-        or (
-            git_service_execution is not None
-            and _git_service_execution(git_service_execution)["ok"]
-            and not _git_service_execution(git_service_execution)["dry_run"]
-        )
-        or _review_status(review_status)["ok"]
-        or _read_model_publication(read_model_publication)["published"]
-        or _promotion_finalization(promotion_finalization)["read_model_published"]
-    )
     if (
         status != "partial"
         and not downstream_promotion_succeeded

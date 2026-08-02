@@ -144,6 +144,12 @@ class RunsWatcher(PollingWatcher):
                 for entry in entries:
                     if (
                         entry.is_dir(follow_symlinks=False)
+                        and entry.name in self._WATCHED_NESTED_DIRS
+                    ):
+                        self._add_root_nested_artifacts(result, entry)
+                        continue
+                    if (
+                        entry.is_dir(follow_symlinks=False)
                         and self._WORKSPACE_DIR_RE.fullmatch(entry.name)
                     ):
                         self._add_workspace_artifacts(result, entry)
@@ -158,6 +164,25 @@ class RunsWatcher(PollingWatcher):
         except OSError:
             pass
         return result
+
+    @staticmethod
+    def _add_root_nested_artifacts(
+        result: dict[str, float],
+        nested_entry: os.DirEntry[str],
+    ) -> None:
+        try:
+            with os.scandir(nested_entry.path) as artifacts:
+                for artifact in artifacts:
+                    if not artifact.is_file(follow_symlinks=False) or not artifact.name.endswith(
+                        ".json"
+                    ):
+                        continue
+                    stat = artifact.stat(follow_symlinks=False)
+                    result[
+                        f"{nested_entry.name}/{artifact.name}\0{stat.st_size}"
+                    ] = stat.st_mtime
+        except OSError:
+            pass
 
     @staticmethod
     def _add_workspace_artifacts(

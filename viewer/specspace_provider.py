@@ -1555,7 +1555,9 @@ class ProductWorkspaceFileProvider:
         if self.delegate.runs_dir is None:
             return {}
         all_artifacts = self.delegate._read_idea_to_spec_workspace_artifacts()
-        if self._workspace_artifacts_match(all_artifacts):
+        if self.pre_candidate_only:
+            allowed_filenames = set(self._workspace_artifacts())
+        elif self._workspace_artifacts_match(all_artifacts):
             allowed_filenames = set(WORKSPACE_RAW_PREVIEW_RUN_ARTIFACTS)
         else:
             allowed_filenames = set(self._workspace_artifacts())

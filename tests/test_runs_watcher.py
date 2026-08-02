@@ -75,6 +75,26 @@ class RunsWatcherTests(unittest.TestCase):
 
         self.assertFalse(any("foreign-workspace" in key for key in mtimes))
 
+    def test_tracks_legacy_root_real_idea_smoke_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            runs_dir = Path(tmp)
+            smoke_dir = runs_dir / "real_idea_smoke"
+            smoke_dir.mkdir()
+            (smoke_dir / "real_idea_answer_template.json").write_text(
+                "{}", encoding="utf-8"
+            )
+
+            mtimes = RunsWatcher(runs_dir)._get_mtimes()
+
+        self.assertTrue(
+            any(
+                key.startswith(
+                    "real_idea_smoke/real_idea_answer_template.json\0"
+                )
+                for key in mtimes
+            )
+        )
+
 
 class WorkspaceWatcherTests(unittest.TestCase):
     def test_tracks_workspace_json_files_with_size_in_snapshot_key(self) -> None:
