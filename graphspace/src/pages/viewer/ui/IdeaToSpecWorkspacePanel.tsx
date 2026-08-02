@@ -42,6 +42,7 @@ import type {
   IdeaToSpecWorkspace,
   UseIdeaToSpecWorkspaceState,
 } from "../model/use-idea-to-spec-workspace";
+
 import {
   useIdeaToSpecRepairDrafts,
   type IdeaToSpecRepairDraft,
@@ -80,6 +81,41 @@ import {
   type ArtifactContentState,
 } from "../model/use-artifact-catalog";
 import styles from "./OntologySemanticReviewPanel.module.css";
+
+export const MATERIALIZED_SPEC_PREVIEW_LIMIT = 40_000;
+
+export function materializedSpecPreview(value: string): {
+  text: string;
+  truncated: boolean;
+} {
+  return {
+    text: value.slice(0, MATERIALIZED_SPEC_PREVIEW_LIMIT),
+    truncated: value.length > MATERIALIZED_SPEC_PREVIEW_LIMIT,
+  };
+}
+
+export function workspacePreparationResponseIsCurrent(
+  requestWorkspaceId: string,
+  selectedWorkspaceId: string | null,
+): boolean {
+  return requestWorkspaceId === selectedWorkspaceId;
+}
+
+export function scopedInitializationExecutionRequestRef(
+  workspaceId: string,
+  projectedRef: string | null,
+  preparedWorkspaceId: string | null,
+  preparedRef: string | null,
+): string | null {
+  const prefix = `runs/${workspaceId}/`;
+  const legacyRef = "runs/product_workspace_initialization_execution_request.json";
+  const currentPreparedRef = preparedWorkspaceId === workspaceId ? preparedRef : null;
+  for (const candidate of [currentPreparedRef, projectedRef]) {
+    if (candidate?.startsWith(prefix)) return candidate;
+    if (candidate === projectedRef && candidate === legacyRef) return candidate;
+  }
+  return null;
+}
 
 type Props = {
   state: UseIdeaToSpecWorkspaceState;
@@ -584,7 +620,8 @@ export function IdeaToSpecWorkspacePanel({
       pending: boolean;
       status: string | null;
       error: string | null;
-    }>({ pending: false, status: null, error: null });
+      workspaceId: string | null;
+    }>({ pending: false, status: null, error: null, workspaceId: null });
   const [workspaceInitializationPreparationState, setWorkspaceInitializationPreparationState] =
     useState<{
       pending: boolean;
@@ -603,8 +640,23 @@ export function IdeaToSpecWorkspacePanel({
     state.kind === "ok"
       ? (state.data.selectedWorkspaceId ?? state.data.workspace.id ?? null)
       : null;
+  const selectedWorkspaceStateKeyRef = useRef(selectedWorkspaceStateKey);
+  useEffect(() => {
+    selectedWorkspaceStateKeyRef.current = selectedWorkspaceStateKey;
+  }, [selectedWorkspaceStateKey]);
   useEffect(() => {
     if (selectedWorkspaceStateKey === null) return;
+    if (
+      workspaceInitializationExecutionState.workspaceId !== null &&
+      workspaceInitializationExecutionState.workspaceId !== selectedWorkspaceStateKey
+    ) {
+      setWorkspaceInitializationExecutionState({
+        pending: false,
+        status: null,
+        error: null,
+        workspaceId: null,
+      });
+    }
     if (
       workspaceInitializationPreparationState.workspaceId !== null &&
       workspaceInitializationPreparationState.workspaceId !== selectedWorkspaceStateKey
@@ -619,6 +671,7 @@ export function IdeaToSpecWorkspacePanel({
     }
   }, [
     selectedWorkspaceStateKey,
+    workspaceInitializationExecutionState.workspaceId,
     workspaceInitializationPreparationState.workspaceId,
   ]);
   const [candidateApprovalExecutionState, setCandidateApprovalExecutionState] =
@@ -694,6 +747,10 @@ export function IdeaToSpecWorkspacePanel({
   }
 
   const { data } = state;
+  const visibleWorkspaceInitializationExecutionState =
+    workspaceInitializationExecutionState.workspaceId === selectedWorkspaceStateKey
+      ? workspaceInitializationExecutionState
+      : { pending: false, status: null, error: null, workspaceId: null };
   const frame = data.candidateGraph.activeFrame.project
     ? data.candidateGraph.activeFrame
     : data.intake.activeFrame;
@@ -742,11 +799,14 @@ export function IdeaToSpecWorkspacePanel({
   };
   const executeWorkspaceInitialization = async () => {
     const workspaceId = data.selectedWorkspaceId ?? data.workspace.id;
-    const executionRequestRef =
-      data.workspaceInitializationPath.initializationRequestRef ??
-      (workspaceInitializationPreparationState.workspaceId === workspaceId
-        ? workspaceInitializationPreparationState.executionRequestRef
-        : null);
+    const executionRequestRef = workspaceId
+      ? scopedInitializationExecutionRequestRef(
+          workspaceId,
+          data.workspaceInitializationPath.initializationRequestRef,
+          workspaceInitializationPreparationState.workspaceId,
+          workspaceInitializationPreparationState.executionRequestRef,
+        )
+      : null;
     if (
       readOnly ||
       !productWorkspaceInitializationExecuteUrl ||
@@ -759,6 +819,7 @@ export function IdeaToSpecWorkspacePanel({
       pending: true,
       status: null,
       error: null,
+      workspaceId,
     });
     try {
       const response = await fetch(productWorkspaceInitializationExecuteUrl, {
@@ -774,6 +835,12 @@ export function IdeaToSpecWorkspacePanel({
         status?: unknown;
         error?: unknown;
       };
+      if (
+        !workspacePreparationResponseIsCurrent(
+          workspaceId,
+          selectedWorkspaceStateKeyRef.current,
+        )
+      ) return;
       if (!response.ok) {
         const detail =
           typeof body.error === "string"
@@ -783,6 +850,7 @@ export function IdeaToSpecWorkspacePanel({
           pending: false,
           status: typeof body.status === "string" ? body.status : null,
           error: detail,
+          workspaceId,
         });
         return;
       }
@@ -795,13 +863,21 @@ export function IdeaToSpecWorkspacePanel({
               ? body.status
               : "managed_initialization_executed",
         error: null,
+        workspaceId,
       });
       onWorkspaceRefreshRequest?.();
     } catch (error) {
+      if (
+        !workspacePreparationResponseIsCurrent(
+          workspaceId,
+          selectedWorkspaceStateKeyRef.current,
+        )
+      ) return;
       setWorkspaceInitializationExecutionState({
         pending: false,
         status: null,
         error: error instanceof Error ? error.message : "Managed initialization failed.",
+        workspaceId,
       });
     }
   };
@@ -832,6 +908,12 @@ export function IdeaToSpecWorkspacePanel({
         error?: unknown;
         execution_request_ref?: unknown;
       };
+      if (
+        !workspacePreparationResponseIsCurrent(
+          workspaceId,
+          selectedWorkspaceStateKeyRef.current,
+        )
+      ) return;
       if (!response.ok) {
         setWorkspaceInitializationPreparationState({
           pending: false,
@@ -862,6 +944,12 @@ export function IdeaToSpecWorkspacePanel({
       });
       onWorkspaceRefreshRequest?.();
     } catch (error) {
+      if (
+        !workspacePreparationResponseIsCurrent(
+          workspaceId,
+          selectedWorkspaceStateKeyRef.current,
+        )
+      ) return;
       setWorkspaceInitializationPreparationState({
         pending: false,
         status: null,
@@ -1307,7 +1395,7 @@ export function IdeaToSpecWorkspacePanel({
       executeUrl={productWorkspaceInitializationExecuteUrl}
       preparationState={workspaceInitializationPreparationState}
       workspaceId={data.selectedWorkspaceId ?? data.workspace.id}
-      executionState={workspaceInitializationExecutionState}
+      executionState={visibleWorkspaceInitializationExecutionState}
       onPrepare={prepareWorkspaceInitialization}
       onExecute={executeWorkspaceInitialization}
       readOnly={readOnly}
@@ -2666,11 +2754,14 @@ function GuidedWorkspaceInitializationPathSection({
   onExecute: () => void;
   readOnly: boolean;
 }) {
-  const initializationRequestRef =
-    path.initializationRequestRef ??
-    (preparationState.workspaceId === workspaceId
-      ? preparationState.executionRequestRef
-      : null);
+  const initializationRequestRef = workspaceId
+    ? scopedInitializationExecutionRequestRef(
+        workspaceId,
+        path.initializationRequestRef,
+        preparationState.workspaceId,
+        preparationState.executionRequestRef,
+      )
+    : null;
   const canRequestManagedExecution =
     Boolean(initializationRequestRef) &&
     path.managedExecutionAvailable &&
@@ -2715,7 +2806,7 @@ function GuidedWorkspaceInitializationPathSection({
           <Meta label="Creation request" value={path.creationRequestRef} />
           <Meta
             label="Initialization request"
-            value={path.initializationRequestRef}
+            value={initializationRequestRef}
           />
           <Meta
             label="Initialization report"
@@ -9348,7 +9439,11 @@ function MaterializationSection({
   });
   const reviewStatus = !materialization.available
     ? "not materialized"
-    : materialization.readiness.ready && materialization.files.length > 0
+    : materialization.readiness.ready &&
+        materialization.reviewContractTrusted &&
+        materialization.canonicalMutationsAllowed === false &&
+        materialization.trackedArtifactsWritten === false &&
+        materialization.files.length > 0
       ? "ready for review"
       : "blocked";
   return (
@@ -9394,6 +9489,12 @@ function MaterializationSection({
                   "Materialization readiness evidence is incomplete.",
                 )
           }
+        />
+      ) : null}
+      {materialization.available && !materialization.reviewContractTrusted ? (
+        <Status
+          label="Specification review contract untrusted"
+          detail="Materialization authority or privacy evidence is incomplete."
         />
       ) : null}
       {materialization.files.length === 0 ? (
@@ -9496,13 +9597,20 @@ function MaterializedFilePreview({
   const preview = state.data.contentKind === "json"
     ? JSON.stringify(state.data.data, null, 2)
     : state.data.text ?? "";
+  const boundedPreview = materializedSpecPreview(preview);
   return (
     <div className={styles.specificationPreview}>
       <div className={styles.specificationPreviewHeader}>
         <span>{state.data.path}</span>
-        <Pill value={state.data.contentKind} />
+        <Pill
+          value={
+            boundedPreview.truncated
+              ? `${state.data.contentKind} · ${MATERIALIZED_SPEC_PREVIEW_LIMIT}/${preview.length} chars`
+              : state.data.contentKind
+          }
+        />
       </div>
-      <pre>{preview.slice(0, 40_000)}</pre>
+      <pre>{boundedPreview.text}</pre>
     </div>
   );
 }

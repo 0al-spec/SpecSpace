@@ -10,7 +10,10 @@
 .summary {
   flex: 0 0 auto;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(
+    var(--idea-to-spec-summary-columns, 4),
+    minmax(0, 1fr)
+  );
   gap: 1px;
   border-bottom: 1px solid var(--gs-rule-soft);
   background: var(--gs-rule-soft);

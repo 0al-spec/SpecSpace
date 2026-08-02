@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   apiDeploymentStateFromHealth,
+  apiHealthRequestInit,
   describeDeploymentStatus,
   operatorAuthenticationRequired,
   operatorSessionHref,
@@ -20,6 +21,15 @@ const deployment = (overrides: Partial<DeploymentInfo> = {}): DeploymentInfo => 
 });
 
 describe("describeDeploymentStatus", () => {
+  it("bypasses browser caches for operator access health", () => {
+    const controller = new AbortController();
+
+    expect(apiHealthRequestInit(controller.signal)).toEqual({
+      signal: controller.signal,
+      cache: "no-store",
+    });
+  });
+
   it("shows UI and API source commits in the compact status label", () => {
     const state = describeDeploymentStatus(ui(), {
       kind: "ok",

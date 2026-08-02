@@ -37,6 +37,10 @@ type Options = {
 
 const FALLBACK_VERSION = "0.0.1";
 
+export function apiHealthRequestInit(signal: AbortSignal): RequestInit {
+  return { signal, cache: "no-store" };
+}
+
 const normalizeText = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -92,7 +96,7 @@ export function useApiDeploymentStatus(options: Options = {}): ApiDeploymentStat
     const controller = new AbortController();
     let cancelled = false;
 
-    fetcher(url, { signal: controller.signal })
+    fetcher(url, apiHealthRequestInit(controller.signal))
       .then(async (response) => {
         if (!response.ok) {
           if (!cancelled) {

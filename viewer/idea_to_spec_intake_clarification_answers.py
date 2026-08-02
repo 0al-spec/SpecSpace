@@ -18,8 +18,10 @@ INTAKE_ANSWER_SCHEMA_VERSION = 1
 INTAKE_ANSWER_FILENAME = "idea_to_spec_intake_clarification_answers.json"
 ANSWER_SET_CONTRACT_REF = "specgraph.idea-to-spec.clarification-answer-set.v0.1"
 REQUESTS_ARTIFACT_KEY = "intake_clarification_requests"
+ANSWER_TEMPLATE_ARTIFACT_KEY = "real_idea_answer_template"
 REQUESTS_PATH = "runs/idea_intake_clarification_requests.json"
 ANSWER_TEMPLATE_PATH = "runs/real_idea_smoke/real_idea_answer_template.json"
+ANSWER_TEMPLATE_DIRECT_PATH = "runs/real_idea_answer_template.json"
 ANSWER_AUTHORITIES = {
     "operator_approved",
     "owner_approved",
@@ -356,8 +358,13 @@ def save_intake_answer(
     candidate_id = _text(workspace.get("id")) or workspace_id_value
     artifacts = _record(workspace_payload.get("artifacts"))
     requests_artifact = _record(artifacts.get(REQUESTS_ARTIFACT_KEY))
+    template_artifact = _record(artifacts.get(ANSWER_TEMPLATE_ARTIFACT_KEY))
     source_ref = _text(requests_artifact.get("path")) or REQUESTS_PATH
-    template_ref = ANSWER_TEMPLATE_PATH if template_target else None
+    template_ref = (
+        _text(template_artifact.get("path")) or ANSWER_TEMPLATE_DIRECT_PATH
+        if template_target
+        else None
+    )
     now = now_iso()
 
     with _STATE_LOCK:
@@ -445,10 +452,16 @@ def _published_requests_payload(
     *,
     workspace_id: str | None,
 ) -> tuple[dict[str, Any], dict[str, Any] | None]:
-    status, content = specspace_provider.provider_from_server(
+    provider = specspace_provider.provider_from_server(
         server,
         workspace_id,
-    ).read_artifact_content(REQUESTS_PATH)
+    )
+    status: int = HTTPStatus.NOT_FOUND
+    content: dict[str, Any] = {}
+    for ref in _workspace_run_refs(provider, REQUESTS_PATH):
+        status, content = provider.read_artifact_content(ref)
+        if status != HTTPStatus.NOT_FOUND:
+            break
     if status != HTTPStatus.OK:
         return {}, {
             "error": "Intake clarification requests artifact is not readable.",
@@ -471,10 +484,20 @@ def _published_answer_template_payload(
     *,
     workspace_id: str | None,
 ) -> tuple[dict[str, Any], dict[str, Any] | None]:
-    status, content = specspace_provider.provider_from_server(
+    provider = specspace_provider.provider_from_server(
         server,
         workspace_id,
-    ).read_artifact_content(ANSWER_TEMPLATE_PATH)
+    )
+    status: int = HTTPStatus.NOT_FOUND
+    content: dict[str, Any] = {}
+    for ref in _workspace_run_refs(
+        provider,
+        ANSWER_TEMPLATE_DIRECT_PATH,
+        ANSWER_TEMPLATE_PATH,
+    ):
+        status, content = provider.read_artifact_content(ref)
+        if status != HTTPStatus.NOT_FOUND:
+            break
     if status == HTTPStatus.NOT_FOUND:
         return {}, None
     if status != HTTPStatus.OK:
@@ -498,6 +521,19 @@ def _published_answer_template_payload(
             "field": contract_error.get("field"),
         }
     return data, None
+
+
+def _workspace_run_refs(provider: Any, *refs: str) -> tuple[str, ...]:
+    run_dir_ref = _text(getattr(provider, "artifact_run_dir_ref", None))
+    candidates: list[str] = []
+    if run_dir_ref is not None:
+        candidates.extend(
+            f"{run_dir_ref.rstrip('/')}/{ref.removeprefix('runs/')}"
+            for ref in refs
+            if ref.startswith("runs/")
+        )
+    candidates.extend(refs)
+    return tuple(dict.fromkeys(candidates))
 
 
 def _template_target_for_request(

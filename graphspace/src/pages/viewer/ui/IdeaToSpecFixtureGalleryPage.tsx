@@ -7,9 +7,63 @@ import {
 import styles from "./IdeaToSpecFixtureGalleryPage.module.css";
 
 const teamDecisionState = parseIdeaToSpecWorkspace(ideaToSpecWorkspace);
+const initializationFixture = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+initializationFixture.selected_workspace_id = "pantry-rotation";
+initializationFixture.workspace = {
+  ...initializationFixture.workspace,
+  id: "pantry-rotation",
+  display_name: "Pantry Rotation",
+  public_route: "/pantry-rotation",
+  available: false,
+  ready: false,
+};
+initializationFixture.workspace_creation = {
+  ...initializationFixture.workspace_creation,
+  active_request: {
+    workspace_id: "pantry-rotation",
+    display_name: "Pantry Rotation",
+    status: "requested",
+  },
+  summary: {
+    status: "workspace_creation_requested",
+    request_count: 1,
+    active_requested_count: 1,
+    invalid_request_count: 0,
+  },
+};
+initializationFixture.workspace_initialization_path = {
+  available: true,
+  status: "initialization_request_needed",
+  workspace_id: "pantry-rotation",
+  display_name: "Pantry Rotation",
+  initial_idea_present: true,
+  creation_request_ref: "specspace-state://product_workspace_creation_requests.json",
+  initialization_request_ref: null,
+  initialization_report_ref: null,
+  next_safe_action: "Prepare the controlled workspace initialization request.",
+  blockers: [],
+  managed_execution_available: true,
+  initialization_preparation_available: true,
+};
+initializationFixture.product_workspace_overview = {
+  ...initializationFixture.product_workspace_overview,
+  status: "creation_requested",
+  current_phase: "workspace",
+  current_phase_label: "Workspace",
+  next_safe_action: "Prepare the controlled workspace initialization request.",
+  primary_target_section: "idea-to-spec-workspace-initialization-path",
+  readiness: {
+    status: "action_required",
+    ready: false,
+    blocker_count: 0,
+    blockers: [],
+  },
+};
+const initializationState = parseIdeaToSpecWorkspace(initializationFixture);
 
 const sectionLinks = [
   { id: "report-status-row", label: "Report status row" },
+  { id: "initialization-preparation", label: "Initialization preparation" },
   { id: "team-decision-rail", label: "Rail width preview" },
   { id: "team-decision-overlay", label: "Fullscreen overlay preview" },
 ] as const;
@@ -45,6 +99,19 @@ function renderPanelPreview() {
       state={teamDecisionState}
       auxiliaryDataEnabled={false}
       readOnly
+    />
+  );
+}
+
+function renderInitializationPreview() {
+  if (initializationState.kind !== "ok") return null;
+  return (
+    <IdeaToSpecWorkspacePanel
+      state={initializationState}
+      auxiliaryDataEnabled={false}
+      productWorkspaceInitializationPrepareUrl={
+        "/api/v1/product-workspace-initialization/prepare?workspace=pantry-rotation"
+      }
     />
   );
 }
@@ -110,6 +177,21 @@ export function IdeaToSpecFixtureGalleryPage() {
         </nav>
 
         <div className={styles.content}>
+          <section className={styles.section} id="initialization-preparation">
+            <div className={styles.sectionHeader}>
+              <div>
+                <span className={styles.sectionKicker}>Fresh workspace</span>
+                <h2 className={styles.sectionTitle}>Initialization preparation</h2>
+              </div>
+              <span className={styles.badge}>420px viewport</span>
+            </div>
+            <div className={styles.railFrame} data-testid="initialization-preparation-frame">
+              <div className={styles.frameBody}>
+                <div className={styles.railViewport}>{renderInitializationPreview()}</div>
+              </div>
+            </div>
+          </section>
+
           <section className={styles.section} id="report-status-row">
             <div className={styles.sectionHeader}>
               <div>

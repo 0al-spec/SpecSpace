@@ -2911,6 +2911,10 @@ class ProductWorkspaceHttpProvider:
 
     kind = "http-product-workspace"
 
+    @property
+    def artifact_run_dir_ref(self) -> str:
+        return f"runs/{self.workspace_id}"
+
     def _source(self, *, surface: str) -> dict[str, Any]:
         return {
             "provider": self.kind,

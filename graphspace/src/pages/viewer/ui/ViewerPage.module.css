@@ -577,6 +577,10 @@
   box-shadow: 0 18px 60px rgb(0 0 0 / 24%);
 }
 
+.ideaToSpecUtilityRailExpanded {
+  --idea-to-spec-summary-columns: 8;
+}
+
 .utilityTitle {
   margin: var(--gs-space-2) 0 0;
   color: var(--gs-ink);
@@ -865,6 +869,15 @@
   max-width: min(440px, calc(100vw - 2 * var(--gs-space-5)));
 }
 
+@media (min-width: 980px) {
+  .operatorAccessOverlay {
+    right: calc(
+      var(--viewer-panel-edge) + var(--viewer-utility-width) +
+        var(--viewer-panel-gap)
+    );
+  }
+}
+
 .operatorAccessNotice {
   display: flex;
   align-items: center;
@@ -994,6 +1007,10 @@
     z-index: 1000;
     width: auto;
     max-height: none;
+  }
+
+  .ideaToSpecUtilityRailExpanded {
+    --idea-to-spec-summary-columns: 4;
   }
 
   .statusOverlay {

@@ -4228,6 +4228,30 @@ class SpecSpaceProviderHealthTests(unittest.TestCase):
             max_bytes=specspace_provider.ARTIFACT_CONTENT_MAX_BYTES,
         )
 
+    def test_product_http_workspace_exposes_scoped_run_ref_with_legacy_fallback(
+        self,
+    ) -> None:
+        delegate = specspace_provider.HttpSpecGraphProvider(
+            base_url="https://artifact.test",
+            cache=specspace_provider.HttpArtifactCache(),
+        )
+        provider = specspace_provider.ProductWorkspaceHttpProvider(
+            delegate=delegate,
+            workspace_id="pantry-rotation",
+        )
+
+        self.assertEqual(provider.artifact_run_dir_ref, "runs/pantry-rotation")
+        self.assertEqual(
+            idea_to_spec_intake_clarification_answers._workspace_run_refs(
+                provider,
+                "runs/idea_intake_clarification_requests.json",
+            ),
+            (
+                "runs/pantry-rotation/idea_intake_clarification_requests.json",
+                "runs/idea_intake_clarification_requests.json",
+            ),
+        )
+
     def test_product_http_workspace_does_not_preview_candidate_seed_raw_json(
         self,
     ) -> None:
@@ -15195,6 +15219,96 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         )
         self.assertEqual(answer["value"]["refs"], ["domain.team_decision_log"])
         self.assertTrue(state_written)
+
+    def test_idea_to_spec_intake_clarification_answers_v1_reads_scoped_workspace_artifacts(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            state_dir = root / "specspace-state"
+            workspace_id = "pantry-rotation"
+            scoped_runs_dir = runs_dir / workspace_id
+            _write_intake_clarification_workspace_runs(scoped_runs_dir)
+            requests_path = (
+                scoped_runs_dir
+                / idea_to_spec_workspace.IDEA_INTAKE_CLARIFICATION_REQUESTS_ARTIFACT
+            )
+            requests_payload = json.loads(requests_path.read_text(encoding="utf-8"))
+            requests_payload["workspace_id"] = workspace_id
+            _write_json(requests_path, requests_payload)
+            _write_json(
+                scoped_runs_dir / "real_idea_answer_template.json",
+                {
+                    "artifact_kind": "real_idea_answer_template",
+                    "schema_version": 1,
+                    "workspace_id": workspace_id,
+                    "answer_targets": [
+                        {
+                            "target_id": "answer-target.active-frame-domain-refs",
+                            "request_id": "clarification.intake.question-active-frame-domain-refs",
+                            "accepted_actions": ["answer_question"],
+                            "required_fields_by_action": {
+                                "answer_question": ["value.refs[]"],
+                            },
+                        }
+                    ],
+                    "authority_boundary": {"may_execute_specgraph": False},
+                    "privacy_boundary": {"raw_idea_text_published": False},
+                },
+            )
+            state_dir.mkdir(parents=True)
+            _write_json(
+                state_dir / "product_workspace_creation_requests.json",
+                {
+                    "artifact_kind": "specspace_product_workspace_creation_request_state",
+                    "schema_version": 1,
+                    "state_owner": "SpecSpace",
+                    "selected_workspace_id": workspace_id,
+                    "requests": [
+                        {
+                            "request_id": f"product-workspace-create.{workspace_id}.1",
+                            "workspace_id": workspace_id,
+                            "display_name": "Pantry Rotation",
+                            "route": f"/{workspace_id}",
+                            "status": "requested",
+                            "created_at": "2026-08-02T00:00:00Z",
+                            "updated_at": "2026-08-02T00:00:00Z",
+                            "canonical_mutations_allowed": False,
+                            "tracked_artifacts_written": False,
+                        }
+                    ],
+                    "summary": {},
+                },
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                specspace_state_dir=state_dir,
+            )
+            try:
+                status, body = _post(
+                    f"{base}/api/v1/idea-to-spec-intake-clarification-answers?workspace={workspace_id}",
+                    {
+                        "workspace_id": workspace_id,
+                        "request_id": "clarification.intake.question-active-frame-domain-refs",
+                        "answer_kind": "answer_question",
+                        "value": {"refs": ["domain.pantry_rotation"]},
+                    },
+                )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 200, body)
+        self.assertEqual(body["summary"]["accepted_answer_count"], 1)
+        self.assertEqual(
+            body["source_artifacts"]["intake_clarification_requests"],
+            f"runs/{workspace_id}/idea_intake_clarification_requests.json",
+        )
+        self.assertEqual(
+            body["source_artifacts"]["real_idea_answer_template"],
+            f"runs/{workspace_id}/real_idea_answer_template.json",
+        )
 
     def test_idea_to_spec_intake_answers_use_real_idea_template_required_fields(
         self,
