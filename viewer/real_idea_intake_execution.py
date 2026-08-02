@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 import sys
+import tempfile
 from http import HTTPStatus
 from pathlib import Path
 from typing import Any
@@ -349,6 +351,55 @@ def execute_requested_intake(
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / EXECUTION_REPORT_ARTIFACT
     output_ref = f"runs/{output_path.resolve().relative_to(runs_dir.resolve()).as_posix()}"
+    state_dir = getattr(server, "specspace_state_dir", None)
+    if not isinstance(state_dir, Path):
+        return HTTPStatus.SERVICE_UNAVAILABLE, _execution_disabled_payload(
+            "Local intake execution requires a persistent SpecSpace state directory."
+        )
+
+    snapshot_dir: Path | None = None
+    try:
+        attempt_root = state_dir / ".managed-operation-attempts" / selected_workspace_id
+        attempt_root.mkdir(mode=0o700, parents=True, exist_ok=True)
+        attempt_root.chmod(0o700)
+        snapshot_dir = Path(
+            tempfile.mkdtemp(prefix=".real-idea-intake-", dir=attempt_root)
+        )
+        snapshot_dir.chmod(0o700)
+        execution_request_snapshot = snapshot_dir / "execution-request.json"
+        entry_requests_snapshot = snapshot_dir / "entry-requests.json"
+        initialization_snapshot = snapshot_dir / "workspace-initialization.json"
+        request_snapshot = dict(state_or_error or {})
+        request_snapshot["requests"] = [request]
+        execution_request_snapshot.write_text(
+            json.dumps(request_snapshot, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        shutil.copyfile(entry_requests_path, entry_requests_snapshot)
+        shutil.copyfile(initialization_path, initialization_snapshot)
+        for snapshot in (
+            execution_request_snapshot,
+            entry_requests_snapshot,
+            initialization_snapshot,
+        ):
+            snapshot.chmod(0o600)
+    except OSError:
+        if snapshot_dir is not None:
+            shutil.rmtree(snapshot_dir, ignore_errors=True)
+        return HTTPStatus.BAD_GATEWAY, {
+            "artifact_kind": "specspace_managed_real_idea_intake_execution",
+            "ok": False,
+            "status": "execution_snapshot_failed",
+            "workspace_id": selected_workspace_id,
+            "request_id": request.get("request_id"),
+            "output_ref": output_ref,
+            "error": "Private intake input snapshots could not be created.",
+            "summary": {
+                "status": "managed_real_idea_intake_snapshot_failed",
+                "executed": False,
+            },
+        }
+
     consume_status, consume_body = (
         real_idea_intake_execution_requests.mark_request_consumed(
             server,
@@ -357,6 +408,7 @@ def execute_requested_intake(
         )
     )
     if consume_status != HTTPStatus.OK:
+        shutil.rmtree(snapshot_dir, ignore_errors=True)
         return consume_status, {
             "artifact_kind": "specspace_managed_real_idea_intake_execution",
             "ok": False,
@@ -400,13 +452,13 @@ def execute_requested_intake(
         "product-real-idea-intake",
         "execute-requested",
         "--execution-request",
-        str(execution_request_path),
+        str(execution_request_snapshot),
         "--specgraph-dir",
         str(specgraph_dir),
         "--entry-requests",
-        str(entry_requests_path),
+        str(entry_requests_snapshot),
         "--workspace-initialization",
-        str(initialization_path),
+        str(initialization_snapshot),
         "--workspace-id",
         selected_workspace_id,
         # Platform's --request-id selects the raw idea entry request. The
@@ -420,45 +472,48 @@ def execute_requested_intake(
         "json",
     ]
     try:
-        completed = subprocess.run(
-            command,
-            cwd=str(platform_script.parent.parent),
-            capture_output=True,
-            text=True,
-            timeout=timeout_seconds,
-        )
-    except subprocess.TimeoutExpired as error:
-        return HTTPStatus.GATEWAY_TIMEOUT, {
-            "artifact_kind": "specspace_managed_real_idea_intake_execution",
-            "ok": False,
-            "status": "platform_execution_timeout",
-            "workspace_id": selected_workspace_id,
-            "request_id": request.get("request_id"),
-            "entry_request_id": request.get("entry_request_id"),
-            "execution_request_ref": f"specspace-state://{real_idea_intake_execution_requests.EXECUTION_REQUEST_FILENAME}",
-            "workspace_initialization_ref": initialization_ref,
-            "output_ref": output_ref,
-            "summary": {
-                "status": "managed_real_idea_intake_timeout",
-                "executed": False,
-                "timeout_seconds": timeout_seconds,
-            },
-            "stderr_tail": (error.stderr or "")[-2000:]
-            if isinstance(error.stderr, str)
-            else "",
-            "authority_boundary": {
-                "browser_executes_platform": False,
-                "specspace_backend_executes_platform": True,
-                "executes_specgraph": False,
-                "creates_workspace_files": False,
-                "updates_workspace_catalog": False,
-                "creates_git_commits": False,
-                "opens_pull_requests": False,
-                "publishes_read_models": False,
-                "writes_ontology_packages": False,
-                "accepts_ontology_terms": False,
-            },
-        }
+        try:
+            completed = subprocess.run(
+                command,
+                cwd=str(platform_script.parent.parent),
+                capture_output=True,
+                text=True,
+                timeout=timeout_seconds,
+            )
+        except subprocess.TimeoutExpired as error:
+            return HTTPStatus.GATEWAY_TIMEOUT, {
+                "artifact_kind": "specspace_managed_real_idea_intake_execution",
+                "ok": False,
+                "status": "platform_execution_timeout",
+                "workspace_id": selected_workspace_id,
+                "request_id": request.get("request_id"),
+                "entry_request_id": request.get("entry_request_id"),
+                "execution_request_ref": f"specspace-state://{real_idea_intake_execution_requests.EXECUTION_REQUEST_FILENAME}",
+                "workspace_initialization_ref": initialization_ref,
+                "output_ref": output_ref,
+                "summary": {
+                    "status": "managed_real_idea_intake_timeout",
+                    "executed": False,
+                    "timeout_seconds": timeout_seconds,
+                },
+                "stderr_tail": (error.stderr or "")[-2000:]
+                if isinstance(error.stderr, str)
+                else "",
+                "authority_boundary": {
+                    "browser_executes_platform": False,
+                    "specspace_backend_executes_platform": True,
+                    "executes_specgraph": False,
+                    "creates_workspace_files": False,
+                    "updates_workspace_catalog": False,
+                    "creates_git_commits": False,
+                    "opens_pull_requests": False,
+                    "publishes_read_models": False,
+                    "writes_ontology_packages": False,
+                    "accepts_ontology_terms": False,
+                },
+            }
+    finally:
+        shutil.rmtree(snapshot_dir, ignore_errors=True)
     stdout = completed.stdout.strip()
     try:
         report = json.loads(stdout) if stdout else {}

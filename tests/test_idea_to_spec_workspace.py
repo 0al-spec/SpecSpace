@@ -5495,6 +5495,56 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(clarification_stage["status"], "completed")
         self.assertIsNone(clarification_stage["command_template"])
 
+    def test_bound_file_workspace_preserves_scoped_artifact_refs(self) -> None:
+        artifacts = {
+            **_workspace_artifacts(),
+            idea_to_spec_workspace.IDEA_INTAKE_CLARIFICATION_REQUESTS_ARTIFACT: _intake_clarification_requests(),
+            idea_to_spec_workspace.REAL_IDEA_ANSWER_TEMPLATE_DIRECT_ARTIFACT: _real_idea_answer_template(),
+            idea_to_spec_workspace.PLATFORM_REAL_IDEA_ENTRY_INTAKE_EXECUTION_REPORT_ARTIFACT: {
+                "artifact_kind": "platform_real_idea_entry_intake_execution_report",
+                "schema_version": 1,
+                "ok": True,
+                "dry_run": False,
+                "canonical_mutations_allowed": False,
+                "tracked_artifacts_written": False,
+                "summary": {"status": "real_idea_entry_intake_executed"},
+                "authority_boundary": {
+                    "creates_git_commits": False,
+                    "opens_pull_requests": False,
+                    "publishes_read_models": False,
+                    "writes_ontology_packages": False,
+                    "accepts_ontology_terms": False,
+                },
+            },
+        }
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={
+                "provider": "file-product-workspace",
+                "workspace_id": "team-decision-log",
+                "artifact_run_dir_ref": "runs/team-decision-log",
+                "read_only": True,
+            },
+        )
+
+        self.assertEqual(
+            body["real_idea_intake"]["session_ref"],
+            "runs/team-decision-log/idea_intake_clarification_requests.json",
+        )
+        self.assertIn(
+            "runs/team-decision-log/platform_real_idea_entry_intake_execution_report.json",
+            body["real_idea_intake"]["source_refs"],
+        )
+        self.assertIn(
+            "runs/team-decision-log/real_idea_answer_template.json",
+            body["real_idea_intake"]["source_refs"],
+        )
+        self.assertEqual(
+            body["real_idea_intake"]["active_candidate_ref"],
+            "runs/team-decision-log/active_idea_to_spec_candidate.json",
+        )
+
     def test_real_idea_intake_keeps_raw_intake_before_clarification(self) -> None:
         artifacts = {
             idea_to_spec_workspace.IDEA_EVENT_STORMING_INTAKE_ARTIFACT: _intake(),
@@ -5552,7 +5602,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         )
         self.assertEqual(body["real_idea_intake"]["status"], "needs_clarification")
 
-    def test_real_idea_intake_blocks_unready_active_candidate(self) -> None:
+    def test_real_idea_intake_routes_unready_active_candidate_to_review(self) -> None:
         active_candidate = _active_candidate()
         active_candidate["readiness"] = {
             "ready": False,
@@ -5568,7 +5618,10 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             source={"provider": "fixture", "read_only": True},
         )
 
-        self.assertEqual(body["real_idea_intake"]["status"], "blocked")
+        self.assertEqual(
+            body["real_idea_intake"]["status"],
+            "active_candidate_review_required",
+        )
         self.assertEqual(
             body["real_idea_intake"]["active_candidate_ref"],
             "runs/active_idea_to_spec_candidate.json",
@@ -5576,6 +5629,10 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertIn(
             "active_candidate_context_required",
             body["real_idea_intake"]["blockers"],
+        )
+        self.assertEqual(
+            _guided_stage(body, "intake_clarification")["status"],
+            "completed",
         )
 
     def test_real_idea_intake_uses_repaired_active_candidate_ref(self) -> None:
