@@ -9010,8 +9010,18 @@ def build_idea_to_spec_workspace(
     artifacts: dict[str, Any],
     source: dict[str, Any],
 ) -> dict[str, Any]:
-    run_dir_ref = _optional_text(source.get("artifact_run_dir_ref")) or "runs"
-    if re.fullmatch(r"runs/[a-z0-9][a-z0-9-]{0,62}", run_dir_ref) is None:
+    source = dict(source)
+    declared_run_dir_ref = _optional_text(source.get("artifact_run_dir_ref"))
+    run_dir_ref = declared_run_dir_ref or "runs"
+    if (
+        declared_run_dir_ref is not None
+        and run_dir_ref != "runs"
+        and re.fullmatch(r"runs/[a-z0-9][a-z0-9-]{0,62}", run_dir_ref) is None
+    ):
+        source["artifact_run_dir_ref"] = None
+        source["trusted"] = False
+        source["reason"] = "invalid_artifact_run_dir_ref"
+        artifacts = {}
         run_dir_ref = "runs"
     active_candidate = _artifact_data(artifacts, ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT)
     intake = _artifact_data(artifacts, IDEA_EVENT_STORMING_INTAKE_ARTIFACT)

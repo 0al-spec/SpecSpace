@@ -590,14 +590,15 @@ export function IdeaToSpecWorkspacePanel({
       pending: boolean;
       status: string | null;
       error: string | null;
+      workspaceId: string | null;
       executionRequestRef: string | null;
     }>({
       pending: false,
       status: null,
       error: null,
+      workspaceId: null,
       executionRequestRef: null,
     });
-  const initializationPreparationWorkspaceRef = useRef<string | null>(null);
   const selectedWorkspaceStateKey =
     state.kind === "ok"
       ? (state.data.selectedWorkspaceId ?? state.data.workspace.id ?? null)
@@ -605,18 +606,21 @@ export function IdeaToSpecWorkspacePanel({
   useEffect(() => {
     if (selectedWorkspaceStateKey === null) return;
     if (
-      initializationPreparationWorkspaceRef.current !== null &&
-      initializationPreparationWorkspaceRef.current !== selectedWorkspaceStateKey
+      workspaceInitializationPreparationState.workspaceId !== null &&
+      workspaceInitializationPreparationState.workspaceId !== selectedWorkspaceStateKey
     ) {
       setWorkspaceInitializationPreparationState({
         pending: false,
         status: null,
         error: null,
+        workspaceId: null,
         executionRequestRef: null,
       });
     }
-    initializationPreparationWorkspaceRef.current = selectedWorkspaceStateKey;
-  }, [selectedWorkspaceStateKey]);
+  }, [
+    selectedWorkspaceStateKey,
+    workspaceInitializationPreparationState.workspaceId,
+  ]);
   const [candidateApprovalExecutionState, setCandidateApprovalExecutionState] =
     useState<{
       pending: boolean;
@@ -737,10 +741,12 @@ export function IdeaToSpecWorkspacePanel({
     if (hash) openDiagnosticsForHash(hash);
   };
   const executeWorkspaceInitialization = async () => {
+    const workspaceId = data.selectedWorkspaceId ?? data.workspace.id;
     const executionRequestRef =
       data.workspaceInitializationPath.initializationRequestRef ??
-      workspaceInitializationPreparationState.executionRequestRef;
-    const workspaceId = data.selectedWorkspaceId ?? data.workspace.id;
+      (workspaceInitializationPreparationState.workspaceId === workspaceId
+        ? workspaceInitializationPreparationState.executionRequestRef
+        : null);
     if (
       readOnly ||
       !productWorkspaceInitializationExecuteUrl ||
@@ -808,7 +814,11 @@ export function IdeaToSpecWorkspacePanel({
       pending: true,
       status: null,
       error: null,
-      executionRequestRef: workspaceInitializationPreparationState.executionRequestRef,
+      workspaceId,
+      executionRequestRef:
+        workspaceInitializationPreparationState.workspaceId === workspaceId
+          ? workspaceInitializationPreparationState.executionRequestRef
+          : null,
     });
     try {
       const response = await fetch(productWorkspaceInitializationPrepareUrl, {
@@ -830,6 +840,7 @@ export function IdeaToSpecWorkspacePanel({
             typeof body.error === "string"
               ? body.error
               : `Initialization preparation failed with HTTP ${response.status}.`,
+          workspaceId,
           executionRequestRef: null,
         });
         return;
@@ -843,6 +854,7 @@ export function IdeaToSpecWorkspacePanel({
               ? body.status
               : "initialization_request_prepared",
         error: null,
+        workspaceId,
         executionRequestRef:
           typeof body.execution_request_ref === "string"
             ? body.execution_request_ref
@@ -857,6 +869,7 @@ export function IdeaToSpecWorkspacePanel({
           error instanceof Error
             ? error.message
             : "Initialization preparation failed.",
+        workspaceId,
         executionRequestRef: null,
       });
     }
@@ -1293,6 +1306,7 @@ export function IdeaToSpecWorkspacePanel({
       prepareUrl={productWorkspaceInitializationPrepareUrl}
       executeUrl={productWorkspaceInitializationExecuteUrl}
       preparationState={workspaceInitializationPreparationState}
+      workspaceId={data.selectedWorkspaceId ?? data.workspace.id}
       executionState={workspaceInitializationExecutionState}
       onPrepare={prepareWorkspaceInitialization}
       onExecute={executeWorkspaceInitialization}
@@ -2626,6 +2640,7 @@ function GuidedWorkspaceInitializationPathSection({
   prepareUrl,
   executeUrl,
   preparationState,
+  workspaceId,
   executionState,
   onPrepare,
   onExecute,
@@ -2638,8 +2653,10 @@ function GuidedWorkspaceInitializationPathSection({
     pending: boolean;
     status: string | null;
     error: string | null;
+    workspaceId: string | null;
     executionRequestRef: string | null;
   };
+  workspaceId: string | null;
   executionState: {
     pending: boolean;
     status: string | null;
@@ -2650,7 +2667,10 @@ function GuidedWorkspaceInitializationPathSection({
   readOnly: boolean;
 }) {
   const initializationRequestRef =
-    path.initializationRequestRef ?? preparationState.executionRequestRef;
+    path.initializationRequestRef ??
+    (preparationState.workspaceId === workspaceId
+      ? preparationState.executionRequestRef
+      : null);
   const canRequestManagedExecution =
     Boolean(initializationRequestRef) &&
     path.managedExecutionAvailable &&
@@ -4940,12 +4960,17 @@ function IntakeClarificationSection({
   );
   const activeContinuationRequest = continuationExecutionRequests.activeRequest;
   const laneSourceRefs = state.data.realIdeaIntake.sourceRefs ?? [];
+  const workspaceRunPrefix = workspaceId ? `runs/${workspaceId}/` : null;
   const intakeExecutionRef =
     laneSourceRefs.find((ref) =>
+      Boolean(workspaceRunPrefix) &&
+      ref.startsWith(workspaceRunPrefix ?? "") &&
       ref.endsWith("platform_real_idea_entry_intake_execution_report.json"),
     ) ?? null;
   const answerTemplateRef =
     laneSourceRefs.find((ref) =>
+      Boolean(workspaceRunPrefix) &&
+      ref.startsWith(workspaceRunPrefix ?? "") &&
       ref.endsWith("real_idea_answer_template.json"),
     ) ?? null;
   const continuationRequestReady =
@@ -5189,13 +5214,19 @@ function ClarificationContinuationGuide({
   const allBlockingAnswersAccepted =
     blockingRequestCount > 0 && acceptedAnswerCount >= blockingRequestCount;
   const activeRequest = continuationExecutionRequests.activeRequest;
+  const candidateAvailable = Boolean(realIdeaIntake.activeCandidateRef);
   const candidateReady =
-    ["active_candidate_ready", "active_candidate_review_required"].includes(
-      realIdeaIntake.status,
-    ) &&
-    Boolean(realIdeaIntake.activeCandidateRef);
+    realIdeaIntake.status === "active_candidate_ready" && candidateAvailable;
+  const candidateReviewRequired =
+    realIdeaIntake.status === "active_candidate_review_required" && candidateAvailable;
   const clarificationOutcome = lane.answerAuthoring.template.clarificationOutcome;
-  const stage = candidateReady
+  const stage = candidateReviewRequired
+    ? {
+        status: "candidate_review_required",
+        label: "Candidate review required",
+        nextAction: "Review and repair the active candidate before approval.",
+      }
+    : candidateReady
     ? {
         status: "candidate_ready",
         label: "Candidate ready",

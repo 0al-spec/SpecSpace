@@ -655,6 +655,24 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).not.toContain("Answer template missing");
   });
 
+  it("keeps an unready active candidate in review instead of marking it ready", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.real_idea_intake.status = "active_candidate_review_required";
+    const parsedWorkspace = parseIdeaToSpecWorkspace(raw);
+    expect(parsedWorkspace.kind).toBe("ok");
+    if (parsedWorkspace.kind !== "ok") return;
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedWorkspace.data },
+      }),
+    );
+
+    expect(html).toContain("Candidate review required");
+    expect(html).toContain("Review and repair the active candidate before approval.");
+    expect(html).not.toContain('data-status="candidate_ready"');
+  });
+
   it("does not expose generic answer controls when the producer template is missing", () => {
     const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
     raw.real_idea_intake.status = "needs_clarification";

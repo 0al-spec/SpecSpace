@@ -32,6 +32,8 @@ from viewer import (
     operator_auth,
     real_idea_answer_continuation_execution,
     real_idea_answer_continuation_execution_requests,
+    real_idea_intake_execution,
+    real_idea_intake_execution_requests,
     server,
     specspace_state_backend,
     specspace_v1_api,
@@ -7283,9 +7285,13 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                 "\n".join(
                     [
                         "import json",
+                        "import hashlib",
                         "import sys",
                         "from pathlib import Path",
-                        "execution_request = json.loads(Path(sys.argv[sys.argv.index('--execution-request') + 1]).read_text())",
+                        "execution_request_path = Path(sys.argv[sys.argv.index('--execution-request') + 1])",
+                        "entry_requests_path = Path(sys.argv[sys.argv.index('--entry-requests') + 1])",
+                        "initialization_path = Path(sys.argv[sys.argv.index('--workspace-initialization') + 1])",
+                        "execution_request = json.loads(execution_request_path.read_text())",
                         "if execution_request['requests'][0]['status'] != 'requested':",
                         "    raise SystemExit('intake execution snapshot must remain requested')",
                         "output = Path(sys.argv[sys.argv.index('--output') + 1])",
@@ -7293,22 +7299,34 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                         "    'artifact_kind': 'platform_real_idea_entry_intake_execution_report',",
                         "    'schema_version': 1,",
                         "    'ok': True,",
-                        "    'dry_run': True,",
+                        "    'dry_run': False,",
+                        "    'run_dir': 'runs',",
+                        "    'execution_request_ref': str(execution_request_path),",
+                        "    'entry_requests_source_ref': str(entry_requests_path),",
+                        "    'entry_requests_source_digest': hashlib.sha256(entry_requests_path.read_bytes()).hexdigest(),",
+                        "    'workspace_initialization': {'source_ref': str(initialization_path)},",
+                        "    'canonical_mutations_allowed': False,",
+                        "    'tracked_artifacts_written': False,",
                         "    'summary': {",
-                        "        'status': 'real_idea_entry_intake_dry_run',",
+                        "        'status': 'completed',",
                         "        'workspace_id': 'pantry-rotation',",
-                        "        'specgraph_executed': False,",
+                        "        'intake_session_status': 'needs_clarification',",
                         "    },",
                         "    'authority_boundary': {",
-                        "        'executes_specgraph_make_target': False,",
+                        "        'executes_specgraph_make_target': True,",
+                        "        'executes_git_commands': False,",
                         "        'creates_git_commits': False,",
                         "        'opens_pull_requests': False,",
+                        "        'merges_pull_requests': False,",
                         "        'publishes_read_models': False,",
                         "        'writes_ontology_packages': False,",
                         "        'accepts_ontology_terms': False,",
+                        "        'mutates_canonical_specs': False,",
+                        "        'publishes_private_artifacts': False,",
                         "    },",
                         "}",
                         "output.write_text(json.dumps(report), encoding='utf-8')",
+                        "print('Track pantry stock before food expires.', file=sys.stderr)",
                         "print(json.dumps(report))",
                     ]
                 ),
@@ -7391,6 +7409,8 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertTrue(
             body["authority_boundary"]["specspace_backend_executes_platform"]
         )
+        self.assertNotIn("stderr_tail", body)
+        self.assertNotIn("Track pantry stock", json.dumps(body))
         self.assertTrue(report_file_exists)
         self.assertEqual(request_state_status, 200)
         self.assertEqual(request_state["summary"]["consumed_count"], 1)
@@ -9513,6 +9533,169 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(request_state_status, 200)
         self.assertEqual(request_state["summary"]["active_request_count"], 0)
         self.assertEqual(request_state["requests"][0]["status"], "consumed")
+
+    def test_intake_platform_report_requires_completed_safe_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            report_path = root / "intake-report.json"
+            request_path = root / "execution-request.json"
+            entry_path = root / "entry-requests.json"
+            initialization_path = root / "workspace-initialization.json"
+            for path in (request_path, entry_path, initialization_path):
+                path.write_text("{}\n", encoding="utf-8")
+            base_report = {
+                "artifact_kind": "platform_real_idea_entry_intake_execution_report",
+                "schema_version": 1,
+                "ok": True,
+                "dry_run": False,
+                "run_dir": "runs/pantry-rotation",
+                "execution_request_ref": str(request_path),
+                "entry_requests_source_ref": str(entry_path),
+                "entry_requests_source_digest": hashlib.sha256(
+                    entry_path.read_bytes()
+                ).hexdigest(),
+                "workspace_initialization": {"source_ref": str(initialization_path)},
+                "canonical_mutations_allowed": False,
+                "tracked_artifacts_written": False,
+                "summary": {
+                    "status": "completed",
+                    "workspace_id": "pantry-rotation",
+                },
+                "authority_boundary": {
+                    "executes_git_commands": False,
+                    "creates_git_commits": False,
+                    "opens_pull_requests": False,
+                    "merges_pull_requests": False,
+                    "publishes_read_models": False,
+                    "writes_ontology_packages": False,
+                    "accepts_ontology_terms": False,
+                    "mutates_canonical_specs": False,
+                    "publishes_private_artifacts": False,
+                },
+            }
+
+            for mutation, expected_error in (
+                ({"ok": False}, "not a completed execution"),
+                ({"dry_run": True}, "not a completed execution"),
+                (
+                    {"authority_boundary": {**base_report["authority_boundary"], "opens_pull_requests": True}},
+                    "opens_pull_requests=false",
+                ),
+            ):
+                with self.subTest(mutation=mutation):
+                    report = {**base_report, **mutation}
+                    _write_json(report_path, report)
+                    loaded, error = real_idea_intake_execution._load_valid_platform_report(
+                        report_path,
+                        expected_run_dir="runs/pantry-rotation",
+                        expected_execution_request=request_path,
+                        expected_entry_requests=entry_path,
+                        expected_initialization=initialization_path,
+                        expected_workspace_id="pantry-rotation",
+                    )
+                    self.assertIsNone(loaded)
+                    self.assertIn(expected_error, error or "")
+
+    def test_intake_local_executor_unclean_failure_leaves_recovery_lease(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_dir = Path(tmp) / "state"
+            state_dir.mkdir()
+            local_server = mock.Mock(
+                platform_execution_enabled=True,
+                specspace_state_dir=state_dir,
+            )
+            local_server.specspace_state_backend = (
+                specspace_state_backend.FileStateBackend(state_dir)
+            )
+            payload = {
+                "workspace_id": "pantry-rotation",
+                "request_id": "intake.pantry-rotation.crash",
+            }
+            with mock.patch.object(
+                real_idea_intake_execution,
+                "_execute_requested_intake_locked",
+                side_effect=RuntimeError("simulated backend crash"),
+            ) as locked:
+                with self.assertRaisesRegex(RuntimeError, "simulated backend crash"):
+                    real_idea_intake_execution.execute_requested_intake(
+                        local_server,
+                        payload,
+                        workspace_id="pantry-rotation",
+                    )
+                status, body = real_idea_intake_execution.execute_requested_intake(
+                    local_server,
+                    payload,
+                    workspace_id="pantry-rotation",
+                )
+            lease_path = _private_state_ref_path(
+                state_dir, body["operation_lease_ref"]
+            )
+            lease = json.loads(lease_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(status, 409)
+        self.assertEqual(
+            body["status"],
+            "workspace_execution_in_progress_or_recovery_required",
+        )
+        self.assertEqual(lease["status"], "recovery_required")
+        self.assertEqual(locked.call_count, 1)
+
+    def test_intake_request_claim_rejects_changed_request_digest(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_dir = Path(tmp) / "state"
+            state_dir.mkdir()
+            local_server = mock.Mock(specspace_state_dir=state_dir)
+            local_server.specspace_state_backend = (
+                specspace_state_backend.FileStateBackend(state_dir)
+            )
+            save_status, state = real_idea_intake_execution_requests.save_request(
+                local_server,
+                {
+                    "workspace_id": "pantry-rotation",
+                    "entry_request_id": "real-idea-entry.pantry-rotation.20260704.abcd12",
+                    "workspace_initialization_ref": (
+                        "runs/pantry-rotation/platform_product_workspace_initialization_execution_report.json"
+                    ),
+                },
+                workspace_id="pantry-rotation",
+            )
+            request = state["requests"][0]
+            expected_digest = real_idea_intake_execution_requests.request_digest(request)
+            state_path = real_idea_intake_execution_requests.state_path(local_server)
+            stored = json.loads(state_path.read_text(encoding="utf-8"))
+            stored["requests"][0]["operator_ref"] = "operator://changed"
+            _write_json(state_path, stored)
+            claim_status, claim_body = (
+                real_idea_intake_execution_requests.claim_request_for_execution(
+                    local_server,
+                    workspace_id="pantry-rotation",
+                    request_id=request["request_id"],
+                    expected_request_digest=expected_digest,
+                )
+            )
+
+        self.assertEqual(save_status, 200)
+        self.assertEqual(claim_status, 409)
+        self.assertEqual(claim_body["reason"], "execution_request_digest_mismatch")
+
+    def test_intake_snapshot_detects_changed_source_before_execution(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "entry-requests.json"
+            snapshot = root / "entry-requests.snapshot.json"
+            source.write_text('{"revision": 1}\n', encoding="utf-8")
+            shutil.copyfile(source, snapshot)
+            snapshot_digests = {
+                snapshot.name: real_idea_intake_execution._file_sha256(snapshot)
+            }
+            source.write_text('{"revision": 2}\n', encoding="utf-8")
+
+            changed = real_idea_intake_execution._changed_snapshot_sources(
+                ((snapshot, source),),
+                snapshot_digests,
+            )
+
+        self.assertEqual(changed, [str(source)])
 
     def test_repair_rerun_request_gate_execute_requires_import_preview(
         self,

@@ -5545,6 +5545,23 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             "runs/team-decision-log/active_idea_to_spec_candidate.json",
         )
 
+    def test_invalid_scoped_artifact_ref_fails_closed(self) -> None:
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=_workspace_artifacts(),
+            source={
+                "provider": "file-product-workspace",
+                "workspace_id": "team-decision-log",
+                "artifact_run_dir_ref": "runs/other/../team-decision-log",
+                "read_only": True,
+            },
+        )
+
+        self.assertEqual(body["source"]["reason"], "invalid_artifact_run_dir_ref")
+        self.assertFalse(body["source"]["trusted"])
+        self.assertIsNone(body["source"]["artifact_run_dir_ref"])
+        self.assertEqual(body["summary"]["available_artifact_count"], 0)
+        self.assertFalse(body["artifacts"]["active_candidate"]["available"])
+
     def test_real_idea_intake_keeps_raw_intake_before_clarification(self) -> None:
         artifacts = {
             idea_to_spec_workspace.IDEA_EVENT_STORMING_INTAKE_ARTIFACT: _intake(),
