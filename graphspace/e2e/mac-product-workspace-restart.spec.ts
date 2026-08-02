@@ -656,8 +656,12 @@ test("preserves a UI-started specification workspace across a Mac profile restar
   expect(beforeRestart.specification_files.length).toBeGreaterThan(0);
   const executionEvidence = await assertPublicSafeOutputs(beforeRestart);
 
+  const browserContext = page.context();
+  await page.close();
   await runProfile("stop");
   await runProfile("start");
+  page = await browserContext.newPage();
+  await authenticateOperator(page);
   await page.goto(`/${workspaceId}`, { waitUntil: "domcontentloaded" });
   await expect(page.getByText("Reviewable specifications", { exact: true })).toBeVisible({
     timeout: 60_000,
