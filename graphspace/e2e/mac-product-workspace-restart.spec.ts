@@ -18,8 +18,26 @@ type WorkspaceSnapshot = {
   workspace_id: string;
   candidate_id: string;
   candidate_ref: string;
+  candidate_sha256: string;
+  candidate_readiness: {
+    ready: boolean;
+    review_state: string;
+    blocked_by: string[];
+  };
+  operator_state: OperatorStateSnapshot;
   specification_files: Array<{ path: string; sha256: string }>;
 };
+
+type OperatorStateSnapshot = {
+  creation_request: { request_id: string; status: string };
+  idea_entry_request: { request_id: string; status: string };
+  clarification_answers: { answer_count: number; accepted_answer_count: number };
+  continuation_request: { request_id: string; status: string };
+};
+
+type GitSnapshot = { head: string; tracked_status: string };
+
+type ExecutionEvidence = { ref: string; sha256: string };
 
 function requiredEnv(name: string): string {
   const value = process.env[name]?.trim();
@@ -198,18 +216,36 @@ async function saveClarificationAnswers(page: Page) {
   expect(count, "SpecGraph must publish browser-answerable clarification fields").toBeGreaterThan(
     0,
   );
-  for (let index = 0; index < count; index += 1) {
-    const field = fields.nth(index);
-    const testId = await field.getAttribute("data-testid");
-    if (!testId) throw new Error("Clarification field has no test id.");
-    const requestId = testId.replace("intake-clarification-answer-", "");
-    await field.fill(answerValue(requestId, index));
+  const requestIds = await fields.evaluateAll((elements) =>
+    elements.map((element) =>
+      (element.getAttribute("data-testid") ?? "").replace(
+        "intake-clarification-answer-",
+        "",
+      ),
+    ),
+  );
+  expect(requestIds.every(Boolean), "Every clarification field must identify its request").toBe(
+    true,
+  );
+  for (const [index, requestId] of requestIds.entries()) {
+    await page
+      .getByTestId(`intake-clarification-answer-${requestId}`)
+      .fill(answerValue(requestId, index));
     await page.getByTestId(`intake-clarification-answer-save-${requestId}`).click();
-  }
-  if (count > 0) {
-    await expect(
-      page.locator('[data-testid^="intake-clarification-answer-saved-"]'),
-    ).toHaveCount(count);
+    await expect
+      .poll(async () => {
+        const state = await privateState(
+          page,
+          "/api/v1/idea-to-spec-intake-clarification-answers",
+        );
+        const answers = Array.isArray(state.answers) ? state.answers : [];
+        return answers.some(
+          (item) =>
+            record(item).request_id === requestId &&
+            record(item).status === "accepted_for_candidate",
+        );
+      })
+      .toBe(true);
   }
 }
 
@@ -233,6 +269,80 @@ function record(value: unknown): Record<string, unknown> {
 
 function sha256(content: Buffer): string {
   return createHash("sha256").update(content).digest("hex");
+}
+
+async function gitSnapshot(repository: string): Promise<GitSnapshot> {
+  const [head, status] = await Promise.all([
+    execFileAsync("git", ["rev-parse", "HEAD"], { cwd: repository }),
+    execFileAsync("git", ["status", "--porcelain", "--untracked-files=no"], {
+      cwd: repository,
+    }),
+  ]);
+  return {
+    head: head.stdout.trim(),
+    tracked_status: status.stdout.trim(),
+  };
+}
+
+async function privateState(
+  page: Page,
+  route: string,
+): Promise<Record<string, unknown>> {
+  return page.evaluate(async ({ selectedWorkspaceId, selectedRoute }) => {
+    const response = await fetch(
+      `${selectedRoute}?workspace=${encodeURIComponent(selectedWorkspaceId)}`,
+      { cache: "no-store" },
+    );
+    if (!response.ok) {
+      throw new Error(`${selectedRoute} returned HTTP ${response.status}.`);
+    }
+    return (await response.json()) as Record<string, unknown>;
+  }, { selectedWorkspaceId: workspaceId, selectedRoute: route });
+}
+
+function workspaceRequest(
+  state: Record<string, unknown>,
+): Record<string, unknown> {
+  const requests = Array.isArray(state.requests) ? state.requests : [];
+  const request = requests.find(
+    (item) => record(item).workspace_id === workspaceId,
+  );
+  if (!request) throw new Error(`No persisted request for ${workspaceId}.`);
+  return record(request);
+}
+
+async function operatorStateSnapshot(page: Page): Promise<OperatorStateSnapshot> {
+  const [creation, entry, answers, continuation] = await Promise.all([
+    privateState(page, "/api/v1/product-workspace-creation-requests"),
+    privateState(page, "/api/v1/real-idea-entry-requests"),
+    privateState(page, "/api/v1/idea-to-spec-intake-clarification-answers"),
+    privateState(
+      page,
+      "/api/v1/real-idea-answer-continuation-execution-requests",
+    ),
+  ]);
+  const creationRequest = workspaceRequest(creation);
+  const entryRequest = workspaceRequest(entry);
+  const continuationRequest = workspaceRequest(continuation);
+  const answerSummary = record(answers.summary);
+  return {
+    creation_request: {
+      request_id: String(creationRequest.request_id ?? ""),
+      status: String(creationRequest.status ?? ""),
+    },
+    idea_entry_request: {
+      request_id: String(entryRequest.request_id ?? ""),
+      status: String(entryRequest.status ?? ""),
+    },
+    clarification_answers: {
+      answer_count: Number(answerSummary.answer_count ?? 0),
+      accepted_answer_count: Number(answerSummary.accepted_answer_count ?? 0),
+    },
+    continuation_request: {
+      request_id: String(continuationRequest.request_id ?? ""),
+      status: String(continuationRequest.status ?? ""),
+    },
+  };
 }
 
 async function resolveWorkspaceArtifact(
@@ -290,13 +400,45 @@ async function snapshot(page: Page): Promise<WorkspaceSnapshot> {
   if (!candidateRef.startsWith(`runs/${workspaceId}/`)) {
     throw new Error(`Unexpected candidate ref: ${candidateRef}`);
   }
-  const candidate = await readJsonArtifact(specGraphDir, candidateRef);
+  const candidatePath = await resolveWorkspaceArtifact(specGraphDir, candidateRef);
+  const candidateContent = await readFile(candidatePath);
+  const candidate = JSON.parse(candidateContent.toString("utf8")) as Record<string, unknown>;
   const candidateIdentity = record(candidate.candidate);
   const candidateId = String(
     candidate.candidate_id ?? candidateIdentity.candidate_id ?? "",
   );
   if (candidateId !== workspaceId) {
     throw new Error(`Candidate identity does not match the UI workspace: ${candidateId}`);
+  }
+  const candidateReadiness = record(candidate.readiness);
+  const candidateReady = candidateReadiness.ready === true;
+  const candidateReviewState = String(candidateReadiness.review_state ?? "");
+  const candidateBlockers = Array.isArray(candidateReadiness.blocked_by)
+    ? candidateReadiness.blocked_by.map(String).sort()
+    : [];
+  const expectedCandidateBlockers = new Set([
+    "promotion_gate_not_ready",
+    "repair_loop_not_ready",
+  ]);
+  if (
+    !candidateReady &&
+    (candidateReviewState !== "active_candidate_review_required" ||
+      !candidateBlockers.includes("repair_loop_not_ready") ||
+      !candidateBlockers.includes("promotion_gate_not_ready") ||
+      candidateBlockers.some((blocker) => !expectedCandidateBlockers.has(blocker)))
+  ) {
+    throw new Error(
+      `Candidate is neither ready nor in the expected repair-review state: ${JSON.stringify(candidateReadiness)}`,
+    );
+  }
+  if (
+    materialization.available !== true ||
+    materialization.review_contract_trusted !== true ||
+    materialization.canonical_mutations_allowed !== false ||
+    materialization.tracked_artifacts_written !== false ||
+    record(materialization.readiness).ready !== true
+  ) {
+    throw new Error("Reviewable specification materialization is not trusted and ready.");
   }
   const rows = Array.isArray(materialization.files) ? materialization.files : [];
   const specificationFiles: Array<{ path: string; sha256: string }> = [];
@@ -310,14 +452,23 @@ async function snapshot(page: Page): Promise<WorkspaceSnapshot> {
   }
   specificationFiles.sort((left, right) => left.path.localeCompare(right.path));
   return {
-    workspace_id: String(workspace.id ?? workspaceId),
+    workspace_id: String(workspace.id ?? ""),
     candidate_id: candidateId,
     candidate_ref: candidateRef,
+    candidate_sha256: sha256(candidateContent),
+    candidate_readiness: {
+      ready: candidateReady,
+      review_state: candidateReviewState,
+      blocked_by: candidateBlockers,
+    },
+    operator_state: await operatorStateSnapshot(page),
     specification_files: specificationFiles,
   };
 }
 
-async function assertPublicSafeOutputs(snapshotValue: WorkspaceSnapshot) {
+async function assertPublicSafeOutputs(
+  snapshotValue: WorkspaceSnapshot,
+): Promise<ExecutionEvidence[]> {
   const specGraphDir = requiredEnv("SPECSPACE_E2E_SPECGRAPH_DIR");
   const refs = [
     snapshotValue.candidate_ref,
@@ -339,6 +490,31 @@ async function assertPublicSafeOutputs(snapshotValue: WorkspaceSnapshot) {
       "team-decision-log",
     );
   }
+  const executionRefs = refs.filter((ref) => ref.includes("platform_real_idea"));
+  const evidence: ExecutionEvidence[] = [];
+  for (const ref of executionRefs) {
+    const reportPath = await resolveWorkspaceArtifact(specGraphDir, ref);
+    const content = await readFile(reportPath);
+    const report = JSON.parse(content.toString("utf8")) as Record<string, unknown>;
+    expect(report.canonical_mutations_allowed, ref).toBe(false);
+    expect(report.tracked_artifacts_written, ref).toBe(false);
+    const authority = record(report.authority_boundary);
+    for (const field of [
+      "executes_git_commands",
+      "creates_git_commits",
+      "opens_pull_requests",
+      "merges_pull_requests",
+      "publishes_read_models",
+      "writes_ontology_packages",
+      "accepts_ontology_terms",
+      "mutates_canonical_specs",
+      "publishes_private_artifacts",
+    ]) {
+      expect(authority[field], `${ref} ${field}`).toBe(false);
+    }
+    evidence.push({ ref, sha256: sha256(content) });
+  }
+  return evidence;
 }
 
 test("preserves a UI-started specification workspace across a Mac profile restart", async ({
@@ -350,7 +526,9 @@ test("preserves a UI-started specification workspace across a Mac profile restar
   );
   test.setTimeout(600_000);
   const artifactDir = requiredEnv("SPECSPACE_MAC_E2E_ARTIFACT_DIR");
+  const specGraphDir = requiredEnv("SPECSPACE_E2E_SPECGRAPH_DIR");
   await mkdir(artifactDir, { recursive: true });
+  const gitBefore = await gitSnapshot(specGraphDir);
 
   await authenticateOperator(page);
   await createWorkspace(page);
@@ -364,7 +542,17 @@ test("preserves a UI-started specification workspace across a Mac profile restar
   await expect(
     page.getByRole("button", { name: "Run controlled initialization" }),
   ).toBeEnabled({ timeout: 30_000 });
+  const initializationResponsePromise = page.waitForResponse((response) =>
+    response.request().method() === "POST" &&
+    response.url().includes("/api/v1/product-workspace-initialization/execute"),
+  );
   await page.getByRole("button", { name: "Run controlled initialization" }).click();
+  const initializationResponse = await initializationResponsePromise;
+  const initializationBody = await initializationResponse.json() as Record<string, unknown>;
+  expect(
+    initializationResponse.ok(),
+    `Initialization execution failed: ${JSON.stringify(initializationBody)}`,
+  ).toBe(true);
   await expect(page.getByTestId("workspace-creation-status")).toContainText(
     "Workspace initialized through backend-owned state.",
     { timeout: 180_000 },
@@ -413,19 +601,45 @@ test("preserves a UI-started specification workspace across a Mac profile restar
   const specificationList = page.getByLabel("Materialized specifications");
   await expect(specificationList.locator("button").first()).toBeVisible();
   await specificationList.locator("button").first().click();
-  await expect(page.locator("#idea-to-spec-materialization pre")).toContainText(
+  const materializationSection = page.locator("#idea-to-spec-materialization");
+  await expect(materializationSection.locator("pre")).toContainText(
     /id:|title:/,
   );
+  const expandIdeaToSpec = page.getByRole("button", { name: "Expand Idea-to-spec" });
+  if (await expandIdeaToSpec.isVisible()) {
+    await expandIdeaToSpec.click();
+  }
+  const scrolledReviewPanel = await materializationSection.evaluate((element) => {
+    let ancestor = element.parentElement;
+    while (ancestor) {
+      const style = window.getComputedStyle(ancestor);
+      if (
+        /(auto|scroll)/.test(style.overflowY) &&
+        ancestor.scrollHeight > ancestor.clientHeight
+      ) {
+        ancestor.scrollTop +=
+          element.getBoundingClientRect().top - ancestor.getBoundingClientRect().top;
+        return true;
+      }
+      ancestor = ancestor.parentElement;
+    }
+    return false;
+  });
+  expect(scrolledReviewPanel, "Reviewable specifications must have a scroll container").toBe(
+    true,
+  );
+  await expect
+    .poll(async () => (await materializationSection.boundingBox())?.y ?? Number.MAX_VALUE)
+    .toBeLessThan(480);
   await page.screenshot({
     path: path.join(artifactDir, "04-reviewable-specifications.png"),
-    fullPage: true,
   });
 
   const beforeRestart = await snapshot(page);
   expect(beforeRestart.workspace_id).toBe(workspaceId);
   expect(beforeRestart.candidate_id).not.toBe("team-decision-log");
   expect(beforeRestart.specification_files.length).toBeGreaterThan(0);
-  await assertPublicSafeOutputs(beforeRestart);
+  const executionEvidence = await assertPublicSafeOutputs(beforeRestart);
 
   await runProfile("stop");
   await runProfile("start");
@@ -435,6 +649,12 @@ test("preserves a UI-started specification workspace across a Mac profile restar
   });
   const afterRestart = await snapshot(page);
   expect(afterRestart).toEqual(beforeRestart);
+  const gitAfter = await gitSnapshot(specGraphDir);
+  expect(gitAfter).toEqual(gitBefore);
+  const canonicalSpecMutation = gitBefore.tracked_status !== gitAfter.tracked_status;
+  const gitMutation = gitBefore.head !== gitAfter.head;
+  expect(canonicalSpecMutation).toBe(false);
+  expect(gitMutation).toBe(false);
   await page.screenshot({
     path: path.join(artifactDir, "05-after-restart.png"),
     fullPage: true,
@@ -450,15 +670,19 @@ test("preserves a UI-started specification workspace across a Mac profile restar
         workspace_id: workspaceId,
         candidate_id: beforeRestart.candidate_id,
         candidate_ref: beforeRestart.candidate_ref,
+        candidate_sha256: beforeRestart.candidate_sha256,
+        candidate_readiness: beforeRestart.candidate_readiness,
+        operator_state: beforeRestart.operator_state,
         specification_files: beforeRestart.specification_files,
+        execution_evidence: executionEvidence,
+        specgraph_git: { before: gitBefore, after: gitAfter },
         raw_idea_public_leak: false,
         team_decision_log_fallback: false,
         restart_continuity: "verified",
         authority_boundary: {
           browser_executes_shell: false,
-          canonical_spec_mutation: false,
-          ontology_mutation: false,
-          git_mutation: false,
+          canonical_spec_mutation: canonicalSpecMutation,
+          git_mutation: gitMutation,
         },
       },
       null,

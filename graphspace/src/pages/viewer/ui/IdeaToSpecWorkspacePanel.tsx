@@ -42,6 +42,7 @@ import type {
   IdeaToSpecWorkspace,
   UseIdeaToSpecWorkspaceState,
 } from "../model/use-idea-to-spec-workspace";
+
 import {
   useIdeaToSpecRepairDrafts,
   type IdeaToSpecRepairDraft,
@@ -80,6 +81,39 @@ import {
   type ArtifactContentState,
 } from "../model/use-artifact-catalog";
 import styles from "./OntologySemanticReviewPanel.module.css";
+
+export const MATERIALIZED_SPEC_PREVIEW_LIMIT = 40_000;
+
+export function materializedSpecPreview(value: string): {
+  text: string;
+  truncated: boolean;
+} {
+  return {
+    text: value.slice(0, MATERIALIZED_SPEC_PREVIEW_LIMIT),
+    truncated: value.length > MATERIALIZED_SPEC_PREVIEW_LIMIT,
+  };
+}
+
+export function workspacePreparationResponseIsCurrent(
+  requestWorkspaceId: string,
+  selectedWorkspaceId: string | null,
+): boolean {
+  return requestWorkspaceId === selectedWorkspaceId;
+}
+
+export function scopedInitializationExecutionRequestRef(
+  workspaceId: string,
+  projectedRef: string | null,
+  preparedWorkspaceId: string | null,
+  preparedRef: string | null,
+): string | null {
+  const prefix = `runs/${workspaceId}/`;
+  const currentPreparedRef = preparedWorkspaceId === workspaceId ? preparedRef : null;
+  for (const candidate of [currentPreparedRef, projectedRef]) {
+    if (candidate?.startsWith(prefix)) return candidate;
+  }
+  return null;
+}
 
 type Props = {
   state: UseIdeaToSpecWorkspaceState;
@@ -603,6 +637,10 @@ export function IdeaToSpecWorkspacePanel({
     state.kind === "ok"
       ? (state.data.selectedWorkspaceId ?? state.data.workspace.id ?? null)
       : null;
+  const selectedWorkspaceStateKeyRef = useRef(selectedWorkspaceStateKey);
+  useEffect(() => {
+    selectedWorkspaceStateKeyRef.current = selectedWorkspaceStateKey;
+  }, [selectedWorkspaceStateKey]);
   useEffect(() => {
     if (selectedWorkspaceStateKey === null) return;
     if (
@@ -742,11 +780,14 @@ export function IdeaToSpecWorkspacePanel({
   };
   const executeWorkspaceInitialization = async () => {
     const workspaceId = data.selectedWorkspaceId ?? data.workspace.id;
-    const executionRequestRef =
-      data.workspaceInitializationPath.initializationRequestRef ??
-      (workspaceInitializationPreparationState.workspaceId === workspaceId
-        ? workspaceInitializationPreparationState.executionRequestRef
-        : null);
+    const executionRequestRef = workspaceId
+      ? scopedInitializationExecutionRequestRef(
+          workspaceId,
+          data.workspaceInitializationPath.initializationRequestRef,
+          workspaceInitializationPreparationState.workspaceId,
+          workspaceInitializationPreparationState.executionRequestRef,
+        )
+      : null;
     if (
       readOnly ||
       !productWorkspaceInitializationExecuteUrl ||
@@ -832,6 +873,12 @@ export function IdeaToSpecWorkspacePanel({
         error?: unknown;
         execution_request_ref?: unknown;
       };
+      if (
+        !workspacePreparationResponseIsCurrent(
+          workspaceId,
+          selectedWorkspaceStateKeyRef.current,
+        )
+      ) return;
       if (!response.ok) {
         setWorkspaceInitializationPreparationState({
           pending: false,
@@ -862,6 +909,12 @@ export function IdeaToSpecWorkspacePanel({
       });
       onWorkspaceRefreshRequest?.();
     } catch (error) {
+      if (
+        !workspacePreparationResponseIsCurrent(
+          workspaceId,
+          selectedWorkspaceStateKeyRef.current,
+        )
+      ) return;
       setWorkspaceInitializationPreparationState({
         pending: false,
         status: null,
@@ -2666,11 +2719,14 @@ function GuidedWorkspaceInitializationPathSection({
   onExecute: () => void;
   readOnly: boolean;
 }) {
-  const initializationRequestRef =
-    path.initializationRequestRef ??
-    (preparationState.workspaceId === workspaceId
-      ? preparationState.executionRequestRef
-      : null);
+  const initializationRequestRef = workspaceId
+    ? scopedInitializationExecutionRequestRef(
+        workspaceId,
+        path.initializationRequestRef,
+        preparationState.workspaceId,
+        preparationState.executionRequestRef,
+      )
+    : null;
   const canRequestManagedExecution =
     Boolean(initializationRequestRef) &&
     path.managedExecutionAvailable &&
@@ -2715,7 +2771,7 @@ function GuidedWorkspaceInitializationPathSection({
           <Meta label="Creation request" value={path.creationRequestRef} />
           <Meta
             label="Initialization request"
-            value={path.initializationRequestRef}
+            value={initializationRequestRef}
           />
           <Meta
             label="Initialization report"
@@ -9348,7 +9404,11 @@ function MaterializationSection({
   });
   const reviewStatus = !materialization.available
     ? "not materialized"
-    : materialization.readiness.ready && materialization.files.length > 0
+    : materialization.readiness.ready &&
+        materialization.reviewContractTrusted &&
+        materialization.canonicalMutationsAllowed === false &&
+        materialization.trackedArtifactsWritten === false &&
+        materialization.files.length > 0
       ? "ready for review"
       : "blocked";
   return (
@@ -9394,6 +9454,12 @@ function MaterializationSection({
                   "Materialization readiness evidence is incomplete.",
                 )
           }
+        />
+      ) : null}
+      {materialization.available && !materialization.reviewContractTrusted ? (
+        <Status
+          label="Specification review contract untrusted"
+          detail="Materialization authority or privacy evidence is incomplete."
         />
       ) : null}
       {materialization.files.length === 0 ? (
@@ -9496,13 +9562,20 @@ function MaterializedFilePreview({
   const preview = state.data.contentKind === "json"
     ? JSON.stringify(state.data.data, null, 2)
     : state.data.text ?? "";
+  const boundedPreview = materializedSpecPreview(preview);
   return (
     <div className={styles.specificationPreview}>
       <div className={styles.specificationPreviewHeader}>
         <span>{state.data.path}</span>
-        <Pill value={state.data.contentKind} />
+        <Pill
+          value={
+            boundedPreview.truncated
+              ? `${state.data.contentKind} · ${MATERIALIZED_SPEC_PREVIEW_LIMIT}/${preview.length} chars`
+              : state.data.contentKind
+          }
+        />
       </div>
-      <pre>{preview.slice(0, 40_000)}</pre>
+      <pre>{boundedPreview.text}</pre>
     </div>
   );
 }

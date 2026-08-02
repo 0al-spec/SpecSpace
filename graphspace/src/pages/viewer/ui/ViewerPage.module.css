@@ -565,6 +565,8 @@
 }
 
 .utilityRailExpanded {
+  --idea-to-spec-summary-columns: 8;
+
   top: var(--gs-space-6);
   right: var(--gs-space-6);
   bottom: var(--gs-space-6);
@@ -865,6 +867,15 @@
   max-width: min(440px, calc(100vw - 2 * var(--gs-space-5)));
 }
 
+@media (min-width: 980px) {
+  .operatorAccessOverlay {
+    right: calc(
+      var(--viewer-panel-edge) + var(--viewer-utility-width) +
+        var(--viewer-panel-gap)
+    );
+  }
+}
+
 .operatorAccessNotice {
   display: flex;
   align-items: center;
@@ -987,6 +998,8 @@
   }
 
   .utilityRailExpanded {
+    --idea-to-spec-summary-columns: 4;
+
     top: max(var(--gs-space-3), env(safe-area-inset-top, 0px));
     right: var(--gs-space-3);
     bottom: max(var(--gs-space-3), env(safe-area-inset-bottom, 0px));

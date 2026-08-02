@@ -10,6 +10,8 @@ describe("IdeaToSpecFixtureGalleryPage", () => {
     expect(html).toContain("Idea-to-spec fixture gallery");
     expect(html).toContain("Report status row");
     expect(html).toContain('data-testid="report-status-row-example"');
+    expect(html).toContain('data-testid="initialization-preparation-frame"');
+    expect(html).toContain("Prepare initialization request");
     expect(html).toContain("/tmp/runs/idea_maturity_metrics_report.json");
     expect(html).toContain("diagnostics 0");
     expect(html).toContain("Team Decision Log");

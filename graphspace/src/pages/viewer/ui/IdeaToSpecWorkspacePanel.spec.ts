@@ -8,7 +8,11 @@ import {
 } from "../model/use-idea-to-spec-workspace";
 import {
   IdeaToSpecWorkspacePanel,
+  MATERIALIZED_SPEC_PREVIEW_LIMIT,
+  materializedSpecPreview,
   repairDraftText,
+  scopedInitializationExecutionRequestRef,
+  workspacePreparationResponseIsCurrent,
   workflowRelationHintDraftCanSave,
 } from "./IdeaToSpecWorkspacePanel";
 
@@ -23,6 +27,45 @@ const state: UseIdeaToSpecWorkspaceState = {
 };
 
 describe("IdeaToSpecWorkspacePanel", () => {
+  it("rejects delayed initialization preparation state for another workspace", () => {
+    expect(
+      workspacePreparationResponseIsCurrent("pantry-rotation", "pantry-rotation"),
+    ).toBe(true);
+    expect(
+      workspacePreparationResponseIsCurrent("pantry-rotation", "budget-planner"),
+    ).toBe(false);
+  });
+
+  it("prefers the fresh scoped initialization request over stale projection state", () => {
+    expect(
+      scopedInitializationExecutionRequestRef(
+        "pantry-rotation",
+        "runs/product_workspace_initialization_execution_request.json",
+        "pantry-rotation",
+        "runs/pantry-rotation/product_workspace_initialization_execution_request.json",
+      ),
+    ).toBe(
+      "runs/pantry-rotation/product_workspace_initialization_execution_request.json",
+    );
+    expect(
+      scopedInitializationExecutionRequestRef(
+        "pantry-rotation",
+        "runs/other-workspace/product_workspace_initialization_execution_request.json",
+        null,
+        null,
+      ),
+    ).toBeNull();
+  });
+
+  it("makes bounded specification preview truncation explicit", () => {
+    const preview = materializedSpecPreview(
+      "x".repeat(MATERIALIZED_SPEC_PREVIEW_LIMIT + 1),
+    );
+
+    expect(preview.text).toHaveLength(MATERIALIZED_SPEC_PREVIEW_LIMIT);
+    expect(preview.truncated).toBe(true);
+  });
+
   it("rejects write-capable guided repair path payloads", () => {
     const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
     raw.guided_repair_path.authority_boundary.may_execute_platform = true;
@@ -1394,6 +1437,7 @@ describe("IdeaToSpecWorkspacePanel", () => {
 
   it("renders backend-managed workspace initialization action when requested", () => {
     const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.selected_workspace_id = "pantry-rotation";
     raw.workspace_creation = {
       artifact_kind: "specspace_product_workspace_creation_request_state",
       selected_workspace_id: "pantry-rotation",
@@ -1464,6 +1508,7 @@ describe("IdeaToSpecWorkspacePanel", () => {
 
   it("does not enable backend-managed workspace initialization when backend capability is unavailable", () => {
     const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.selected_workspace_id = "pantry-rotation";
     raw.workspace_creation = {
       artifact_kind: "specspace_product_workspace_creation_request_state",
       selected_workspace_id: "pantry-rotation",
@@ -1563,6 +1608,24 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("Prepare initialization request");
     expect(html).toContain("request-only handoff");
     expect(html).not.toContain("Run controlled initialization");
+  });
+
+  it("does not present untrusted materialization as ready for review", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.materialization.review_contract_trusted = false;
+    const parsedWorkspace = parseIdeaToSpecWorkspace(raw);
+    if (parsedWorkspace.kind !== "ok") {
+      throw new Error("Modified idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsedWorkspace.data },
+      }),
+    );
+
+    expect(html).toContain("Specification review contract untrusted");
+    expect(html).not.toContain(">ready for review<");
   });
 
   it("does not treat a different active candidate as selected route readiness", () => {
