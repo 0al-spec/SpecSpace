@@ -663,12 +663,16 @@ def configure_server(
         else repo_root / ".specspace-dev" / "state"
     )
     product_workspace_root_dir = getattr(args, "product_workspace_root_dir", None)
+    if product_workspace_root_dir and product_workspace_root_dir.expanduser().is_symlink():
+        raise ValueError("product workspace root directory must not be a symlink")
     server.product_workspace_root_dir = (
         product_workspace_root_dir.expanduser().resolve()
         if product_workspace_root_dir
         else None
     )
     product_workspace_catalog = getattr(args, "product_workspace_catalog", None)
+    if product_workspace_catalog and product_workspace_catalog.expanduser().is_symlink():
+        raise ValueError("product workspace catalog must not be a symlink")
     server.product_workspace_catalog = (
         product_workspace_catalog.expanduser().resolve()
         if product_workspace_catalog

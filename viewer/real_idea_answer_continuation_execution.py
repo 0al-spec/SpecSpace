@@ -169,6 +169,8 @@ def _public_platform_report(report: dict[str, Any]) -> dict[str, Any]:
         "schema_version": report.get("schema_version"),
         "ok": report.get("ok"),
         "dry_run": report.get("dry_run"),
+        "canonical_mutations_allowed": report.get("canonical_mutations_allowed"),
+        "tracked_artifacts_written": report.get("tracked_artifacts_written"),
         "workspace_id": report.get("workspace_id"),
         "request_id": report.get("request_id"),
         "continuation_mode": report.get("continuation_mode"),
@@ -287,8 +289,15 @@ def _load_valid_platform_report(
         return None, "Platform continuation report artifact_kind is invalid."
     if report.get("ok") is not True or report.get("dry_run") is not False:
         return None, "Platform continuation report is not a completed execution."
-    if _record(report.get("summary")).get("status") != "completed":
+    if _record(report.get("summary")).get("status") not in {
+        "completed",
+        "real_idea_answer_continuation_executed",
+    }:
         return None, "Platform continuation report summary is not completed."
+    if report.get("canonical_mutations_allowed") is not False:
+        return None, "Platform continuation report must keep canonical_mutations_allowed=false."
+    if report.get("tracked_artifacts_written") is not False:
+        return None, "Platform continuation report must keep tracked_artifacts_written=false."
     if report.get("run_dir") != expected_run_dir:
         return None, "Platform continuation report run_dir does not match the workspace."
     if report.get("workspace_id") != expected_workspace_id:
@@ -1102,7 +1111,14 @@ def _execute_requested_continuation_locked(
             )
             if valid_report is not None:
                 report = valid_report
+                staged_output_path.write_text(
+                    json.dumps(_public_platform_report(report), indent=2) + "\n",
+                    encoding="utf-8",
+                )
                 os.replace(staged_output_path, output_path)
+
+        if completed.returncode != 0:
+            report_error = f"Platform exited with status {completed.returncode}."
 
         execution_succeeded = completed.returncode == 0 and report_error is None
         attempt_report_path = _write_private_attempt_report(
@@ -1117,6 +1133,9 @@ def _execute_requested_continuation_locked(
                 "status": "completed" if execution_succeeded else "failed",
                 "executed": True,
                 "platform_returncode": completed.returncode,
+                "failure_reason": report_error,
+                "stdout_tail": _stdout[-4096:] if not execution_succeeded else None,
+                "stderr_tail": _stderr[-4096:] if not execution_succeeded else None,
                 "output_published": execution_succeeded,
                 "output_digest": _file_sha256(output_path)
                 if execution_succeeded

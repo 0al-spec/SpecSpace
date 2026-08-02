@@ -1189,6 +1189,8 @@ class FileSpecGraphProvider:
     def _resolve_reviewable_candidate_files(
         self,
         rows: Any,
+        *,
+        artifact_run_dir_ref: str | None = None,
     ) -> list[tuple[str, Path]]:
         if self.runs_dir is None or not self.runs_dir.is_dir():
             return []
@@ -1198,11 +1200,11 @@ class FileSpecGraphProvider:
             return []
         if not isinstance(rows, list):
             return []
-        if self.runs_dir.parent.name == "runs":
-            repository_root = self.runs_dir.parent.parent
+        if artifact_run_dir_ref is not None:
+            required_prefix = artifact_run_dir_ref.rstrip("/") + "/"
+        elif self.runs_dir.parent.name == "runs":
             required_prefix = f"runs/{self.runs_dir.name}/"
         else:
-            repository_root = self.runs_dir.parent
             required_prefix = "runs/"
         candidates: dict[str, Path] = {}
         for item in rows[: idea_to_spec_workspace.DISPLAY_LIMITS["materialized_files"]]:
@@ -1228,7 +1230,8 @@ class FileSpecGraphProvider:
                 }
             ):
                 continue
-            path = repository_root / Path(*posix_path.parts)
+            relative_path = safe_path.removeprefix(required_prefix)
+            path = self.runs_dir / Path(*PurePosixPath(relative_path).parts)
             try:
                 resolved = path.resolve(strict=True)
                 resolved.relative_to(allowed_root)
@@ -1451,6 +1454,7 @@ class ProductWorkspaceFileProvider:
     delegate: FileSpecGraphProvider
     workspace_id: str
     artifact_run_dir_ref: str | None = None
+    pre_candidate_only: bool = False
 
     kind = "file-product-workspace"
 
@@ -1486,6 +1490,13 @@ class ProductWorkspaceFileProvider:
 
     def _workspace_artifacts(self) -> dict[str, Any]:
         artifacts = self.delegate._read_idea_to_spec_workspace_artifacts()
+        if self.pre_candidate_only:
+            return {
+                filename: payload
+                for filename, payload in artifacts.items()
+                if filename in PRE_CANDIDATE_WORKSPACE_ARTIFACTS
+                and self._payload_matches_workspace(payload)
+            }
         if self._workspace_artifacts_match(artifacts):
             return artifacts
         return {
@@ -1544,7 +1555,9 @@ class ProductWorkspaceFileProvider:
         if self.delegate.runs_dir is None:
             return {}
         all_artifacts = self.delegate._read_idea_to_spec_workspace_artifacts()
-        if self._workspace_artifacts_match(all_artifacts):
+        if self.pre_candidate_only:
+            allowed_filenames = set(self._workspace_artifacts())
+        elif self._workspace_artifacts_match(all_artifacts):
             allowed_filenames = set(WORKSPACE_RAW_PREVIEW_RUN_ARTIFACTS)
         else:
             allowed_filenames = set(self._workspace_artifacts())
@@ -1554,7 +1567,8 @@ class ProductWorkspaceFileProvider:
                 continue
             path = self.delegate.runs_dir / filename
             if path.exists() and path.is_file():
-                artifact_map[f"runs/{filename}"] = path
+                prefix = self.artifact_run_dir_ref or "runs"
+                artifact_map[f"{prefix}/{filename}"] = path
         return artifact_map
 
     def _content_artifact_map(self) -> dict[str, Path]:
@@ -1571,7 +1585,8 @@ class ProductWorkspaceFileProvider:
         ):
             return artifact_map
         for rel, path in self.delegate._resolve_reviewable_candidate_files(
-            materialization.get("files")
+            materialization.get("files"),
+            artifact_run_dir_ref=self.artifact_run_dir_ref,
         ):
             artifact_map[rel] = path
         return artifact_map
@@ -3631,6 +3646,7 @@ def provider_from_server(server: Any, workspace_id: str | None = None) -> SpecSp
         runs_dir = specgraph_surfaces.runs_dir_from_context(spec_dir, specgraph_dir)
     if normalized_workspace_id is not None and normalized_workspace_id != BOOTSTRAP_WORKSPACE_ID:
         artifact_run_dir_ref = None
+        pre_candidate_only = False
         binding = product_workspace_binding.discover_binding(
             server,
             workspace_id=normalized_workspace_id,
@@ -3643,6 +3659,27 @@ def provider_from_server(server: Any, workspace_id: str | None = None) -> SpecSp
             if bound_runs_dir is not None:
                 runs_dir = bound_runs_dir
             artifact_run_dir_ref = f"runs/{normalized_workspace_id}"
+        else:
+            # Before initialization, expose only scoped pre-candidate artifacts
+            # for an active creation request. Candidate fallback remains disabled.
+            from viewer import product_workspace_creation_requests
+
+            creation_status, creation_state = product_workspace_creation_requests.read_state(
+                server,
+                workspace_id=normalized_workspace_id,
+            )
+            has_active_request = creation_status == HTTPStatus.OK and any(
+                isinstance(entry, dict)
+                and entry.get("workspace_id") == normalized_workspace_id
+                and entry.get("status") == "requested"
+                for entry in creation_state.get("requests", [])
+            )
+            if has_active_request and isinstance(runs_dir, Path):
+                scoped_runs_dir = runs_dir / normalized_workspace_id
+                if scoped_runs_dir.is_dir() and not scoped_runs_dir.is_symlink():
+                    runs_dir = scoped_runs_dir
+                    artifact_run_dir_ref = f"runs/{normalized_workspace_id}"
+                    pre_candidate_only = True
     file_provider = FileSpecGraphProvider(
         spec_nodes_dir=spec_dir,
         runs_dir=runs_dir,
@@ -3653,6 +3690,7 @@ def provider_from_server(server: Any, workspace_id: str | None = None) -> SpecSp
             delegate=file_provider,
             workspace_id=normalized_workspace_id,
             artifact_run_dir_ref=artifact_run_dir_ref,
+            pre_candidate_only=pre_candidate_only,
         )
     return file_provider
 

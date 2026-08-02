@@ -8361,6 +8361,8 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                 ),
                 "ok": True,
                 "dry_run": False,
+                "canonical_mutations_allowed": False,
+                "tracked_artifacts_written": False,
                 "run_dir": "runs/pantry-rotation",
                 "workspace_id": "pantry-rotation",
                 "request_id": "continuation.pantry-rotation.authority",
@@ -8402,6 +8404,22 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                         self.assertIsNone(loaded)
                         self.assertIn(f"{field}=false", error or "")
 
+            for field in ("canonical_mutations_allowed", "tracked_artifacts_written"):
+                report = json.loads(json.dumps(base_report))
+                del report[field]
+                _write_json(report_path, report)
+                loaded, error = (
+                    real_idea_answer_continuation_execution._load_valid_platform_report(
+                        report_path,
+                        expected_run_dir="runs/pantry-rotation",
+                        expected_execution_request=request_path,
+                        expected_workspace_id="pantry-rotation",
+                        expected_request_id="continuation.pantry-rotation.authority",
+                    )
+                )
+                self.assertIsNone(loaded)
+                self.assertIn(f"{field}=false", error or "")
+
     def test_real_idea_answer_continuation_execute_runs_allowlisted_platform(
         self,
     ) -> None:
@@ -8435,6 +8453,8 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                         "    'schema_version': 1,",
                         "    'ok': True,",
                         "    'dry_run': False,",
+                        "    'canonical_mutations_allowed': False,",
+                        "    'tracked_artifacts_written': False,",
                         "    'run_dir': 'runs/pantry-rotation',",
                         "    'workspace_id': 'pantry-rotation',",
                         "    'request_id': sys.argv[sys.argv.index('--request-id') + 1],",
@@ -8565,6 +8585,7 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                 runs_dir
                 / "platform_real_idea_answer_continuation_execution_report.json"
             )
+            published_report = json.loads(report_path.read_text(encoding="utf-8"))
             report_digest_before_restart = hashlib.sha256(
                 report_path.read_bytes()
             ).hexdigest()
@@ -8624,6 +8645,10 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         )
         self.assertFalse(body["authority_boundary"]["applies_answers"])
         self.assertTrue(report_file_exists)
+        self.assertNotIn("execution_request_ref", published_report)
+        self.assertNotIn(str(root), json.dumps(published_report))
+        self.assertFalse(published_report["canonical_mutations_allowed"])
+        self.assertFalse(published_report["tracked_artifacts_written"])
         self.assertEqual(state_status, 200)
         self.assertEqual(continuation_state["summary"]["consumed_count"], 1)
         self.assertEqual(continuation_state["summary"]["active_requested_count"], 0)
@@ -9129,6 +9154,8 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                         "  'artifact_kind': 'platform_real_idea_answer_continuation_execution_report',",
                         "  'ok': True,",
                         "  'dry_run': False,",
+                        "  'canonical_mutations_allowed': False,",
+                        "  'tracked_artifacts_written': False,",
                         "  'run_dir': 'runs/pantry-rotation',",
                         "  'workspace_id': 'pantry-rotation',",
                         "  'request_id': sys.argv[sys.argv.index('--request-id') + 1],",

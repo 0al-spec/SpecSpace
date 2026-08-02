@@ -38,6 +38,11 @@ class RunsWatcherTests(unittest.TestCase):
             nested_dir = workspace_dir / "private"
             nested_dir.mkdir()
             (nested_dir / "raw_idea.json").write_text("ignored", encoding="utf-8")
+            smoke_dir = workspace_dir / "real_idea_smoke"
+            smoke_dir.mkdir()
+            (smoke_dir / "real_idea_answer_template.json").write_text(
+                "{}", encoding="utf-8"
+            )
 
             mtimes = RunsWatcher(runs_dir)._get_mtimes()
 
@@ -49,6 +54,12 @@ class RunsWatcherTests(unittest.TestCase):
         )
         self.assertFalse(any("reviewable_spec.yaml" in key for key in mtimes))
         self.assertFalse(any("raw_idea.json" in key for key in mtimes))
+        self.assertTrue(
+            any(
+                "local-pantry/real_idea_smoke/real_idea_answer_template.json" in key
+                for key in mtimes
+            )
+        )
 
     def test_ignores_symlinked_workspace_directories(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -63,6 +74,26 @@ class RunsWatcherTests(unittest.TestCase):
             mtimes = RunsWatcher(runs_dir)._get_mtimes()
 
         self.assertFalse(any("foreign-workspace" in key for key in mtimes))
+
+    def test_tracks_legacy_root_real_idea_smoke_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            runs_dir = Path(tmp)
+            smoke_dir = runs_dir / "real_idea_smoke"
+            smoke_dir.mkdir()
+            (smoke_dir / "real_idea_answer_template.json").write_text(
+                "{}", encoding="utf-8"
+            )
+
+            mtimes = RunsWatcher(runs_dir)._get_mtimes()
+
+        self.assertTrue(
+            any(
+                key.startswith(
+                    "real_idea_smoke/real_idea_answer_template.json\0"
+                )
+                for key in mtimes
+            )
+        )
 
 
 class WorkspaceWatcherTests(unittest.TestCase):

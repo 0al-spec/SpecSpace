@@ -28,6 +28,46 @@ def test_build_arg_parser_accepts_container_host() -> None:
     assert args.host == "0.0.0.0"
 
 
+@pytest.mark.parametrize(
+    ("option", "message"),
+    (
+        ("--product-workspace-root-dir", "root directory must not be a symlink"),
+        ("--product-workspace-catalog", "catalog must not be a symlink"),
+    ),
+)
+def test_configure_server_rejects_symlinked_product_workspace_inputs(
+    option: str,
+    message: str,
+) -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        target = root / "target"
+        if option.endswith("catalog"):
+            target.write_text("workspaces: []\n", encoding="utf-8")
+        else:
+            target.mkdir()
+        link = root / "configured-link"
+        link.symlink_to(target, target_is_directory=target.is_dir())
+        parser = server_runtime.build_arg_parser(
+            description=None,
+            default_hyperprompt_binary="/bin/hyperprompt",
+        )
+        args = parser.parse_args(
+            ["--dialog-dir", str(root / "dialogs"), option, str(link)]
+        )
+
+        with pytest.raises(ValueError, match=message):
+            server_runtime.configure_server(
+                SimpleNamespace(),
+                args,
+                repo_root=root,
+                resolve_hyperprompt_binary=lambda binary: (binary, [], "configured"),
+                workspace_watcher_factory=lambda path: ("workspace", path),
+                spec_watcher_factory=lambda path: ("spec", path),
+                runs_watcher_factory=lambda path: ("runs", path),
+            )
+
+
 def test_build_arg_parser_strips_hyperprompt_work_dir_env(monkeypatch) -> None:
     monkeypatch.setenv("SPECSPACE_HYPERPROMPT_WORK_DIR", "  /tmp/specspace-hyperprompt  ")
     parser = server_runtime.build_arg_parser(
