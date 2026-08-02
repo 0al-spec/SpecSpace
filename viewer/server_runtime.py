@@ -44,6 +44,8 @@ class ViewerRuntimeServer(Protocol):
     specpm_registry_url: str | None
     agent_workbench_dir: Path | None
     specspace_state_dir: Path
+    product_workspace_root_dir: Path | None
+    product_workspace_catalog: Path | None
     specspace_state_backend: Any
     external_state_enabled: bool
     external_state_url: str | None
@@ -79,6 +81,12 @@ def build_arg_parser(
     http_compile_enabled_env = os.environ.get("SPECSPACE_HYPERPROMPT_HTTP_COMPILE_ENABLED", "").strip()
     agent_workbench_dir_env = os.environ.get("SPECSPACE_AGENT_WORKBENCH_DIR", "").strip()
     specspace_state_dir_env = os.environ.get("SPECSPACE_STATE_DIR", "").strip()
+    product_workspace_root_dir_env = os.environ.get(
+        "SPECSPACE_PRODUCT_WORKSPACE_ROOT_DIR", ""
+    ).strip()
+    product_workspace_catalog_env = os.environ.get(
+        "SPECSPACE_PRODUCT_WORKSPACE_CATALOG", ""
+    ).strip()
     external_state_enabled_env = os.environ.get(
         "SPECSPACE_EXTERNAL_STATE_ENABLED", ""
     ).strip()
@@ -338,6 +346,32 @@ def build_arg_parser(
         help=(
             "SpecSpace-owned local state directory for operator workflow state. "
             "Defaults to .specspace-dev/state under the repository root."
+        ),
+    )
+    parser.add_argument(
+        "--product-workspace-root-dir",
+        type=Path,
+        default=(
+            Path(product_workspace_root_dir_env)
+            if product_workspace_root_dir_env
+            else None
+        ),
+        help=(
+            "Private parent directory for product workspaces created by the "
+            "controlled local initialization flow."
+        ),
+    )
+    parser.add_argument(
+        "--product-workspace-catalog",
+        type=Path,
+        default=(
+            Path(product_workspace_catalog_env)
+            if product_workspace_catalog_env
+            else None
+        ),
+        help=(
+            "Private Platform workspace catalog used by controlled local "
+            "workspace initialization."
         ),
     )
     parser.add_argument(
@@ -627,6 +661,18 @@ def configure_server(
         specspace_state_dir.expanduser().resolve()
         if specspace_state_dir
         else repo_root / ".specspace-dev" / "state"
+    )
+    product_workspace_root_dir = getattr(args, "product_workspace_root_dir", None)
+    server.product_workspace_root_dir = (
+        product_workspace_root_dir.expanduser().resolve()
+        if product_workspace_root_dir
+        else None
+    )
+    product_workspace_catalog = getattr(args, "product_workspace_catalog", None)
+    server.product_workspace_catalog = (
+        product_workspace_catalog.expanduser().resolve()
+        if product_workspace_catalog
+        else None
     )
     server.operator_auth_enabled = bool(
         getattr(args, "enable_operator_auth", False)

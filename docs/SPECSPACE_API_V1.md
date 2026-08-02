@@ -1138,6 +1138,28 @@ SpecSpace owns this mutable state, but it is not authority:
 SpecGraph must later validate/export this state through its intake
 clarification rerun flow before any clarified intake source is published.
 
+### `POST /api/v1/product-workspace-initialization/prepare`
+
+For the local single-operator profile, validates the selected SpecSpace-owned
+workspace creation request and authors two workspace-scoped, request-only
+Platform artifacts:
+
+```text
+runs/<workspace-id>/product_workspace_initialization_plan.json
+runs/<workspace-id>/product_workspace_initialization_execution_request.json
+```
+
+The server must be configured with `--platform-dir`,
+`--product-workspace-root-dir`, `--product-workspace-catalog`, and
+`--enable-platform-execution`. The request body accepts only `workspace_id`;
+filesystem paths and Platform arguments are backend configuration and cannot be
+supplied by the browser.
+
+Preparation runs fixed Platform validation/authoring commands, but does not run
+SpecGraph, create workspace files, update the catalog, mutate specs or
+Ontology, or invoke Git. Hosted queue deployments prepare their initialization
+request outside this local-only endpoint before enqueue.
+
 ### `POST /api/v1/product-workspace-initialization/execute`
 
 Optionally executes a previously prepared product workspace initialization
@@ -1153,6 +1175,8 @@ python viewer/server.py \
   --dialog-dir /data/dialogs \
   --runs-dir /repo/SpecGraph/runs \
   --platform-dir /repo/Platform \
+  --product-workspace-root-dir /private/product-workspaces \
+  --product-workspace-catalog /private/workspaces.local.yaml \
   --enable-platform-execution
 ```
 

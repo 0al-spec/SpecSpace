@@ -103,6 +103,7 @@ type Props = {
   reviewStatusExecuteUrl?: string;
   readModelPublicationExecuteUrl?: string;
   projectLocalOntologyReviewDecisionsUrl?: string;
+  productWorkspaceInitializationPrepareUrl?: string;
   productWorkspaceInitializationExecuteUrl?: string;
   artifactContentUrl?: string;
   artifactContentRefreshKey?: number;
@@ -522,6 +523,7 @@ export function IdeaToSpecWorkspacePanel({
   reviewStatusExecuteUrl,
   readModelPublicationExecuteUrl,
   projectLocalOntologyReviewDecisionsUrl,
+  productWorkspaceInitializationPrepareUrl,
   productWorkspaceInitializationExecuteUrl,
   artifactContentUrl,
   artifactContentRefreshKey = 0,
@@ -578,6 +580,12 @@ export function IdeaToSpecWorkspacePanel({
     });
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const [workspaceInitializationExecutionState, setWorkspaceInitializationExecutionState] =
+    useState<{
+      pending: boolean;
+      status: string | null;
+      error: string | null;
+    }>({ pending: false, status: null, error: null });
+  const [workspaceInitializationPreparationState, setWorkspaceInitializationPreparationState] =
     useState<{
       pending: boolean;
       status: string | null;
@@ -760,6 +768,60 @@ export function IdeaToSpecWorkspacePanel({
         pending: false,
         status: null,
         error: error instanceof Error ? error.message : "Managed initialization failed.",
+      });
+    }
+  };
+  const prepareWorkspaceInitialization = async () => {
+    const workspaceId = data.selectedWorkspaceId ?? data.workspace.id;
+    if (readOnly || !productWorkspaceInitializationPrepareUrl || !workspaceId) {
+      return;
+    }
+    setWorkspaceInitializationPreparationState({
+      pending: true,
+      status: null,
+      error: null,
+    });
+    try {
+      const response = await fetch(productWorkspaceInitializationPrepareUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workspace_id: workspaceId }),
+      });
+      const body = (await response.json().catch(() => ({}))) as {
+        summary?: { status?: unknown };
+        status?: unknown;
+        error?: unknown;
+      };
+      if (!response.ok) {
+        setWorkspaceInitializationPreparationState({
+          pending: false,
+          status: typeof body.status === "string" ? body.status : null,
+          error:
+            typeof body.error === "string"
+              ? body.error
+              : `Initialization preparation failed with HTTP ${response.status}.`,
+        });
+        return;
+      }
+      setWorkspaceInitializationPreparationState({
+        pending: false,
+        status:
+          typeof body.summary?.status === "string"
+            ? body.summary.status
+            : typeof body.status === "string"
+              ? body.status
+              : "initialization_request_prepared",
+        error: null,
+      });
+      onWorkspaceRefreshRequest?.();
+    } catch (error) {
+      setWorkspaceInitializationPreparationState({
+        pending: false,
+        status: null,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Initialization preparation failed.",
       });
     }
   };
@@ -1192,8 +1254,11 @@ export function IdeaToSpecWorkspacePanel({
   const guidedWorkspaceInitializationPathSection = (
     <GuidedWorkspaceInitializationPathSection
       path={data.workspaceInitializationPath}
+      prepareUrl={productWorkspaceInitializationPrepareUrl}
       executeUrl={productWorkspaceInitializationExecuteUrl}
+      preparationState={workspaceInitializationPreparationState}
       executionState={workspaceInitializationExecutionState}
+      onPrepare={prepareWorkspaceInitialization}
       onExecute={executeWorkspaceInitialization}
       readOnly={readOnly}
     />
@@ -2519,18 +2584,28 @@ function WorkspaceCreationSection({
 
 function GuidedWorkspaceInitializationPathSection({
   path,
+  prepareUrl,
   executeUrl,
+  preparationState,
   executionState,
+  onPrepare,
   onExecute,
   readOnly,
 }: {
   path: IdeaToSpecWorkspace["workspaceInitializationPath"];
+  prepareUrl?: string;
   executeUrl?: string;
+  preparationState: {
+    pending: boolean;
+    status: string | null;
+    error: string | null;
+  };
   executionState: {
     pending: boolean;
     status: string | null;
     error: string | null;
   };
+  onPrepare: () => void;
   onExecute: () => void;
   readOnly: boolean;
 }) {
@@ -2539,6 +2614,11 @@ function GuidedWorkspaceInitializationPathSection({
     path.managedExecutionAvailable &&
     path.status !== "initialized" &&
     path.status !== "blocked" &&
+    !readOnly;
+  const canPrepareInitialization =
+    !path.initializationRequestRef &&
+    path.initializationPreparationAvailable &&
+    path.status === "initialization_request_needed" &&
     !readOnly;
   return (
     <section
@@ -2585,6 +2665,30 @@ function GuidedWorkspaceInitializationPathSection({
             Blockers: {joined(path.blockers)}
           </p>
         ) : null}
+        {!path.initializationRequestRef && path.status !== "initialized" ? (
+          <div className={styles.rowActions}>
+            <button
+              type="button"
+              className={styles.actionButton}
+              data-testid="workspace-initialization-prepare"
+              disabled={
+                !prepareUrl ||
+                !canPrepareInitialization ||
+                preparationState.pending
+              }
+              onClick={onPrepare}
+            >
+              {preparationState.pending
+                ? "Preparing initialization..."
+                : "Prepare initialization request"}
+            </button>
+            <span className={styles.statusDetail}>
+              {prepareUrl && path.initializationPreparationAvailable
+                ? "SpecSpace will ask Platform to validate the creation request and author a request-only handoff."
+                : "Local initialization preparation is not configured."}
+            </span>
+          </div>
+        ) : null}
         {path.initializationRequestRef && path.status !== "initialized" ? (
           <div className={styles.rowActions}>
             <button
@@ -2607,6 +2711,14 @@ function GuidedWorkspaceInitializationPathSection({
                 : "Managed backend execution is not configured; use the Platform command hint."}
             </span>
           </div>
+        ) : null}
+        {preparationState.status ? (
+          <p className={styles.statusDetail}>
+            Preparation: {preparationState.status}
+          </p>
+        ) : null}
+        {preparationState.error ? (
+          <p className={styles.statusDetail}>{preparationState.error}</p>
         ) : null}
         {executionState.status ? (
           <p className={styles.statusDetail}>Execution: {executionState.status}</p>

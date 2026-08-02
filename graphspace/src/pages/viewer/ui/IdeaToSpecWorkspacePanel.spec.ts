@@ -1512,6 +1512,41 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("disabled");
   });
 
+  it("offers initialization request preparation for a fresh local workspace", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.selected_workspace_id = "pantry-rotation";
+    raw.workspace_initialization_path = {
+      available: true,
+      status: "initialization_request_needed",
+      workspace_id: "pantry-rotation",
+      display_name: "Pantry Rotation",
+      initial_idea_present: true,
+      creation_request_ref: "specspace-state://product_workspace_creation_requests.json",
+      initialization_request_ref: null,
+      initialization_report_ref: null,
+      next_safe_action: "Prepare the controlled workspace initialization request.",
+      blockers: [],
+      managed_execution_available: true,
+      initialization_preparation_available: true,
+    };
+    const parsed = parseIdeaToSpecWorkspace(raw);
+    if (parsed.kind !== "ok") {
+      throw new Error("Modified idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsed.data },
+        productWorkspaceInitializationPrepareUrl:
+          "/api/v1/product-workspace-initialization/prepare?workspace=pantry-rotation",
+      }),
+    );
+
+    expect(html).toContain("Prepare initialization request");
+    expect(html).toContain("request-only handoff");
+    expect(html).not.toContain("Run controlled initialization");
+  });
+
   it("does not treat a different active candidate as selected route readiness", () => {
     const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
     raw.selected_workspace_id = "pantry-rotation";

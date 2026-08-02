@@ -244,6 +244,10 @@ POST_ROUTES: dict[str, RouteSpec] = {
         "handle_v1_product_workspace_initialization_execute_post",
         pass_parsed=True,
     ),
+    "/api/v1/product-workspace-initialization/prepare": RouteSpec(
+        "handle_v1_product_workspace_initialization_prepare_post",
+        pass_parsed=True,
+    ),
     "/api/v1/real-idea-intake/execute": RouteSpec(
         "handle_v1_real_idea_intake_execute_post",
         pass_parsed=True,

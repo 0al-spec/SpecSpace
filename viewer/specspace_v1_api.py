@@ -216,6 +216,17 @@ def _workspace_initialization_path(
     managed_execution_available = (
         local_managed_execution_available or hosted_managed_execution_available
     )
+    root_dir = getattr(server, "product_workspace_root_dir", None)
+    catalog = getattr(server, "product_workspace_catalog", None)
+    initialization_preparation_available = (
+        local_managed_execution_available
+        and isinstance(root_dir, Path)
+        and root_dir.is_dir()
+        and not root_dir.is_symlink()
+        and isinstance(catalog, Path)
+        and catalog.is_file()
+        and not catalog.is_symlink()
+    )
 
     creation_status = summary.get("status")
     if creation_status in {
@@ -255,7 +266,11 @@ def _workspace_initialization_path(
             next_safe_action = "Wait for Platform to execute the workspace initialization request."
     else:
         status = "initialization_request_needed"
-        next_safe_action = "Request controlled Platform workspace initialization."
+        next_safe_action = (
+            "Prepare the controlled workspace initialization request."
+            if initialization_preparation_available
+            else "Request controlled Platform workspace initialization."
+        )
 
     return {
         "available": bool(workspace_id),
@@ -279,6 +294,7 @@ def _workspace_initialization_path(
         "next_safe_action": next_safe_action,
         "blockers": blockers,
         "managed_execution_available": managed_execution_available,
+        "initialization_preparation_available": initialization_preparation_available,
         "authority_boundary": {
             "inspect_only": True,
             "acknowledge_only": True,
@@ -1980,6 +1996,45 @@ def handle_v1_product_workspace_initialization_execute_post(
             payload,
             workspace_id=workspace_id,
         ),
+    )
+    json_response(handler, status, response)
+
+
+def handle_v1_product_workspace_initialization_prepare_post(
+    handler: SpecSpaceV1Handler,
+    parsed: Any,
+) -> None:
+    payload = handler.read_json_body()
+    if payload is None:
+        return
+    query_workspace_id = _query_workspace_id(parsed)
+    payload_workspace_id = specspace_provider.normalize_product_workspace_id(
+        payload.get("workspace_id")
+        if isinstance(payload.get("workspace_id"), str)
+        else None
+    )
+    if (
+        query_workspace_id
+        and payload_workspace_id
+        and query_workspace_id != payload_workspace_id
+    ):
+        json_response(
+            handler,
+            HTTPStatus.CONFLICT,
+            {
+                "error": "Workspace initialization preparation workspace_id does not match selected workspace.",
+                "expected": query_workspace_id,
+                "actual": payload_workspace_id,
+            },
+        )
+        return
+    workspace_id = query_workspace_id or payload_workspace_id
+    status, response = (
+        product_workspace_initialization_execution.prepare_initialization_request(
+            handler.server,
+            payload,
+            workspace_id=workspace_id,
+        )
     )
     json_response(handler, status, response)
 

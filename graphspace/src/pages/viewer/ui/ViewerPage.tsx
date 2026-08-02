@@ -328,6 +328,10 @@ export function ViewerPage({
         "/api/v1/product-workspace-initialization/execute",
         workspace,
       ),
+      productWorkspaceInitializationPrepare: workspaceApiUrl(
+        "/api/v1/product-workspace-initialization/prepare",
+        workspace,
+      ),
       ideaToSpecRepairRerunRequests: workspaceApiUrl(
         "/api/v1/idea-to-spec-repair-rerun-requests",
         workspace,
@@ -1100,6 +1104,9 @@ export function ViewerPage({
       }
       productWorkspaceInitializationExecuteUrl={
         workspaceApiUrls.productWorkspaceInitializationExecute
+      }
+      productWorkspaceInitializationPrepareUrl={
+        workspaceApiUrls.productWorkspaceInitializationPrepare
       }
       artifactContentUrl={workspaceApiUrls.artifactContent}
       artifactContentRefreshKey={runsWatchVersion}

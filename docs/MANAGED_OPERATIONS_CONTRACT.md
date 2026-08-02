@@ -339,6 +339,13 @@ request remain idempotent.
 
 ## Operation Inventory
 
+The local `POST /api/v1/product-workspace-initialization/prepare` route is a
+request-authoring precursor, not a managed execution operation. It invokes only
+the fixed Platform plan and request-authoring commands, keeps all authority
+flags closed, and must complete before `workspace_initialization_execute`
+becomes ready. It therefore does not appear in the hosted operation registry or
+deployment allowlist.
+
 | Operation id | UI stage | Endpoint | Platform command | Primary outputs |
 | --- | --- | --- | --- | --- |
 | `workspace_initialization_execute` | Workspace initialization | `POST /api/v1/product-workspace-initialization/execute` | `workspace execute-requested-initialization` | `runs/platform_product_workspace_initialization_execution_report.json` |

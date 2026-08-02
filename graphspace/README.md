@@ -81,6 +81,11 @@ rewriting Vite configuration:
 SPECSPACE_API_PORT=8101 npm run dev -- --port 5275
 ```
 
+The Platform-owned Mac product profile also configures a private product
+workspace root and local catalog. In that mode a new workspace can move from
+the sidebar wizard to `Prepare initialization request`, then to `Run controlled
+initialization`, without a manually authored runs artifact.
+
 ## Browser E2E
 
 UI-started product flows need a real browser check, not only API and render
