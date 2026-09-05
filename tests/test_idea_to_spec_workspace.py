@@ -4751,6 +4751,69 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             "gate_needed",
         )
 
+        artifacts[
+            idea_to_spec_workspace.SPECSPACE_REPAIR_RERUN_REQUEST_GATE_ARTIFACT
+        ] = {
+            "artifact_kind": "specspace_repair_rerun_request_gate",
+            "schema_version": 1,
+            "contract_ref": (
+                "specgraph.idea-to-spec.specspace-repair-rerun-request-gate.v0.1"
+            ),
+            "canonical_mutations_allowed": False,
+            "tracked_artifacts_written": False,
+            "readiness": {
+                "ready": True,
+                "review_state": "specspace_repair_rerun_request_ready",
+                "blocked_by": [],
+            },
+            "summary": {
+                "status": "specspace_repair_rerun_request_ready",
+                "workspace_id": "team-decision-log",
+                "candidate_id": "team-decision-log",
+                "selected_request_id": "repair-rerun-request.new",
+            },
+        }
+        refreshed = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+        refreshed["workspace_state_hygiene"] = {
+            "available": True,
+            "summary": {"blocking_state_count": 0},
+            "states": [
+                {
+                    "kind": "repair_rerun_request",
+                    "status": "usable",
+                    "reason": "current_request_ready",
+                    "current_record_id": "repair-rerun-request.new",
+                },
+                {
+                    "kind": "repair_rerun_request_gate",
+                    "status": "usable",
+                    "stored_request_id": "repair-rerun-request.new",
+                    "current_request_id": "repair-rerun-request.new",
+                },
+            ],
+        }
+
+        refreshed = idea_to_spec_workspace.attach_guided_flow(refreshed)
+        refreshed_operations = {
+            item["operation_id"]: item
+            for item in refreshed["managed_operations_observability"]["operations"]
+        }
+
+        self.assertTrue(
+            refreshed["guided_repair_path"]["state"]["rerun_execution_superseded"]
+        )
+        self.assertEqual(
+            refreshed_operations["repair_rerun_execute"]["status"],
+            "ready_to_execute",
+        )
+        self.assertEqual(
+            refreshed_operations["repair_rerun_publish"]["status"],
+            "gate_needed",
+        )
+
     def test_guided_repair_path_advances_when_request_and_gate_are_ready(self) -> None:
         artifacts = _workspace_artifacts()
         artifacts[

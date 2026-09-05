@@ -25,6 +25,7 @@ from viewer import (
     idea_to_spec_candidate_approval_intents,
     idea_to_spec_intake_clarification_answers,
     idea_to_spec_read_model_publication_execution,
+    idea_to_spec_repair_rerun_request_gate_execution,
     idea_to_spec_repair_rerun_requests,
     idea_to_spec_workspace,
     idea_to_spec_workspace_state_hygiene,
@@ -9952,6 +9953,114 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         state = body["workspace_state_hygiene"]["states"][0]
         self.assertEqual(state["kind"], "repair_rerun_request")
         self.assertEqual(state["status"], "stale")
+
+    def test_repair_rerun_request_gate_accepts_source_session_after_repaired_handoff(
+        self,
+    ) -> None:
+        request = {
+            "id": "repair-rerun-request.pantry-rotation.new",
+            "workspace_id": "pantry-rotation",
+            "candidate_id": "pantry-rotation",
+            "repair_session_id": "repair-session.pantry-rotation",
+            "repair_session_ref": "runs/idea_to_spec_repair_session.json",
+        }
+        hygiene = {
+            "workspace_id": "pantry-rotation",
+            "candidate_id": "pantry-rotation",
+            "repair_session_id": "repaired-session.pantry-rotation",
+            "repair_session_ref": "runs/repaired_idea_to_spec_repair_session.json",
+            "states": [
+                {
+                    "kind": "repair_rerun_request",
+                    "status": "usable",
+                    "reason": "source_repair_state_consumed_by_repaired_handoff",
+                    "current_record_id": "repair-rerun-request.pantry-rotation.new",
+                    "stored_workspace_id": "pantry-rotation",
+                    "stored_candidate_id": "pantry-rotation",
+                    "stored_repair_session_id": "repair-session.pantry-rotation",
+                    "stored_repair_session_ref": "runs/idea_to_spec_repair_session.json",
+                }
+            ],
+        }
+
+        self.assertTrue(
+            idea_to_spec_repair_rerun_request_gate_execution._request_usable_for_current_workspace(
+                request,
+                hygiene,
+            )
+        )
+
+    def test_repair_rerun_request_gate_rejects_source_session_without_completed_handoff(
+        self,
+    ) -> None:
+        request = {
+            "id": "repair-rerun-request.pantry-rotation.new",
+            "workspace_id": "pantry-rotation",
+            "candidate_id": "pantry-rotation",
+            "repair_session_id": "repair-session.pantry-rotation",
+            "repair_session_ref": "runs/idea_to_spec_repair_session.json",
+        }
+        hygiene = {
+            "workspace_id": "pantry-rotation",
+            "candidate_id": "pantry-rotation",
+            "repair_session_id": "repaired-session.pantry-rotation",
+            "repair_session_ref": "runs/repaired_idea_to_spec_repair_session.json",
+            "states": [
+                {
+                    "kind": "repair_rerun_request",
+                    "status": "usable",
+                    "reason": "repair_session_ref_mismatch",
+                    "current_record_id": "repair-rerun-request.pantry-rotation.new",
+                    "stored_workspace_id": "pantry-rotation",
+                    "stored_candidate_id": "pantry-rotation",
+                    "stored_repair_session_id": "repair-session.pantry-rotation",
+                    "stored_repair_session_ref": "runs/idea_to_spec_repair_session.json",
+                }
+            ],
+        }
+
+        self.assertFalse(
+            idea_to_spec_repair_rerun_request_gate_execution._request_usable_for_current_workspace(
+                request,
+                hygiene,
+            )
+        )
+
+    def test_repair_rerun_request_gate_rejects_foreign_source_session_after_handoff(
+        self,
+    ) -> None:
+        request = {
+            "id": "repair-rerun-request.pantry-rotation.new",
+            "workspace_id": "pantry-rotation",
+            "candidate_id": "pantry-rotation",
+            "repair_session_id": "repair-session.foreign",
+            "repair_session_ref": "runs/foreign/idea_to_spec_repair_session.json",
+        }
+        hygiene = {
+            "workspace_id": "pantry-rotation",
+            "candidate_id": "pantry-rotation",
+            "repair_session_id": "repaired-session.pantry-rotation",
+            "repair_session_ref": "runs/repaired_idea_to_spec_repair_session.json",
+            "states": [
+                {
+                    "kind": "repair_rerun_request",
+                    "status": "usable",
+                    "reason": "source_repair_state_consumed_by_repaired_handoff",
+                    "current_record_id": "repair-rerun-request.pantry-rotation.new",
+                    "stored_workspace_id": "pantry-rotation",
+                    "stored_candidate_id": "pantry-rotation",
+                    "stored_repair_session_id": "repair-session.pantry-rotation",
+                    "stored_repair_session_ref": "runs/idea_to_spec_repair_session.json",
+                }
+            ],
+        }
+
+        self.assertFalse(
+            idea_to_spec_repair_rerun_request_gate_execution._request_usable_for_current_workspace(
+                request,
+                hygiene,
+            )
+        )
 
     def test_repair_rerun_execute_disabled_by_default(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

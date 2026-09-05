@@ -8999,6 +8999,11 @@ def _managed_operations_observability(
         ):
             status = "gate_needed"
         elif (
+            operation.operation_id == "repair_rerun_execute"
+            and repair_state.get("rerun_execution_superseded") is True
+        ):
+            status = "ready_to_execute"
+        elif (
             operation.operation_id == "repair_rerun_publish"
             and (
                 request_gate_status == "stale"
