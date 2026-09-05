@@ -178,6 +178,36 @@ class AspDraftHttpTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             object_hash("grant", {"value": float("inf")})
 
+    def test_operator_approval_rejects_malformed_ids_before_store_access(self):
+        headers = {
+            "Authorization": "Basic " + base64.b64encode(b"operator:password").decode(),
+            "Content-Type": "application/json",
+            "Origin": self.origin,
+        }
+        service = self.server.asp_draft
+        before = service.store.all("approval")
+        for approval_id in (None, [], {}, 7, True, "not-a-hash", "sha-256:" + "A" * 42,
+                            "sha-256:" + "+" * 43):
+            with self.subTest(approval_id=approval_id):
+                with mock.patch.object(service.store, "get", wraps=service.store.get) as store_get:
+                    status, _, result = self.request("/asp/operator/approve", method="POST",
+                        body={"approval_id": approval_id, "input_hash": "unused", "accept": True}, headers=headers)
+                    store_get.assert_not_called()
+                self.assertEqual(status, HTTPStatus.BAD_REQUEST)
+                self.assertEqual(result["payload"]["code"], "schema_invalid")
+                self.assertEqual(service.store.all("approval"), before)
+
+    def test_operator_approval_unknown_well_formed_hash_keeps_not_found_semantics(self):
+        headers = {
+            "Authorization": "Basic " + base64.b64encode(b"operator:password").decode(),
+            "Content-Type": "application/json",
+            "Origin": self.origin,
+        }
+        status, _, result = self.request("/asp/operator/approve", method="POST",
+            body={"approval_id": "sha-256:" + "A" * 43, "input_hash": "unused", "accept": True}, headers=headers)
+        self.assertEqual(status, HTTPStatus.FORBIDDEN)
+        self.assertEqual(result["payload"]["code"], "approval_expired")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -6,8 +6,8 @@ from datetime import datetime, timezone
 import secrets
 import time
 
-from viewer import operator_auth, real_idea_entry_requests as native
-from viewer.asp_draft_wire import ASP, LOCAL, Reject, canonical, closed, digest, envelope, identifier, object_hash, require
+from viewer import operator_auth, real_idea_entry_requests as native, specspace_provider
+from viewer.asp_draft_wire import ASP, LOCAL, Reject, canonical, closed, digest, digest_identifier, envelope, identifier, object_hash, require
 
 READ = "specspace.raw-idea.read"
 PROPOSE = "specspace.raw-idea.propose"
@@ -15,6 +15,7 @@ EXPOSURE = {"classes": ["specspace.raw-idea"], "redaction": {"mode": "none"},
             "retention": {"mode": "transient", "delete_on_grant_end": True}}
 SCHEMA_BASE = {"$schema": "https://json-schema.org/draft/2020-12/schema", "type": "object", "additionalProperties": False}
 IDENTIFIER = {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"}
+WORKSPACE_IDENTIFIER = {"type": "string", "pattern": specspace_provider.PRODUCT_WORKSPACE_ID_RE.pattern}
 
 
 def schema(properties):
@@ -22,14 +23,14 @@ def schema(properties):
 
 
 SCHEMAS = {
-    "read-input": schema({"workspace_id": IDENTIFIER}),
-    "propose-input": schema({"workspace_id": IDENTIFIER, "request_id": IDENTIFIER,
+    "read-input": schema({"workspace_id": WORKSPACE_IDENTIFIER}),
+    "propose-input": schema({"workspace_id": WORKSPACE_IDENTIFIER, "request_id": IDENTIFIER,
                              "idea_text": {"type": "string", "minLength": 1, "maxLength": 8000},
                              "snapshot_hash": {"type": "string", "pattern": "^sha-256:[A-Za-z0-9_-]{43}$"}}),
-    "read-output": schema({"workspace_id": IDENTIFIER, "snapshot_hash": {"type": "string"},
+    "read-output": schema({"workspace_id": WORKSPACE_IDENTIFIER, "snapshot_hash": {"type": "string"},
                            "drafts": {"type": "array", "items": schema({"request_id": IDENTIFIER,
                                      "idea_text": {"type": "string"}, "status": {"const": "draft"}})}}),
-    "propose-output": schema({"workspace_id": IDENTIFIER, "request_id": IDENTIFIER,
+    "propose-output": schema({"workspace_id": WORKSPACE_IDENTIFIER, "request_id": IDENTIFIER,
                               "idea_text": {"type": "string"}, "status": {"const": "draft"}}),
 }
 
@@ -78,6 +79,8 @@ def iso(seconds):
 class DraftService:
     def __init__(self, server, origin, workspace_id, runtime_id, agent_id, identity_verifier, clock=time.time):
         self.server, self.store, self.origin = server, server.specspace_state_backend, origin
+        canonical_workspace = specspace_provider.normalize_workspace_id(workspace_id)
+        require(canonical_workspace == workspace_id, "workspace_invalid")
         self.workspace = identifier(workspace_id)
         self.runtime, self.agent = identifier(runtime_id), identifier(agent_id)
         self.clock, self.identity_verifier = clock, identity_verifier
@@ -197,7 +200,8 @@ class DraftService:
                     return existing["state"]
                 require(len(self.store.all("session")) < 32, "quota_exceeded", 429)
                 require(not any(row["start"]["payload"]["grant_id"] == grant["grant_id"] and
-                                row["state"]["payload"]["state"] == "active" for row in self.store.all("session")),
+                                row["state"]["payload"]["state"] in ("active", "interrupted")
+                                for row in self.store.all("session")),
                         "session_transition_invalid", 409)
                 state = envelope("session.state", {**{k: p[k] for k in ("session_id", "session_generation", "grant_id", "grant_hash",
                                                    "runtime_id", "agent_id", "identity_evidence_hash")},
@@ -293,6 +297,7 @@ class DraftService:
 
     def approve(self, body):
         closed(body, ("approval_id", "input_hash", "accept"))
+        digest_identifier(body["approval_id"])
         with self.store.transaction():
             self._identity()
             row = self.store.get("approval", body["approval_id"])

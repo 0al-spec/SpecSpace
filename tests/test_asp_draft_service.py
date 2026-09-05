@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from pathlib import Path
 from types import SimpleNamespace
+import re
 import tempfile
 import unittest
 
 from viewer import operator_auth, real_idea_entry_requests
-from viewer.asp_draft import DraftService, PROPOSE, READ
+from viewer.asp_draft import DraftService, PROPOSE, READ, SCHEMAS
 from viewer.asp_draft_store import DraftStore
 from viewer.asp_draft_wire import Reject, canonical, digest, envelope, object_hash
 
@@ -59,9 +60,9 @@ def _grant(service: DraftService) -> tuple[str, dict]:
     return issued["credential"], issued["grant"]
 
 
-def _session(service: DraftService, token: str, grant: dict) -> dict:
+def _session(service: DraftService, token: str, grant: dict, session_id: str = "session-a") -> dict:
     payload = {
-        "session_id": "session-a", "session_generation": 1, "trace_id": "a" * 32, "span_id": "b" * 16,
+        "session_id": session_id, "session_generation": 1, "trace_id": "a" * 32, "span_id": "b" * 16,
         "grant_id": grant["grant_id"], "grant_hash": grant["grant_hash"], "runtime_id": "runtime-a",
         "agent_id": "agent-a", "identity_evidence_hash": service.identity_hash, "initiated_by": "runtime",
         "surface": {key: service.manifest[key] for key in ("app_id", "surface_version", "surface_hash")},
@@ -89,6 +90,70 @@ def _request(service: DraftService, grant: dict, *, snapshot: str, text: str = "
 
 
 class AspDraftServiceTests(unittest.TestCase):
+    def test_workspace_schemas_match_native_canonical_shape(self) -> None:
+        for name, schema in SCHEMAS.items():
+            pattern = schema["properties"]["workspace_id"]["pattern"]
+            for value in ("workspace-a", "asp-draft-demo", "specgraph-bootstrap"):
+                with self.subTest(schema=name, value=value):
+                    self.assertIsNotNone(re.fullmatch(pattern, value))
+            for value in ("Workspace-A", "workspace_a", "ab", "workspace.a"):
+                with self.subTest(schema=name, value=value):
+                    self.assertIsNone(re.fullmatch(pattern, value))
+
+    def test_workspace_binding_requires_native_canonical_id(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            for workspace_id in ("Workspace-A", "workspace_a", "ab", "bootstrap", "specgraph"):
+                with self.subTest(workspace_id=workspace_id):
+                    store = DraftStore(Path(directory) / workspace_id)
+                    with self.assertRaisesRegex(Reject, "workspace_invalid"):
+                        DraftService(_server(Path(directory) / workspace_id, store), ORIGIN,
+                                     workspace_id, "runtime-a", "agent-a", lambda _now: (IDENTITY, 1000))
+                    self.assertEqual(store.all("config"), [])
+            for workspace_id in ("workspace-a", "asp-draft-demo", "specgraph-bootstrap"):
+                with self.subTest(workspace_id=workspace_id):
+                    root = Path(directory) / ("canonical-" + workspace_id)
+                    store = DraftStore(root)
+                    service = DraftService(_server(root, store), ORIGIN, workspace_id, "runtime-a", "agent-a",
+                                           lambda _now: (IDENTITY, 1000))
+                    self.assertEqual(service.workspace, workspace_id)
+
+    def test_runaway_pause_fences_new_session_after_restart_but_replay_survives(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            service, store, _ = _service(root)
+            token, grant = _grant(service)
+            _session(service, token, grant)
+            read = service.action(token, _request(service, grant, snapshot="unused", action=READ), None)
+            proposal = _request(service, grant, snapshot=read["payload"]["output"]["snapshot_hash"])
+            approval = service.request_approval(token, proposal, "idempotency-a")
+            service.approve({"approval_id": approval["approval_id"],
+                             "input_hash": proposal["payload"]["input_hash"], "accept": True})
+            completed = service.action(token, proposal, "idempotency-a")
+            pause = {"type": "session.pause", "payload": {
+                "pause_id": "pause-a", "session_id": "session-a", "session_generation": 1,
+                "grant_id": grant["grant_id"], "grant_hash": grant["grant_hash"],
+                "surface_hash": service.manifest["surface_hash"], "reason": "runaway_guard", "guard_id": "guard-a",
+            }}
+            interrupted = service.session(token, pause)
+            self.assertEqual(interrupted["payload"]["state"], "interrupted")
+            self.assertEqual(service.action(token, proposal, "idempotency-a"), completed)
+            with self.assertRaisesRegex(Reject, "session_transition_invalid"):
+                _session(service, token, grant, "session-b")
+
+            restarted = DraftService(service.server, ORIGIN, "workspace-a", "runtime-a", "agent-a",
+                                     lambda _now: (IDENTITY, 1000), Clock())
+            with self.assertRaisesRegex(Reject, "session_transition_invalid"):
+                _session(restarted, token, grant, "session-b")
+            self.assertEqual(restarted.session(token, store.get("session", "session-a")["start"]), interrupted)
+            self.assertEqual(restarted.action(token, proposal, "idempotency-a"), completed)
+            with self.assertRaisesRegex(Reject, "session_invalid"):
+                restarted.action(token, _request(restarted, grant, snapshot="unused", action=READ), None)
+            self.assertEqual(store.get("session", "session-a")["state"]["payload"]["state"], "interrupted")
+            token2, grant2 = _grant(restarted)
+            _session(restarted, token2, grant2, "session-c")
+            self.assertIsNotNone(store.get("session", "session-c"))
+            self.assertIsNone(store.get("session", "session-b"))
+
     def test_issue_session_read_propose_approval_happy_path(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             service, store, _ = _service(Path(directory))

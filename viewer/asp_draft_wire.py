@@ -13,6 +13,7 @@ import re
 ASP = "https://github.com/0al-spec/agent-surface/"
 LOCAL = "https://github.com/0al-spec/SpecSpace/experiments/asp-draft/v1/"
 ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
+DIGEST = re.compile(r"sha-256:[A-Za-z0-9_-]{43}\Z")
 
 
 class Reject(ValueError):
@@ -34,6 +35,11 @@ def closed(value, keys):
 
 def identifier(value):
     require(isinstance(value, str) and ID.fullmatch(value) is not None)
+    return value
+
+
+def digest_identifier(value):
+    require(isinstance(value, str) and DIGEST.fullmatch(value) is not None)
     return value
 
 

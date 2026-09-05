@@ -63,6 +63,10 @@ Startup rejects external storage, enabled execution, non-loopback binding,
 unprotected state and an existing raw-idea JSON collection. It does not migrate
 production data. Restart requires the same origin, surface, user, workspace,
 runtime and identity registration; it never resets a revoked Grant.
+The configured workspace ID must already be in the native canonical form:
+lowercase, hyphen-separated (`^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$`). Startup rejects
+aliases such as `Workspace-A` and `workspace_a`; it does not silently rewrite the
+authority binding. The published input/output schemas advertise this contract.
 
 ## Application boundary
 
@@ -77,6 +81,11 @@ The Bearer credential does not authorize the native operator endpoint.
   `/asp/approval-request` bridge.
 - Operator: `/asp/operator/consent`, `/asp/operator/grant`,
   `/asp/operator/approvals`, `/asp/operator/approve`, `/asp/operator/revoke`.
+
+Runaway-guard pause fences every new session under the same Grant, including
+after restart. Exact replay of the paused `session.start` remains an idempotent
+transition and returns the interrupted state; a freshly issued Grant is required
+to start again.
 
 Issuance uses ASP's app-issued Model A and the existing compatibility Bearer
 profile. The app-local consent bridge is not an OAuth server or a portable
