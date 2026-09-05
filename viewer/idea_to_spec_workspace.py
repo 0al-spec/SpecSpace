@@ -6988,6 +6988,12 @@ def _guided_repair_path(payload: dict[str, Any]) -> dict[str, Any]:
             and _guided_repair_status_ready(request_gate_artifact.get("status"))
         )
     rerun_requested = rerun_request_status == "usable"
+    rerun_request_consumed = (
+        rerun_execution_complete
+        and not rerun_execution_superseded
+        and rerun_execution_request_id is not None
+    )
+    rerun_request_completed = rerun_requested or rerun_request_consumed
 
     if not repair_review.get("available") and not repair_session.get("available"):
         stage = "missing"
@@ -7077,12 +7083,16 @@ def _guided_repair_path(payload: dict[str, Any]) -> dict[str, Any]:
         _guided_repair_checkpoint(
             checkpoint_id="rerun_request",
             label="Rerun request",
-            status="completed" if rerun_requested else "missing",
+            status="completed" if rerun_request_completed else "missing",
             target_section="idea-to-spec-repair-review",
             evidence_refs=[
-                "specspace-state://idea_to_spec_repair_rerun_requests.json"
+                (
+                    "specspace-state://idea_to_spec_repair_rerun_requests.json"
+                    if rerun_requested
+                    else "runs/platform_product_repair_rerun_execution_report.json"
+                )
             ]
-            if rerun_requested
+            if rerun_request_completed
             else [],
         ),
         _guided_repair_checkpoint(
@@ -7130,7 +7140,11 @@ def _guided_repair_path(payload: dict[str, Any]) -> dict[str, Any]:
         },
         "state": {
             "repair_drafts_status": _optional_text(repair_drafts_state.get("status")),
-            "rerun_request_status": _optional_text(rerun_request_state.get("status")),
+            "rerun_request_status": (
+                "consumed"
+                if rerun_request_consumed and not rerun_requested
+                else _optional_text(rerun_request_state.get("status"))
+            ),
             "request_gate_status": _optional_text(request_gate_status),
             "rerun_execution_status": _optional_text(rerun_execution.get("status")),
             "active_rerun_request_id": active_rerun_request_id,

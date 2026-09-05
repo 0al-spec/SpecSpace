@@ -8072,9 +8072,16 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
 
     def test_repair_rerun_execution_requires_publication_when_unblocked(self) -> None:
         artifacts = self._repair_rerun_ready_artifacts()
+        execution = _product_repair_rerun_execution_report()
+        execution["output_artifacts"]["request_gate"] = {
+            "path": "runs/specspace_repair_rerun_request_gate.json",
+            "present": True,
+            "artifact_kind": "specspace_repair_rerun_request_gate",
+            "summary": {"selected_request_id": "repair-rerun-request.current"},
+        }
         artifacts[
             idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT
-        ] = _product_repair_rerun_execution_report()
+        ] = execution
 
         body = idea_to_spec_workspace.build_idea_to_spec_workspace(
             artifacts=artifacts,
@@ -8094,6 +8101,18 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         self.assertEqual(
             body["guided_repair_path"]["next_action"],
             "Wait for repaired artifacts to publish.",
+        )
+        self.assertEqual(
+            body["guided_repair_path"]["state"]["rerun_request_status"],
+            "consumed",
+        )
+        self.assertEqual(
+            _guided_repair_checkpoint(body, "rerun_request")["status"],
+            "completed",
+        )
+        self.assertEqual(
+            _guided_repair_checkpoint(body, "rerun_request")["evidence_refs"],
+            ["runs/platform_product_repair_rerun_execution_report.json"],
         )
 
     def test_repair_rerun_dry_run_publication_still_requires_publication(
