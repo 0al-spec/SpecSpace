@@ -170,3 +170,14 @@ quality-gate результаты:
 
 - `CONTRIBUTING.md` — для onboarding и правил код-ревью.
 - Если появляются новые важные нюансы (например новый deploy-провайдер, новые guardrails для SpecPM/SpecGraph), добавлять в этот документ отдельным пунктом.
+
+### Opt-in protocol experiments
+
+- Keep synthetic ASP deployment separate from ordinary Product Workspace;
+  never enable experimental agent routes implicitly or migrate live operator state.
+- Idempotent execution evidence must not be reconstructed from a mutable draft.
+  Native and protocol writers must share the same authoritative transaction;
+  an adapter-only lock does not protect against the native API.
+- A green test that fails at authentication does not prove validation of its
+  malformed body. Negative tests must reach the intended boundary and assert
+  its exact rejection and absence of state changes.

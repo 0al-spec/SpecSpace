@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from contextlib import nullcontext
 import secrets
 import threading
 from datetime import datetime, timezone
@@ -205,6 +206,20 @@ def normalize_state(raw: Any, path: Path) -> tuple[dict[str, Any] | None, dict[s
 
 
 def save_request(
+    server: Any,
+    payload: dict[str, Any],
+    *,
+    workspace_id: str | None,
+) -> tuple[HTTPStatus, dict[str, Any]]:
+    # Database transaction precedes the process-local lock for both native and
+    # ASP callers. The outer ASP transaction also includes its execution result.
+    configured = specspace_state_backend.backend(server)
+    transaction = getattr(configured, "transaction", nullcontext)
+    with transaction():
+        return _save_request(server, payload, workspace_id=workspace_id)
+
+
+def _save_request(
     server: Any,
     payload: dict[str, Any],
     *,

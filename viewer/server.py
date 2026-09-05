@@ -452,6 +452,10 @@ class ViewerHandler(BaseHTTPRequestHandler):
     handle_static = static_api.handle_static
 
     def _dispatch_route(self, method: str, parsed) -> bool:
+        from viewer import asp_draft_http
+
+        if asp_draft_http.dispatch(self, method, parsed):
+            return True
         route = route_for(method, parsed.path)
         if route is None:
             return False
@@ -475,13 +479,19 @@ class ViewerHandler(BaseHTTPRequestHandler):
 
     def end_headers(self) -> None:
         if (
-            getattr(self, "_active_route_access", None) is RouteAccess.OPERATOR
+            getattr(self, "_asp_request", False)
+            or getattr(self, "_active_route_access", None) is RouteAccess.OPERATOR
             or getattr(self, "_operator_request_authenticated", False) is True
         ):
             self.send_header("Cache-Control", "no-store")
             self.send_header("Pragma", "no-cache")
             self.send_header("Vary", "Authorization, Origin")
         super().end_headers()
+
+    def log_message(self, format: str, *args) -> None:
+        if getattr(self.server, "asp_draft", None) is not None:
+            return  # This private experiment never logs request URLs or data.
+        super().log_message(format, *args)
 
     def do_GET(self) -> None:
         parsed = urlparse(self.path)

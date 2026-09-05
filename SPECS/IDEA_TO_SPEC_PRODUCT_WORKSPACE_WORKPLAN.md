@@ -50,6 +50,20 @@ local registry are versioned together. Until then, do not publish a stable
 `/.well-known/agent-surface.json`, issue Agent Grants, or accept external agent
 runtime action requests from Product Workspace routes.
 
+### Isolated ASP draft adoption experiment
+
+An explicit exception is the opt-in, loopback-only synthetic deployment in
+[ASP draft adoption](../docs/ASP_DRAFT_ADOPTION.md). It uses an independent local
+runtime to read one workspace and persist a human-approved `status: draft`.
+It reuses native raw-idea save with a shared SQLite admission/result transaction.
+It is not enabled in normal Product Workspace deployments, does not run intake,
+does not migrate existing state and makes no production/conformance claim.
+
+Status: implementation and synthetic transport/recovery checks added; actual
+human consent, review/CI and an adoption-cost decision remain separate gates.
+Do not expand to export, repair execution or a general SDK before evaluating
+this bounded result.
+
 ## Near-Term Delivery Order
 
 ### 1. External Durable State Backend
