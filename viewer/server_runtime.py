@@ -218,6 +218,8 @@ def build_arg_parser(
         help="Host interface to bind. Use 0.0.0.0 inside container deployments.",
     )
     parser.add_argument("--port", type=int, default=8000)
+    parser.add_argument("--asp-draft-config", type=Path,
+                        help="Opt-in loopback HTTPS synthetic draft experiment; see docs/ASP_DRAFT_ADOPTION.md")
     parser.add_argument("--dialog-dir", type=Path, required=True)
     parser.add_argument(
         "--hyperprompt-binary",
@@ -905,6 +907,9 @@ def configure_server(
         getattr(args, "platform_execution_timeout_seconds", 120)
     )
     server.agent_available = args.agent
+    from viewer import asp_draft_http
+
+    asp_draft_http.configure(server, args)
 
 
 def serve(
@@ -935,6 +940,7 @@ def serve(
         runs_watcher_factory=runs_watcher_factory,
     )
 
-    print(f"Serving ContextBuilder at http://{args.host}:{args.port}/")
+    origin = getattr(getattr(server, "asp_draft", None), "origin", f"http://{args.host}:{args.port}")
+    print(f"Serving ContextBuilder at {origin}/", flush=True)
     print(f"Dialog folder: {server.dialog_dir}")
     server.serve_forever()
