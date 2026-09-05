@@ -25,6 +25,7 @@ from viewer import (
     idea_to_spec_candidate_approval_intents,
     idea_to_spec_intake_clarification_answers,
     idea_to_spec_read_model_publication_execution,
+    idea_to_spec_repair_rerun_publication,
     idea_to_spec_repair_rerun_execution,
     idea_to_spec_repair_rerun_request_gate_execution,
     idea_to_spec_repair_rerun_requests,
@@ -10769,6 +10770,105 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertTrue(body["authority_boundary"]["executes_specgraph"])
         self.assertTrue(body["authority_boundary"]["publishes_public_bundle"])
         self.assertTrue(report_file_exists)
+
+    def test_repair_rerun_publish_timeout_terminates_process_group(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runs_dir = root / "runs"
+            runs_dir.mkdir()
+            specgraph_dir = root / "SpecGraph"
+            specgraph_dir.mkdir()
+            (specgraph_dir / "Makefile").write_text(
+                "publish-bundle:\n\t@true\n",
+                encoding="utf-8",
+            )
+            platform_dir = root / "Platform"
+            scripts_dir = platform_dir / "scripts"
+            scripts_dir.mkdir(parents=True)
+            (scripts_dir / "platform.py").write_text("", encoding="utf-8")
+            _write_json(
+                runs_dir / "platform_product_repair_rerun_execution_report.json",
+                {
+                    "artifact_kind": "platform_product_repair_rerun_execution_report",
+                    "ok": True,
+                    "dry_run": False,
+                    "summary": {"status": "completed"},
+                },
+            )
+            httpd, thread, base = _start(
+                root / "dialogs",
+                runs_dir=runs_dir,
+                platform_dir=platform_dir,
+                platform_execution_enabled=True,
+                platform_execution_timeout_seconds=1,
+                specgraph_dir=specgraph_dir,
+            )
+            try:
+                with mock.patch.object(
+                    idea_to_spec_repair_rerun_publication,
+                    "_run_platform_process",
+                    return_value=(
+                        None,
+                        "partial stdout",
+                        "partial stderr",
+                        True,
+                        True,
+                    ),
+                ) as run_platform:
+                    status, body = _post(
+                        (
+                            f"{base}/api/v1/idea-to-spec-repair-rerun/publish"
+                            "?workspace=pantry-rotation"
+                        ),
+                        {"workspace_id": "pantry-rotation"},
+                    )
+            finally:
+                _stop(httpd, thread)
+
+        self.assertEqual(status, 504)
+        self.assertFalse(body["ok"])
+        self.assertEqual(body["status"], "platform_execution_timeout")
+        self.assertEqual(body["platform_timeout_seconds"], 1)
+        self.assertTrue(body["process_group_terminated"])
+        self.assertEqual(body["stderr_tail"], "partial stderr")
+        run_platform.assert_called_once()
+
+    def test_repair_rerun_publication_process_timeout_does_not_leave_children(
+        self,
+    ) -> None:
+        process = mock.Mock()
+        process.communicate.side_effect = subprocess.TimeoutExpired(
+            ["platform"],
+            1,
+            output="partial stdout",
+            stderr="partial stderr",
+        )
+        with (
+            mock.patch.object(
+                idea_to_spec_repair_rerun_publication.subprocess,
+                "Popen",
+                return_value=process,
+            ),
+            mock.patch.object(
+                idea_to_spec_repair_rerun_publication,
+                "_terminate_process_group",
+                return_value=False,
+            ),
+        ):
+            completed, stdout, stderr, timed_out, terminated = (
+                idea_to_spec_repair_rerun_publication._run_platform_process(
+                    ["platform"],
+                    cwd=Path("."),
+                    timeout_seconds=1,
+                )
+            )
+
+        self.assertIsNone(completed)
+        self.assertEqual(stdout, "partial stdout")
+        self.assertEqual(stderr, "partial stderr")
+        self.assertTrue(timed_out)
+        self.assertFalse(terminated)
+        self.assertEqual(process.communicate.call_count, 1)
 
     def test_candidate_approval_execute_runs_allowlisted_platform_approve(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
