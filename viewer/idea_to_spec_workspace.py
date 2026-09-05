@@ -4845,6 +4845,14 @@ def _product_repair_rerun_execution(
 ) -> dict[str, Any]:
     summary = _record((report or {}).get("summary"))
     operations = _product_repair_rerun_operations(report)
+    output_artifacts = _product_repair_rerun_output_artifacts(report)
+    request_gate = next(
+        (item for item in output_artifacts if item.get("key") == "request_gate"),
+        {},
+    )
+    selected_request_id = _optional_text(
+        _record(request_gate.get("summary")).get("selected_request_id")
+    )
     diagnostic_codes = {
         _text(item.get("code"))
         for item in _records((report or {}).get("diagnostics"))
@@ -4881,8 +4889,9 @@ def _product_repair_rerun_execution(
         "output_artifact_count": _number(summary.get("output_artifact_count")),
         "rerun_report_digest": _optional_text(summary.get("rerun_report_digest")),
         "repair_session_digest": _optional_text(summary.get("repair_session_digest")),
+        "selected_request_id": selected_request_id,
         "operations": operations,
-        "output_artifacts": _product_repair_rerun_output_artifacts(report),
+        "output_artifacts": output_artifacts,
         "diagnostic_count": len(_records((report or {}).get("diagnostics"))),
     }
 
@@ -6799,14 +6808,29 @@ def _guided_repair_path(payload: dict[str, Any]) -> dict[str, Any]:
         _text(request_gate_artifact.get("status"), "missing"),
     )
     rerun_request_status = _text(rerun_request_state.get("status"), "missing")
+    active_rerun_request_id = _optional_text(
+        rerun_request_state.get("current_record_id")
+    )
+    rerun_execution_request_id = _optional_text(
+        rerun_execution.get("selected_request_id")
+    )
+    rerun_execution_superseded = bool(
+        active_rerun_request_id
+        and rerun_execution_request_id != active_rerun_request_id
+    )
     rerun_execution_available = rerun_execution.get("available") is True
     rerun_publication_available = rerun_publication.get("available") is True
     rerun_execution_follow_up_required = (
         rerun_execution.get("follow_up_required") is True
     )
-    rerun_execution_failed = rerun_execution_available and not rerun_execution_follow_up_required and (
-        rerun_execution.get("ok") is not True
-        or _number(rerun_execution.get("error_count")) > 0
+    rerun_execution_failed = (
+        rerun_execution_available
+        and not rerun_execution_superseded
+        and not rerun_execution_follow_up_required
+        and (
+            rerun_execution.get("ok") is not True
+            or _number(rerun_execution.get("error_count")) > 0
+        )
     )
     rerun_publication_failed = rerun_publication_available and (
         rerun_publication.get("ok") is not True
@@ -6841,6 +6865,7 @@ def _guided_repair_path(payload: dict[str, Any]) -> dict[str, Any]:
         )
     rerun_execution_complete = (
         rerun_execution_available
+        and not rerun_execution_superseded
         and rerun_execution.get("ok") is True
         and rerun_execution.get("dry_run") is not True
     )
@@ -6879,6 +6904,13 @@ def _guided_repair_path(payload: dict[str, Any]) -> dict[str, Any]:
                 continue
             if _text(state.get("status")) not in {"stale", "invalid"}:
                 continue
+            if (
+                _text(state.get("kind")) == "repair_rerun_request_gate"
+                and _text(state.get("reason"))
+                == "repair_rerun_request_id_mismatch"
+                and rerun_request_status == "usable"
+            ):
+                continue
             _guided_repair_append_unique(
                 repair_blockers,
                 _text(state.get("reason"), _text(state.get("kind"), "state_blocked")),
@@ -6915,16 +6947,46 @@ def _guided_repair_path(payload: dict[str, Any]) -> dict[str, Any]:
             and unresolved_blocking_answer_count == 0
         )
     )
-    ontology_decisions_complete = (
-        ontology_gap_request_count == 0
-        or ontology_decision_count >= ontology_gap_request_count
+    ontology_decision_actions = {
+        "bind_existing_term",
+        "alias",
+        "propose_project_local_term",
+    }
+    ontology_decision_request_ids = {
+        request_id
+        for item in _records(clarification_requests.get("requests"))
+        if _text(item.get("kind")) == "ontology_gap"
+        and ontology_decision_actions.intersection(
+            _string_list(item.get("suggested_actions"))
+        )
+        and (request_id := _optional_text(item.get("id"))) is not None
+    }
+    covered_ontology_request_ids = {
+        request_id
+        for item in _records(ontology_decisions.get("decisions"))
+        if (request_id := _optional_text(item.get("request_id"))) is not None
+    }
+    covered_ontology_request_ids.update(
+        _string_list(repair_drafts_state.get("current_record_ids"))
     )
+    if ontology_decision_request_ids:
+        ontology_decisions_complete = ontology_decision_request_ids.issubset(
+            covered_ontology_request_ids
+        )
+    else:
+        ontology_decisions_complete = (
+            ontology_gap_request_count == 0
+            or ontology_decision_count >= ontology_gap_request_count
+        )
     project_local_complete = project_local_term_count == 0 or project_local_ready
     decisions_complete = ontology_decisions_complete and project_local_complete
-    request_gate_ready = request_gate_status == "usable" or (
-        request_gate_artifact.get("available") is True
-        and _guided_repair_status_ready(request_gate_artifact.get("status"))
-    )
+    if request_gate_state:
+        request_gate_ready = request_gate_status == "usable"
+    else:
+        request_gate_ready = (
+            request_gate_artifact.get("available") is True
+            and _guided_repair_status_ready(request_gate_artifact.get("status"))
+        )
     rerun_requested = rerun_request_status == "usable"
 
     if not repair_review.get("available") and not repair_session.get("available"):
@@ -7071,6 +7133,9 @@ def _guided_repair_path(payload: dict[str, Any]) -> dict[str, Any]:
             "rerun_request_status": _optional_text(rerun_request_state.get("status")),
             "request_gate_status": _optional_text(request_gate_status),
             "rerun_execution_status": _optional_text(rerun_execution.get("status")),
+            "active_rerun_request_id": active_rerun_request_id,
+            "rerun_execution_request_id": rerun_execution_request_id,
+            "rerun_execution_superseded": rerun_execution_superseded,
             "rerun_publication_status": _optional_text(
                 rerun_publication.get("status")
             ),
@@ -8707,6 +8772,12 @@ def _managed_operation_ref_payload(
             answers = _record(clarification.get("answer_progress"))
             available = _number(answers.get("answered_count")) > 0
             status = "answers_saved" if available else "missing"
+        elif state_name == "idea_to_spec_repair_drafts.json":
+            repair = _record(payload.get("guided_repair_path"))
+            state = _record(repair.get("state"))
+            available = _text(state.get("repair_drafts_status")) == "usable"
+            status = "drafts_saved" if available else "missing"
+            reason = None if available else "Repair draft state is not usable."
         elif state_name == "idea_to_spec_repair_rerun_requests.json":
             repair = _record(payload.get("guided_repair_path"))
             state = _record(repair.get("state"))
@@ -8909,6 +8980,32 @@ def _managed_operations_observability(
             inputs=inputs,
             outputs=outputs,
         )
+        guided_repair = _record(payload.get("guided_repair_path"))
+        repair_state = _record(guided_repair.get("state"))
+        request_gate_status = _text(repair_state.get("request_gate_status"))
+        if (
+            operation.operation_id == "repair_rerun_request_gate_execute"
+            and request_gate_status == "stale"
+        ):
+            status = "ready_to_execute" if not missing_inputs else "request_needed"
+        elif (
+            operation.operation_id == "repair_rerun_execute"
+            and request_gate_status not in {
+                "usable",
+                "specspace_repair_rerun_request_ready",
+                "specspace_repair_rerun_request_gate_ready",
+                "repair_rerun_request_gate_ready",
+            }
+        ):
+            status = "gate_needed"
+        elif (
+            operation.operation_id == "repair_rerun_publish"
+            and (
+                request_gate_status == "stale"
+                or repair_state.get("rerun_execution_superseded") is True
+            )
+        ):
+            status = "gate_needed"
         if (
             operation.operation_id == "repair_rerun_execute"
             and _record(

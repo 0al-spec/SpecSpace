@@ -4676,6 +4676,81 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             "missing",
         )
 
+    def test_fresh_rerun_request_supersedes_previous_gate_and_failed_execution(
+        self,
+    ) -> None:
+        artifacts = _workspace_artifacts()
+        failed_execution = _product_repair_rerun_execution_report(ok=False)
+        failed_execution["output_artifacts"]["request_gate"] = {
+            "path": "runs/specspace_repair_rerun_request_gate.json",
+            "present": True,
+            "artifact_kind": "specspace_repair_rerun_request_gate",
+            "contract_ref": (
+                "specgraph.idea-to-spec.specspace-repair-rerun-request-gate.v0.1"
+            ),
+            "status": "specspace_repair_rerun_request_ready",
+            "summary": {"selected_request_id": "repair-rerun-request.old"},
+            "ready": True,
+            "sha256": "sha256:old-gate",
+        }
+        artifacts[
+            idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT
+        ] = failed_execution
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+        body["workspace_state_hygiene"] = {
+            "available": True,
+            "summary": {"blocking_state_count": 1},
+            "states": [
+                {
+                    "kind": "repair_rerun_request",
+                    "status": "usable",
+                    "reason": "current_request_ready",
+                    "current_record_id": "repair-rerun-request.new",
+                },
+                {
+                    "kind": "repair_rerun_request_gate",
+                    "status": "stale",
+                    "reason": "repair_rerun_request_id_mismatch",
+                    "stored_request_id": "repair-rerun-request.old",
+                    "current_request_id": "repair-rerun-request.new",
+                },
+            ],
+        }
+
+        body = idea_to_spec_workspace.attach_guided_flow(body)
+
+        self.assertEqual(
+            body["guided_repair_path"]["stage"],
+            "rerun_request_gate_needed",
+        )
+        self.assertEqual(body["guided_repair_path"]["blockers"], [])
+        self.assertTrue(
+            body["guided_repair_path"]["state"]["rerun_execution_superseded"]
+        )
+        self.assertEqual(
+            body["guided_repair_path"]["state"]["rerun_execution_request_id"],
+            "repair-rerun-request.old",
+        )
+        operations = {
+            item["operation_id"]: item
+            for item in body["managed_operations_observability"]["operations"]
+        }
+        self.assertEqual(
+            operations["repair_rerun_request_gate_execute"]["status"],
+            "request_needed",
+        )
+        self.assertEqual(
+            operations["repair_rerun_execute"]["status"],
+            "gate_needed",
+        )
+        self.assertEqual(
+            operations["repair_rerun_publish"]["status"],
+            "gate_needed",
+        )
+
     def test_guided_repair_path_advances_when_request_and_gate_are_ready(self) -> None:
         artifacts = _workspace_artifacts()
         artifacts[

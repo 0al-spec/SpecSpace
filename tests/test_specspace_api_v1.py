@@ -17380,6 +17380,48 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(state["reason"], "repair_session_ref_mismatch")
         self.assertEqual(state["stored_candidate_id"], "other-candidate")
 
+    def test_idea_to_spec_workspace_state_hygiene_marks_gate_for_previous_request_stale(
+        self,
+    ) -> None:
+        current = {
+            "workspace_id": "team-decision-log",
+            "candidate_id": "team-decision-log",
+            "repair_session_id": "repair-session.team-decision-log",
+            "repair_session_ref": "runs/idea_to_spec_repair_session.json",
+            "source_repair_session_id": "repair-session.team-decision-log",
+            "source_repair_session_ref": "runs/idea_to_spec_repair_session.json",
+            "repaired_selected": None,
+            "repaired_handoff_selected": None,
+        }
+
+        state = idea_to_spec_workspace_state_hygiene._artifact_state_status(
+            kind="repair_rerun_request_gate",
+            artifact={
+                "available": True,
+                "status": "specspace_repair_rerun_request_ready",
+                "summary": {
+                    "workspace_id": "team-decision-log",
+                    "candidate_id": "team-decision-log",
+                    "selected_request_id": "repair-rerun-request.old",
+                },
+                "selected_request": {"id": "repair-rerun-request.old"},
+                "source_artifacts": {
+                    "idea_to_spec_repair_session": (
+                        "runs/idea_to_spec_repair_session.json"
+                    )
+                },
+            },
+            current=current,
+            active_request_id="repair-rerun-request.new",
+            blocks=["repair_rerun_execution"],
+            missing_next_action="Run request gate.",
+        )
+
+        self.assertEqual(state["status"], "stale")
+        self.assertEqual(state["reason"], "repair_rerun_request_id_mismatch")
+        self.assertEqual(state["stored_request_id"], "repair-rerun-request.old")
+        self.assertEqual(state["current_request_id"], "repair-rerun-request.new")
+
     def test_idea_to_spec_workspace_state_hygiene_v1_allows_missing_source_session_id_for_consumed_artifacts(
         self,
     ) -> None:
