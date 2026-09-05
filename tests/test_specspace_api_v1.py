@@ -25,6 +25,7 @@ from viewer import (
     idea_to_spec_candidate_approval_intents,
     idea_to_spec_intake_clarification_answers,
     idea_to_spec_read_model_publication_execution,
+    idea_to_spec_repair_rerun_execution,
     idea_to_spec_repair_rerun_request_gate_execution,
     idea_to_spec_repair_rerun_requests,
     idea_to_spec_workspace,
@@ -9985,6 +9986,12 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
 
         self.assertTrue(
             idea_to_spec_repair_rerun_request_gate_execution._request_usable_for_current_workspace(
+                request,
+                hygiene,
+            )
+        )
+        self.assertTrue(
+            idea_to_spec_repair_rerun_execution._request_usable_for_current_workspace(
                 request,
                 hygiene,
             )

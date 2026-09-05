@@ -162,54 +162,9 @@ def _request_usable_for_current_workspace(
     request: dict[str, Any],
     hygiene: dict[str, Any],
 ) -> bool:
-    request_state = next(
-        (
-            item
-            for item in hygiene.get("states", [])
-            if isinstance(item, dict) and item.get("kind") == "repair_rerun_request"
-        ),
-        {},
-    )
-    if request_state.get("status") != "usable":
-        return False
-    workspace_id = _text(hygiene.get("workspace_id"))
-    candidate_id = _text(hygiene.get("candidate_id"))
-    repair_session_id = _text(hygiene.get("repair_session_id"))
-    repair_session_ref = _text(hygiene.get("repair_session_ref"))
-    if workspace_id and _text(request.get("workspace_id")) != workspace_id:
-        return False
-    if candidate_id and _text(request.get("candidate_id")) != candidate_id:
-        return False
-    request_repair_session_id = _text(request.get("repair_session_id"))
-    request_repair_session_ref = _text(request.get("repair_session_ref"))
-    matches_current_session = (
-        (not repair_session_id or request_repair_session_id == repair_session_id)
-        and (
-            not repair_session_ref
-            or request_repair_session_ref == repair_session_ref
-        )
-    )
-    if matches_current_session:
-        return True
-
-    # A completed repaired handoff consumes the source repair state as provenance.
-    # Trust that exception only when hygiene has already bound this exact active
-    # request to the consumed source session.
-    return bool(
-        request_state.get("reason")
-        == "source_repair_state_consumed_by_repaired_handoff"
-        and _text(request_state.get("current_record_id")) == _text(request.get("id"))
-        and _text(request_state.get("stored_workspace_id"))
-        == _text(request.get("workspace_id"))
-        and _text(request_state.get("stored_candidate_id"))
-        == _text(request.get("candidate_id"))
-        and _text(request_state.get("stored_repair_session_ref"))
-        == request_repair_session_ref
-        and (
-            not _text(request_state.get("stored_repair_session_id"))
-            or _text(request_state.get("stored_repair_session_id"))
-            == request_repair_session_id
-        )
+    return idea_to_spec_workspace_state_hygiene.repair_rerun_request_is_usable(
+        request,
+        hygiene,
     )
 
 
