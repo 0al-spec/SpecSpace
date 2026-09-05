@@ -10133,9 +10133,12 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                         "        'schema_version': 1,",
                         "        'ready_to_execute': True,",
                         "        'specgraph_dir': sys.argv[sys.argv.index('--specgraph-dir') + 1],",
+                        "        'request_snapshot': str(rerun_request),",
                         "        'summary': {'status': 'ready_to_execute'},",
                         "    }",
                         "else:",
+                        "    plan = json.loads(Path(sys.argv[sys.argv.index('--plan') + 1]).read_text(encoding='utf-8'))",
+                        "    assert Path(plan['request_snapshot']).is_file()",
                         "    report = {",
                         "        'artifact_kind': 'platform_product_repair_rerun_execution_report',",
                         "        'schema_version': 1,",
@@ -10221,6 +10224,9 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                     ),
                     {"workspace_id": "pantry-rotation"},
                 )
+                request_snapshot_path = Path(
+                    body["plan_report"]["request_snapshot"]
+                )
                 plan_file_exists = (
                     runs_dir
                     / "managed_repair_rerun_plans"
@@ -10268,6 +10274,7 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertFalse(body["authority_boundary"]["publishes_public_bundle"])
         self.assertTrue(plan_file_exists)
         self.assertTrue(report_file_exists)
+        self.assertFalse(request_snapshot_path.exists())
         self.assertEqual(request_state_status, 200)
         self.assertEqual(request_state["summary"]["active_request_count"], 0)
         self.assertEqual(request_state["requests"][0]["status"], "consumed")

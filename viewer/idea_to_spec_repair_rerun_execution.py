@@ -559,6 +559,7 @@ def execute_requested_rerun(
             timeout_seconds=timeout_seconds,
         )
     except subprocess.TimeoutExpired as error:
+        request_state_snapshot_path.unlink(missing_ok=True)
         return HTTPStatus.GATEWAY_TIMEOUT, {
             "artifact_kind": "specspace_managed_repair_rerun_execution",
             "ok": False,
@@ -596,8 +597,9 @@ def execute_requested_rerun(
                 "accepts_ontology_terms": False,
             },
         }
-    finally:
+    except BaseException:
         request_state_snapshot_path.unlink(missing_ok=True)
+        raise
 
     execute_completed: subprocess.CompletedProcess[str] | None = None
     execution_report: dict[str, Any] = {}
@@ -622,6 +624,7 @@ def execute_requested_rerun(
                 timeout_seconds=timeout_seconds,
             )
         except subprocess.TimeoutExpired as error:
+            request_state_snapshot_path.unlink(missing_ok=True)
             return HTTPStatus.GATEWAY_TIMEOUT, {
                 "artifact_kind": "specspace_managed_repair_rerun_execution",
                 "ok": False,
@@ -659,6 +662,11 @@ def execute_requested_rerun(
                     "accepts_ontology_terms": False,
                 },
             }
+        except BaseException:
+            request_state_snapshot_path.unlink(missing_ok=True)
+            raise
+
+    request_state_snapshot_path.unlink(missing_ok=True)
 
     execution_returncode = (
         execute_completed.returncode if execute_completed is not None else None
