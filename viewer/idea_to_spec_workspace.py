@@ -4844,16 +4844,44 @@ def _product_repair_rerun_execution(
     report: dict[str, Any] | None,
 ) -> dict[str, Any]:
     summary = _record((report or {}).get("summary"))
+    operations = _product_repair_rerun_operations(report)
+    diagnostic_codes = {
+        _text(item.get("code"))
+        for item in _records((report or {}).get("diagnostics"))
+    }
+    follow_up_diagnostic_codes = {
+        "product_repair_rerun_repaired_handoff_not_ready",
+        "product_repair_rerun_repaired_output_not_ready",
+    }
+    operation_statuses = {
+        _text(item.get("name")): _text(item.get("status"))
+        for item in operations
+    }
+    follow_up_required = (
+        report is not None
+        and report.get("ok") is not True
+        and report.get("dry_run") is not True
+        and summary.get("rerun_report_ready") is True
+        and bool(diagnostic_codes)
+        and diagnostic_codes.issubset(follow_up_diagnostic_codes)
+        and operation_statuses.get("execute_specgraph_requested_rerun")
+        == "succeeded"
+        and operation_statuses.get("execute_specgraph_repaired_promotion_handoff")
+        == "succeeded"
+    )
     return {
         "available": report is not None,
         "ok": (report or {}).get("ok") is True,
         "dry_run": (report or {}).get("dry_run") is True,
-        "status": _optional_text(summary.get("status")),
+        "status": "follow_up_required"
+        if follow_up_required
+        else _optional_text(summary.get("status")),
+        "follow_up_required": follow_up_required,
         "error_count": _number(summary.get("error_count")),
         "output_artifact_count": _number(summary.get("output_artifact_count")),
         "rerun_report_digest": _optional_text(summary.get("rerun_report_digest")),
         "repair_session_digest": _optional_text(summary.get("repair_session_digest")),
-        "operations": _product_repair_rerun_operations(report),
+        "operations": operations,
         "output_artifacts": _product_repair_rerun_output_artifacts(report),
         "diagnostic_count": len(_records((report or {}).get("diagnostics"))),
     }
@@ -5252,6 +5280,7 @@ def _workflow(
     product_repair_execution_failed = (
         product_repair_rerun_execution is not None
         and not product_repair_execution_view["ok"]
+        and not product_repair_execution_view["follow_up_required"]
     )
     product_repair_publication_failed = (
         product_repair_rerun_publication is not None
@@ -6772,7 +6801,10 @@ def _guided_repair_path(payload: dict[str, Any]) -> dict[str, Any]:
     rerun_request_status = _text(rerun_request_state.get("status"), "missing")
     rerun_execution_available = rerun_execution.get("available") is True
     rerun_publication_available = rerun_publication.get("available") is True
-    rerun_execution_failed = rerun_execution_available and (
+    rerun_execution_follow_up_required = (
+        rerun_execution.get("follow_up_required") is True
+    )
+    rerun_execution_failed = rerun_execution_available and not rerun_execution_follow_up_required and (
         rerun_execution.get("ok") is not True
         or _number(rerun_execution.get("error_count")) > 0
     )
@@ -8877,13 +8909,23 @@ def _managed_operations_observability(
             inputs=inputs,
             outputs=outputs,
         )
+        if (
+            operation.operation_id == "repair_rerun_execute"
+            and _record(
+                _record(_record(payload.get("repair_review")).get("platform_execution")).get(
+                    "execution"
+                )
+            ).get("follow_up_required")
+            is True
+        ):
+            status = "follow_up_required"
         hosted_record = _record(hosted_operations.get(operation.operation_id))
         hosted_status = _text(hosted_record.get("status")).lower()
         deployment_disabled = (
             allowed_operation_ids is not None
             and operation.operation_id not in allowed_operation_ids
         )
-        if status != "completed":
+        if status not in {"completed", "follow_up_required"}:
             if hosted_status == "queued":
                 status = "execution_requested"
             elif (
@@ -8921,6 +8963,8 @@ def _managed_operations_observability(
                 next_safe_action = "Inspect the failed report and create a fresh UI request or intent before retrying this consume-on-attempt operation."
             else:
                 next_safe_action = "Inspect the failed report before retrying or creating a replacement request."
+        elif status == "follow_up_required":
+            next_safe_action = "Answer the remaining repair targets, then create a new controlled rerun request."
         elif status == "execution_requested":
             next_safe_action = "Wait for the hosted worker to lease this operation."
         elif status == "running_or_waiting":

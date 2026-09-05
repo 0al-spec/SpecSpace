@@ -30,6 +30,7 @@ const rerunRequestState = {
       updated_at: "2026-06-26T10:00:00Z",
       draft_count: 1,
       accepted_for_rerun_count: 1,
+      prepare_import_preview: true,
       operator_command:
         "make product-workspace-repair-draft-rerun SPECSPACE_REPAIR_DRAFT_RERUN_IMPORT_PREVIEW=runs/specspace_repair_draft_import_preview.json",
       canonical_mutations_allowed: false,
@@ -64,6 +65,8 @@ const rerunRequestState = {
     operator_command:
       "make product-workspace-repair-draft-rerun SPECSPACE_REPAIR_DRAFT_RERUN_IMPORT_PREVIEW=runs/specspace_repair_draft_import_preview.json",
     request_ready: true,
+    request_will_prepare_import_preview: true,
+    blockers: [],
   },
   consumer_boundary: {
     specspace_owned_state: true,
@@ -100,10 +103,13 @@ describe("parseIdeaToSpecRepairRerunRequestState", () => {
     expect(parsed.data.summary.activeRequestCount).toBe(1);
     expect(parsed.data.workflowStatus.importPreviewStatus).toBe("ready");
     expect(parsed.data.workflowStatus.requestReady).toBe(true);
+    expect(parsed.data.workflowStatus.requestWillPrepareImportPreview).toBe(true);
+    expect(parsed.data.workflowStatus.blockers).toEqual([]);
     expect(parsed.data.requests[0]?.requestedAction).toBe(
       "prepare_repair_draft_rerun",
     );
     expect(parsed.data.requests[0]?.mayExecuteSpecgraph).toBe(false);
+    expect(parsed.data.requests[0]?.prepareImportPreview).toBe(true);
     expect(parsed.data.consumerBoundary.mayExecuteSpecgraph).toBe(false);
     expect(parsed.data.authorityBoundary.rerunRequestStateIsAuthority).toBe(
       false,

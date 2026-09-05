@@ -25,6 +25,14 @@ def build_hygiene(
     workspace_payload: dict[str, Any] | None,
 ) -> tuple[HTTPStatus, dict[str, Any]]:
     payload = workspace_payload or {}
+    if not _record(payload.get("workspace_binding")):
+        payload = {
+            **payload,
+            "workspace_binding": product_workspace_binding.discover_binding(
+                server,
+                workspace_id=workspace_id,
+            ),
+        }
     current = _current_identity(workspace_id=workspace_id, workspace_payload=payload)
     states = [
         _state_status(

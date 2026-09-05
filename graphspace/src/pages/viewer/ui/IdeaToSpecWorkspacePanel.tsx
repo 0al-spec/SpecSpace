@@ -7499,7 +7499,13 @@ function ProductRepairReviewSection({
           />
         </div>
       </div>
-      {lane.clarificationRequests.requests.map((request) => (
+      {[...lane.clarificationRequests.requests]
+        .sort(
+          (left, right) =>
+            Number(repairDrafts.draftsByRequestId.has(left.id)) -
+            Number(repairDrafts.draftsByRequestId.has(right.id)),
+        )
+        .map((request) => (
         <ClarificationRequestRow
           key={request.id}
           request={request}
@@ -7524,7 +7530,7 @@ function ProductRepairReviewSection({
           }
           readOnly={readOnly}
         />
-      ))}
+        ))}
       {lane.ontologyDecisions.decisions.map((decision) => (
         <OntologyDecisionRow key={decision.id} decision={decision} />
       ))}
@@ -7639,9 +7645,16 @@ function RepairRerunRequestStatus({
           {pending ? "Requesting" : "Request rerun preview"}
         </button>
         <span className={styles.statusDetail}>
-          Request records operator intent only; execute the SpecGraph target in a controlled environment.
+          {workflow.requestWillPrepareImportPreview
+            ? "Request records operator intent; the controlled gate step will validate the saved drafts before building the rerun gate."
+            : "Request records operator intent only; execute the SpecGraph target in a controlled environment."}
         </span>
       </div>
+      {!workflow.requestReady && workflow.blockers.length > 0 ? (
+        <span className={styles.statusDetail}>
+          Request unavailable · {workflow.blockers.join(", ")}
+        </span>
+      ) : null}
       {requestError ? (
         <span className={styles.statusDetail}>
           Rerun request failed · {repairRerunRequestErrorText(requestError)}
@@ -7692,6 +7705,12 @@ function ProductRepairRerunExecutionStatus({
           )}
         />
       </div>
+      {execution.followUpRequired ? (
+        <Status
+          label="Another repair pass required"
+          detail="The controlled rerun completed, but remaining repair targets must be answered before approval readiness."
+        />
+      ) : null}
       {execution.operations.map((operation) => (
         <div key={operation.name} className={styles.subRow}>
           <span>{operation.name}</span>
@@ -8052,6 +8071,7 @@ function ClarificationRequestRow({
       <div className={styles.rowHeader}>
         <span className={styles.rowId}>{request.id}</span>
         <Pill value={request.status} />
+        <Pill value={draft ? "draft_saved" : "answer_needed"} />
       </div>
       <h3 className={styles.title}>{compact(request.question, request.kind)}</h3>
       <div className={styles.metaGrid}>

@@ -9463,8 +9463,19 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                         "import json",
                         "import sys",
                         "from pathlib import Path",
-                        "output_gate = Path(sys.argv[sys.argv.index('--output-gate') + 1])",
                         "output = Path(sys.argv[sys.argv.index('--output') + 1])",
+                        "if 'import-preview' in sys.argv:",
+                        "    output_preview = Path(sys.argv[sys.argv.index('--output-preview') + 1])",
+                        "    preview = {'artifact_kind': 'specspace_repair_draft_import_preview', 'readiness': {'ready': True}, 'summary': {'status': 'repair_draft_import_preview_ready', 'accepted_for_rerun_count': 1}}",
+                        "    report = {'artifact_kind': 'platform_product_repair_draft_import_preview_execution_report', 'ok': True, 'dry_run': False}",
+                        "    output_preview.write_text(json.dumps(preview), encoding='utf-8')",
+                        "    output.write_text(json.dumps(report), encoding='utf-8')",
+                        "    print(json.dumps(report))",
+                        "    raise SystemExit(0)",
+                        "rerun_request = Path(sys.argv[sys.argv.index('--rerun-request') + 1])",
+                        "rerun_request_state = json.loads(rerun_request.read_text(encoding='utf-8'))",
+                        "assert any(item.get('status') == 'requested' for item in rerun_request_state.get('requests', []))",
+                        "output_gate = Path(sys.argv[sys.argv.index('--output-gate') + 1])",
                         "gate = {",
                         "    'artifact_kind': 'specspace_repair_rerun_request_gate',",
                         "    'status': 'specspace_repair_rerun_request_gate_ready',",
@@ -9493,17 +9504,36 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                 encoding="utf-8",
             )
             _write_json(
-                specgraph_run_dir / "specspace_repair_draft_import_preview.json",
-                {
-                    "artifact_kind": "specspace_repair_draft_import_preview",
-                    "summary": {"accepted_for_rerun_count": 1},
-                },
-            )
-            _write_json(
                 runs_dir / "idea_to_spec_repair_session.json",
                 {
                     "artifact_kind": "idea_to_spec_repair_session",
                     "summary": {"ready_for_candidate_approval": False},
+                    "source_artifacts": {
+                        "clarification_requests": {
+                            "source_ref": "runs/idea_to_spec_clarification_requests.json"
+                        }
+                    },
+                },
+            )
+            _write_json(
+                runs_dir / "idea_to_spec_clarification_requests.json",
+                {"artifact_kind": "idea_to_spec_clarification_requests"},
+            )
+            _write_json(
+                state_dir / "idea_to_spec_repair_drafts.json",
+                {
+                    "artifact_kind": "specspace_idea_to_spec_repair_draft_state",
+                    "schema_version": 1,
+                    "state_owner": "SpecSpace",
+                    "drafts": [
+                        {
+                            "workspace_id": "pantry-rotation",
+                            "repair_session_id": "repair-session.pantry-rotation",
+                            "repair_session_ref": "runs/idea_to_spec_repair_session.json",
+                            "request_id": "clarification.repair.example",
+                            "allowed_action": "provide_candidate_context",
+                        }
+                    ],
                 },
             )
             _write_json(
@@ -9520,6 +9550,8 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                             "workspace_id": "pantry-rotation",
                             "candidate_id": "pantry-rotation",
                             "created_at": "2026-01-01T00:00:00Z",
+                            "prepare_import_preview": True,
+                            "repair_session_id": "repair-session.pantry-rotation",
                             "repair_session_ref": "runs/idea_to_spec_repair_session.json",
                             "import_preview_ref": (
                                 "runs/isolated/specspace_repair_draft_import_preview.json"
@@ -9527,6 +9559,24 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                         }
                     ],
                 },
+            )
+            request_state = json.loads(
+                (state_dir / "idea_to_spec_repair_rerun_requests.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            request_state["requests"][0]["draft_set_sha256"] = (
+                idea_to_spec_repair_rerun_requests.repair_draft_set_sha256(
+                    json.loads(
+                        (state_dir / "idea_to_spec_repair_drafts.json").read_text(
+                            encoding="utf-8"
+                        )
+                    )["drafts"]
+                )
+            )
+            _write_json(
+                state_dir / "idea_to_spec_repair_rerun_requests.json",
+                request_state,
             )
             httpd, thread, base = _start(
                 root / "dialogs",
@@ -9548,6 +9598,10 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                     runs_dir
                     / "platform_product_repair_rerun_request_gate_execution_report.json"
                 ).is_file()
+                import_report_file_exists = (
+                    runs_dir
+                    / "platform_product_repair_draft_import_preview_execution_report.json"
+                ).is_file()
                 gate_file_exists = (
                     runs_dir / "specspace_repair_rerun_request_gate.json"
                 ).is_file()
@@ -9557,7 +9611,7 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             finally:
                 _stop(httpd, thread)
 
-        self.assertEqual(status, 200)
+        self.assertEqual(status, 200, body)
         self.assertTrue(body["ok"])
         self.assertEqual(body["status"], "completed")
         self.assertEqual(body["workspace_id"], "pantry-rotation")
@@ -9578,12 +9632,17 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             body["authority_boundary"]["specspace_backend_executes_platform"]
         )
         self.assertTrue(body["authority_boundary"]["executes_specgraph"])
+        self.assertEqual(
+            body["import_preview_platform_report"]["artifact_kind"],
+            "platform_product_repair_draft_import_preview_execution_report",
+        )
         self.assertFalse(body["authority_boundary"]["executes_repair_rerun"])
         self.assertTrue(report_file_exists)
+        self.assertTrue(import_report_file_exists)
         self.assertTrue(gate_file_exists)
         self.assertEqual(request_state_status, 200)
-        self.assertEqual(request_state["summary"]["active_request_count"], 0)
-        self.assertEqual(request_state["requests"][0]["status"], "consumed")
+        self.assertEqual(request_state["summary"]["active_request_count"], 1)
+        self.assertEqual(request_state["requests"][0]["status"], "requested")
 
     def test_intake_platform_report_requires_completed_safe_contract(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -9949,6 +10008,10 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                         "cmd = sys.argv[1:3]",
                         "output = Path(sys.argv[sys.argv.index('--output') + 1])",
                         "if cmd == ['product-repair-rerun', 'plan']:",
+                        "    rerun_request = Path(sys.argv[sys.argv.index('--rerun-request') + 1])",
+                        "    rerun_request_state = json.loads(rerun_request.read_text(encoding='utf-8'))",
+                        "    assert any(item.get('status') == 'requested' for item in rerun_request_state.get('requests', []))",
+                        "    assert Path(sys.argv[sys.argv.index('--run-dir') + 1]).name == 'runs'",
                         "    report = {",
                         "        'artifact_kind': 'platform_product_repair_rerun_execution_plan',",
                         "        'schema_version': 1,",
@@ -18451,6 +18514,39 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
             (state_dir / "idea_to_spec_repair_rerun_requests.json").exists()
         )
 
+    def test_repair_rerun_request_draft_set_digest_is_order_stable_and_content_bound(
+        self,
+    ) -> None:
+        first = {
+            "workspace_id": "pantry-rotation",
+            "request_id": "clarification.repair.first",
+            "allowed_action": "provide_candidate_context",
+            "answer_value": {"context": "First answer"},
+        }
+        second = {
+            "workspace_id": "pantry-rotation",
+            "request_id": "clarification.repair.second",
+            "allowed_action": "provide_candidate_context",
+            "answer_value": {"context": "Second answer"},
+        }
+
+        digest = idea_to_spec_repair_rerun_requests.repair_draft_set_sha256(
+            [first, second]
+        )
+
+        self.assertEqual(
+            digest,
+            idea_to_spec_repair_rerun_requests.repair_draft_set_sha256(
+                [second, first]
+            ),
+        )
+        self.assertNotEqual(
+            digest,
+            idea_to_spec_repair_rerun_requests.repair_draft_set_sha256(
+                [{**first, "answer_value": {"context": "Changed"}}, second]
+            ),
+        )
+
     def test_idea_to_spec_repair_rerun_requests_v1_posts_request_intent(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -18491,6 +18587,11 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(draft_status, 200)
         self.assertEqual(status, 200)
         self.assertEqual(body["summary"]["active_request_count"], 1)
+        self.assertTrue(body["workflow_status"]["request_ready"])
+        self.assertTrue(
+            body["workflow_status"]["request_will_prepare_import_preview"]
+        )
+        self.assertEqual(body["workflow_status"]["blockers"], [])
         self.assertEqual(get_status, 200)
         request = get_body["requests"][0]
         self.assertEqual(request["requested_action"], "prepare_repair_draft_rerun")
@@ -18661,6 +18762,10 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertEqual(get_status, 200)
         self.assertEqual(get_body["workflow_status"]["draft_count"], 0)
         self.assertFalse(get_body["workflow_status"]["request_ready"])
+        self.assertIn(
+            "legacy_or_stale_drafts_require_revalidation",
+            get_body["workflow_status"]["blockers"],
+        )
         self.assertEqual(post_status, 409)
         self.assertEqual(post_body["reason"], "repair_drafts_stale")
 
@@ -18718,7 +18823,7 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
         self.assertNotEqual(superseded[0]["id"], superseded[0]["superseded_by"])
         self.assertEqual(superseded[0]["superseded_by"], active[0]["id"])
 
-    def test_idea_to_spec_repair_rerun_requests_v1_rejects_missing_import_preview(
+    def test_idea_to_spec_repair_rerun_requests_v1_requests_fresh_import_preview(
         self,
     ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -18745,14 +18850,20 @@ class SpecSpaceApiV1Tests(unittest.TestCase):
                     f"{base}/api/v1/idea-to-spec-repair-rerun-requests?workspace=team-decision-log",
                     {"workspace_id": "team-decision-log"},
                 )
+                state_exists = (
+                    state_dir / "idea_to_spec_repair_rerun_requests.json"
+                ).exists()
             finally:
                 _stop(httpd, thread)
 
-        self.assertEqual(status, 409)
-        self.assertEqual(body["reason"], "import_preview_missing")
-        self.assertFalse(
-            (state_dir / "idea_to_spec_repair_rerun_requests.json").exists()
+        self.assertEqual(status, 200)
+        self.assertEqual(body["summary"]["active_request_count"], 1)
+        self.assertTrue(body["requests"][0]["prepare_import_preview"])
+        self.assertEqual(
+            body["requests"][0]["import_preview_ref"],
+            "runs/specspace_repair_draft_import_preview.json",
         )
+        self.assertTrue(state_exists)
 
     def test_idea_to_spec_repair_rerun_requests_v1_rejects_unready_import_preview(
         self,

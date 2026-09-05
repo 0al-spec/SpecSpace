@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import threading
 import uuid
 from datetime import datetime, timezone
@@ -331,20 +333,18 @@ def save_rerun_request(
     )
 
     import_preview_status = _effective_import_preview_status(artifacts)
-    if import_preview_status.get("available") is not True:
-        return HTTPStatus.CONFLICT, {
-            "error": "Repair rerun request requires ready SpecGraph repair draft import preview.",
-            "reason": "import_preview_missing",
-            "artifact": IMPORT_PREVIEW_PATH,
-        }
-    if import_preview_status.get("status") != "repair_draft_import_preview_ready":
+    import_preview_ready = (
+        import_preview_status.get("available") is True
+        and import_preview_status.get("status") == "repair_draft_import_preview_ready"
+    )
+    if import_preview_status.get("available") is True and not import_preview_ready:
         return HTTPStatus.CONFLICT, {
             "error": "Repair rerun request requires ready SpecGraph repair draft import preview.",
             "reason": "import_preview_not_ready",
             "status": import_preview_status.get("status"),
         }
     accepted_count = _number(_record(import_preview_status.get("summary")).get("accepted_for_rerun_count"))
-    if accepted_count <= 0:
+    if import_preview_ready and accepted_count <= 0:
         return HTTPStatus.CONFLICT, {
             "error": "Repair rerun request requires at least one accepted draft import.",
             "reason": "accepted_draft_imports_missing",
@@ -358,6 +358,8 @@ def save_rerun_request(
             "reason": stale_reason,
         }
     draft_count = len(drafts) if drafts else accepted_count
+    prepare_import_preview = bool(drafts)
+    draft_set_sha256 = repair_draft_set_sha256(drafts) if drafts else None
 
     binding = _record(workspace_payload.get("workspace_binding"))
     import_preview_ref = product_workspace_binding.bound_run_ref(
@@ -388,6 +390,9 @@ def save_rerun_request(
         "updated_at": now,
         "draft_count": draft_count,
         "accepted_for_rerun_count": accepted_count,
+        "prepare_import_preview": prepare_import_preview,
+        "draft_set_sha256": draft_set_sha256,
+        "import_preview_sha256": _text(import_preview_status.get("sha256")),
         "operator_command": _operator_command(import_preview_ref),
         "canonical_mutations_allowed": False,
         "tracked_artifacts_written": False,
@@ -576,6 +581,37 @@ def _with_workflow_status(
     ):
         draft_count = accepted_for_rerun_count
     command = _operator_command(_text(import_preview.get("path")) or IMPORT_PREVIEW_PATH)
+    recovered_preview = import_preview.get("source") == (
+        "platform_product_repair_draft_import_execution"
+    )
+    request_ready = (
+        repair_session_ready
+        and (
+            (
+                len(current_drafts) > 0
+                and (
+                    import_preview_status == "missing"
+                    or (
+                        import_preview_status == "ready"
+                        and accepted_for_rerun_count > 0
+                    )
+                )
+            )
+            or (recovered_preview and accepted_for_rerun_count > 0)
+        )
+        and import_preview_status != "not_ready"
+    )
+    blockers: list[str] = []
+    if not repair_session_ready:
+        blockers.append("repair_session_not_ready")
+    if drafts and not current_drafts and not recovered_preview:
+        blockers.append("legacy_or_stale_drafts_require_revalidation")
+    elif not drafts and not recovered_preview:
+        blockers.append("repair_drafts_missing")
+    if import_preview_status == "not_ready":
+        blockers.append("import_preview_not_ready")
+    elif import_preview_status == "ready" and accepted_for_rerun_count <= 0:
+        blockers.append("accepted_draft_imports_missing")
     state["workflow_status"] = {
         "drafts_saved": draft_count > 0,
         "draft_count": draft_count,
@@ -587,12 +623,9 @@ def _with_workflow_status(
         "rerun_report_ref": _text(rerun_report.get("path")) or RERUN_REPORT_PATH,
         "latest_journal_state": latest_journal_state,
         "operator_command": command,
-        "request_ready": (
-            draft_count > 0
-            and repair_session_ready
-            and import_preview_status == "ready"
-            and accepted_for_rerun_count > 0
-        ),
+        "request_ready": request_ready,
+        "request_will_prepare_import_preview": len(current_drafts) > 0,
+        "blockers": blockers,
     }
     return state
 
@@ -615,8 +648,6 @@ def _current_session_drafts(
 
 def _effective_import_preview_status(artifacts: dict[str, Any]) -> dict[str, Any]:
     import_preview = _record(artifacts.get(IMPORT_PREVIEW_ARTIFACT_KEY))
-    if import_preview.get("available") is True:
-        return import_preview
     platform_report = _record(artifacts.get(PLATFORM_IMPORT_EXECUTION_ARTIFACT_KEY))
     if platform_report.get("available") is not True:
         return import_preview
@@ -635,10 +666,20 @@ def _effective_import_preview_status(artifacts: dict[str, Any]) -> dict[str, Any
     output = _record(_record(platform_report.get("output_artifacts")).get("import_preview"))
     if output.get("ready") is not True:
         return import_preview
+    output_path = _text(output.get("path")) or IMPORT_PREVIEW_PATH
+    if (
+        import_preview.get("available") is True
+        and _text(import_preview.get("path")) not in {None, output_path}
+    ):
+        return import_preview
+    output_sha256 = _text(output.get("sha256"))
+    if output_sha256 is None:
+        return import_preview
     status = _text(output.get("status")) or "repair_draft_import_preview_ready"
     return {
         "available": True,
-        "path": _text(output.get("path")) or IMPORT_PREVIEW_PATH,
+        "path": output_path,
+        "sha256": output_sha256,
         "status": status,
         "artifact_kind": output.get("artifact_kind"),
         "contract_ref": output.get("contract_ref"),
@@ -702,6 +743,9 @@ def _normalize_existing_request(entry: dict[str, Any]) -> dict[str, Any] | None:
         "rerun_report_ref": _text(entry.get("rerun_report_ref")) or RERUN_REPORT_PATH,
         "operator_command": _text(entry.get("operator_command"))
         or _operator_command(_text(entry.get("import_preview_ref")) or IMPORT_PREVIEW_PATH),
+        "prepare_import_preview": entry.get("prepare_import_preview") is True,
+        "draft_set_sha256": _text(entry.get("draft_set_sha256")),
+        "import_preview_sha256": _text(entry.get("import_preview_sha256")),
         "canonical_mutations_allowed": False,
         "tracked_artifacts_written": False,
         "may_execute_specgraph": False,
@@ -721,6 +765,24 @@ def _latest_active_request(state: dict[str, Any]) -> dict[str, Any] | None:
     if not requests:
         return None
     return sorted(requests, key=lambda entry: _text(entry.get("created_at")) or "")[-1]
+
+
+def repair_draft_set_sha256(drafts: list[dict[str, Any]]) -> str:
+    ordered = sorted(
+        drafts,
+        key=lambda item: (
+            _text(item.get("request_id")) or "",
+            _text(item.get("allowed_action")) or "",
+            json.dumps(item, sort_keys=True, separators=(",", ":")),
+        ),
+    )
+    encoded = json.dumps(
+        ordered,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def _operator_command(import_preview_ref: str) -> str:

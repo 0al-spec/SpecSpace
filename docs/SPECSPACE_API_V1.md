@@ -1066,6 +1066,21 @@ SpecGraph later validates these drafts through
 `runs/specspace_repair_draft_import_preview.json`; invalid or incomplete drafts
 remain visible as draft state but are not accepted for rerun.
 
+### `GET/POST /api/v1/idea-to-spec-repair-rerun-requests`
+
+Records operator intent to validate the current repair-session drafts and
+prepare a controlled rerun. A ready initial repair session plus at least one
+draft bound to that session is sufficient to create the request; a pre-existing
+import preview is not required. The request pins the exact draft set by SHA-256.
+
+The replay-safe managed request-gate operation leaves that request active,
+runs the fixed `product-repair-rerun import-preview` wrapper, and only then
+builds the request gate. The subsequent repair-rerun execution is the
+consume-on-attempt operation. Draft digest drift, stale session identity, invalid
+preview output, or missing clarification provenance fails closed. Legacy drafts
+without a repair-session identity are not rebound automatically; they require
+explicit validated recovery evidence or operator revalidation.
+
 ### `GET/POST /api/v1/project-local-ontology-review-decisions`
 
 Stores SpecSpace-owned operator decisions for the

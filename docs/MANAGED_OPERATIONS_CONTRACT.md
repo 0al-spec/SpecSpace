@@ -101,6 +101,7 @@ operation paths:
 | `execution_requested` | The operator has asked for execution, but durable result evidence is not visible yet. |
 | `running_or_waiting` | Execution may be in progress or waiting for external publication/refresh. |
 | `failed` | Durable execution evidence exists and reports failure. |
+| `follow_up_required` | The controlled operation ran successfully, but validated lifecycle evidence requires another operator repair pass before completion. |
 | `stale` | State/artifact refs do not match the selected workspace/session. |
 | `completed` | Durable success evidence exists for this operation. |
 | `blocked` | A policy, gate, authority, or lifecycle condition blocks the next step. |
@@ -351,7 +352,7 @@ deployment allowlist.
 | `workspace_initialization_execute` | Workspace initialization | `POST /api/v1/product-workspace-initialization/execute` | `workspace execute-requested-initialization` | `runs/platform_product_workspace_initialization_execution_report.json` |
 | `real_idea_intake_execute` | Real idea intake | `POST /api/v1/real-idea-intake/execute` | `product-real-idea-intake execute-requested` | `runs/platform_real_idea_entry_intake_execution_report.json` |
 | `real_idea_answer_continuation_execute` | Guided clarification continuation | `POST /api/v1/real-idea-answer-continuation/execute` | `product-real-idea-continuation execute-requested` | `runs/platform_real_idea_answer_continuation_execution_report.json` |
-| `repair_rerun_request_gate_execute` | Guided repair request gate | `POST /api/v1/idea-to-spec-repair-rerun-request-gate/execute` | `product-repair-rerun request-gate` | `runs/platform_product_repair_rerun_request_gate_execution_report.json`, `runs/specspace_repair_rerun_request_gate.json` |
+| `repair_rerun_request_gate_execute` | Guided repair request gate | `POST /api/v1/idea-to-spec-repair-rerun-request-gate/execute` | `product-repair-rerun import-preview` then `product-repair-rerun request-gate` | `runs/platform_product_repair_draft_import_preview_execution_report.json`, `runs/specspace_repair_draft_import_preview.json`, `runs/platform_product_repair_rerun_request_gate_execution_report.json`, `runs/specspace_repair_rerun_request_gate.json` |
 | `repair_rerun_execute` | Guided repair rerun | `POST /api/v1/idea-to-spec-repair-rerun/execute` | `product-repair-rerun plan` then `product-repair-rerun execute` | `runs/managed_repair_rerun_plans/<request-id>.platform_product_repair_rerun_execution_plan.json`, `runs/platform_product_repair_rerun_execution_report.json` |
 | `repair_rerun_publish` | Guided repair publication | `POST /api/v1/idea-to-spec-repair-rerun/publish` | `product-repair-rerun publish` | `runs/platform_product_repair_rerun_publication_report.json` |
 | `candidate_approval_execute` | Guided candidate approval | `POST /api/v1/idea-to-spec-candidate-approval/execute` | `product-candidate-approval approve` | `runs/platform_candidate_approval_intent_gate_report.json`, `runs/platform_candidate_approval_execution_report.json`, `runs/candidate_approval_decision.json` |

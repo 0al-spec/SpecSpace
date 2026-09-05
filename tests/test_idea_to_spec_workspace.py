@@ -2032,6 +2032,74 @@ def _product_repair_rerun_publication_report(
     }
 
 
+def test_partial_repair_execution_is_follow_up_not_runtime_failure() -> None:
+    report = _product_repair_rerun_execution_report(ok=False)
+    report["operations"] = [
+        {
+            "name": "execute_specgraph_requested_rerun",
+            "status": "succeeded",
+        },
+        {
+            "name": "execute_specgraph_repaired_promotion_handoff",
+            "status": "succeeded",
+        },
+    ]
+    report["summary"]["rerun_report_ready"] = True
+    report["diagnostics"] = [
+        {"code": "product_repair_rerun_repaired_handoff_not_ready"},
+        {"code": "product_repair_rerun_repaired_output_not_ready"},
+    ]
+
+    execution = idea_to_spec_workspace._product_repair_rerun_execution(report)
+    observability = idea_to_spec_workspace._managed_operations_observability(
+        {
+            "repair_review": {
+                "platform_execution": {
+                    "execution": execution,
+                }
+            },
+            "hosted_managed_execution": {
+                "operations": {
+                    "repair_rerun_execute": {"status": "succeeded"}
+                }
+            },
+        }
+    )
+    operation = next(
+        item
+        for item in observability["operations"]
+        if item["operation_id"] == "repair_rerun_execute"
+    )
+
+    assert execution["follow_up_required"] is True
+    assert execution["status"] == "follow_up_required"
+    assert operation["status"] == "follow_up_required"
+    assert observability["summary"]["failed_count"] == 0
+
+
+def test_partial_repair_does_not_hide_identity_or_runtime_failure() -> None:
+    report = _product_repair_rerun_execution_report(ok=False)
+    report["operations"] = [
+        {
+            "name": "execute_specgraph_requested_rerun",
+            "status": "succeeded",
+        },
+        {
+            "name": "execute_specgraph_repaired_promotion_handoff",
+            "status": "succeeded",
+        },
+    ]
+    report["summary"]["rerun_report_ready"] = True
+    report["diagnostics"] = [
+        {"code": "product_repair_rerun_repaired_handoff_candidate_mismatch"}
+    ]
+
+    execution = idea_to_spec_workspace._product_repair_rerun_execution(report)
+
+    assert execution["follow_up_required"] is False
+    assert execution["status"] == "failed"
+
+
 def _published_repaired_artifacts() -> list[str]:
     return [
         f"runs/{idea_to_spec_workspace.REPAIRED_CANDIDATE_PROMOTION_HANDOFF_REPORT_ARTIFACT}",
@@ -3744,6 +3812,40 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         )
         self.assertEqual(ranking["candidate_count"], 7)
         self.assertEqual(ranking["omitted_count"], 3)
+
+    def test_quality_guided_ranking_prefers_remaining_repair_after_partial_rerun(
+        self,
+    ) -> None:
+        stages = [
+            _quality_overview_stage(
+                idea_to_spec_workspace.STAGE_REPAIR_REVIEW,
+                "blocked",
+                blockers=["unresolved_ontology_gaps"],
+            ),
+            _quality_overview_stage(
+                idea_to_spec_workspace.STAGE_CANDIDATE_APPROVAL_INTENT,
+                "available",
+            ),
+        ]
+        result = idea_to_spec_workspace._product_workspace_overview(
+            _quality_overview_payload(
+                stages=stages,
+                current_stage=idea_to_spec_workspace.STAGE_REPAIR_REVIEW,
+                overall_status="blocked",
+                managed_operations=[
+                    {
+                        "operation_id": "repair_rerun_execute",
+                        "status": "follow_up_required",
+                        "next_safe_action": "Answer the remaining repair targets.",
+                    }
+                ],
+            )
+        )
+
+        self.assertEqual(
+            result["action_ranking"]["primary_action"]["category"],
+            "clarification_repair",
+        )
 
     def test_build_workspace_summarizes_candidate_graph_and_repairs(self) -> None:
         body = idea_to_spec_workspace.build_idea_to_spec_workspace(

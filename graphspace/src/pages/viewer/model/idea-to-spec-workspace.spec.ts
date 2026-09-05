@@ -765,6 +765,24 @@ describe("parseIdeaToSpecWorkspace", () => {
     ).toBe("current");
   });
 
+  it("preserves partial repair follow-up state", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.repair_review.platform_execution.execution.status =
+      "follow_up_required";
+    raw.repair_review.platform_execution.execution.follow_up_required = true;
+
+    const parsed = parseIdeaToSpecWorkspace(raw);
+
+    expect(parsed.kind).toBe("ok");
+    if (parsed.kind !== "ok") return;
+    expect(
+      parsed.data.repairReview.platformExecution.execution.followUpRequired,
+    ).toBe(true);
+    expect(parsed.data.repairReview.platformExecution.execution.status).toBe(
+      "follow_up_required",
+    );
+  });
+
   it("does not claim ranking availability without a valid primary action", () => {
     const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
     delete raw.product_workspace_overview.action_ranking.primary_action;
