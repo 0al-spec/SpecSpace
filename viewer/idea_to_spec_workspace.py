@@ -2224,7 +2224,7 @@ def _ontology_seed_blocked(seed: dict[str, Any] | None) -> bool:
     return (
         not readiness["ready"]
         or bool(readiness["blocked_by"])
-        or _finding_count(source_generation) > 0
+        or bool(_records(source_generation.get("findings")))
         or blocking_gap
     )
 
@@ -4957,16 +4957,40 @@ def _summary_number(
 def _publication_has_repaired_artifacts(
     publication_report: dict[str, Any] | None,
 ) -> bool:
-    published = set(_string_list((publication_report or {}).get("published_artifacts")))
+    report = publication_report or {}
+    published = set(_string_list(report.get("published_artifacts")))
+    run_dir_ref = "runs"
+    binding = _record(report.get("workspace_binding"))
+    scope = _record(report.get("publication_scope"))
+    if binding:
+        workspace_id = binding.get("workspace_id")
+        expected_run_dir_ref = (
+            f"runs/{workspace_id}"
+            if isinstance(workspace_id, str) and workspace_id
+            else None
+        )
+        expected_bundle_ref = (
+            f"workspaces/{workspace_id}" if expected_run_dir_ref else None
+        )
+        if (
+            binding.get("contract_ref") != "platform.product-workspace.binding.v1"
+            or binding.get("status") != "ready"
+            or binding.get("platform_default_run_dir_ref") != expected_run_dir_ref
+            or binding.get("product_artifact_bundle_ref") != expected_bundle_ref
+            or scope.get("run_dir_ref") != expected_run_dir_ref
+            or scope.get("bundle_ref") != expected_bundle_ref
+        ):
+            return False
+        run_dir_ref = expected_run_dir_ref
     required = {
-        f"runs/{REPAIRED_CANDIDATE_PROMOTION_HANDOFF_REPORT_ARTIFACT}",
-        f"runs/{REPAIRED_ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT}",
-        f"runs/{REPAIRED_CANDIDATE_SPEC_GRAPH_ARTIFACT}",
-        f"runs/{REPAIRED_PRE_SIB_COHERENCE_REPORT_ARTIFACT}",
-        f"runs/{REPAIRED_CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT}",
-        f"runs/{REPAIRED_CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT}",
-        f"runs/{REPAIRED_IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT}",
-        f"runs/{REPAIRED_IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT}",
+        f"{run_dir_ref}/{REPAIRED_CANDIDATE_PROMOTION_HANDOFF_REPORT_ARTIFACT}",
+        f"{run_dir_ref}/{REPAIRED_ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT}",
+        f"{run_dir_ref}/{REPAIRED_CANDIDATE_SPEC_GRAPH_ARTIFACT}",
+        f"{run_dir_ref}/{REPAIRED_PRE_SIB_COHERENCE_REPORT_ARTIFACT}",
+        f"{run_dir_ref}/{REPAIRED_CANDIDATE_REPAIR_LOOP_REPORT_ARTIFACT}",
+        f"{run_dir_ref}/{REPAIRED_CANDIDATE_SPEC_MATERIALIZATION_REPORT_ARTIFACT}",
+        f"{run_dir_ref}/{REPAIRED_IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT}",
+        f"{run_dir_ref}/{REPAIRED_IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT}",
     }
     return required.issubset(published)
 

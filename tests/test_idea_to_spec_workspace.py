@@ -6315,6 +6315,56 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             "ontology_seed_review_required",
         )
 
+    def test_topology_warnings_do_not_require_ontology_seed_review(self) -> None:
+        artifacts = _workspace_artifacts()
+        artifacts.pop(idea_to_spec_workspace.CANDIDATE_APPROVAL_DECISION_ARTIFACT)
+        artifacts.pop(
+            idea_to_spec_workspace.PLATFORM_CANDIDATE_APPROVAL_EXECUTION_REPORT_ARTIFACT
+        )
+        candidate_seed = _candidate_seed()
+        candidate_seed["source_generation"]["warnings"] = [
+            {
+                "finding_id": "topology_actor_without_command",
+                "severity": "warning",
+                "message": "Some event-storming actors are not linked to commands.",
+            }
+        ]
+        artifacts[idea_to_spec_workspace.CANDIDATE_SPEC_GRAPH_SEED_ARTIFACT] = (
+            candidate_seed
+        )
+        artifacts[
+            idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT
+        ] = _product_repair_rerun_execution_report()
+        publication = _product_repair_rerun_publication_report()
+        publication["published_artifacts"] = _published_repaired_artifacts()
+        artifacts[
+            idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_PUBLICATION_REPORT_ARTIFACT
+        ] = publication
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_CANDIDATE_PROMOTION_HANDOFF_REPORT_ARTIFACT
+        ] = _repaired_handoff_report()
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT
+        ] = _active_candidate()
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT
+        ] = _repaired_repair_session_journal()
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT
+        ] = _repaired_promotion_gate()
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        readiness = body["approval_readiness"]
+        self.assertNotIn("ontology_seed_review_required", readiness["blockers"])
+        self.assertNotEqual(
+            body["workflow"]["stage"],
+            "ontology_seed_review_required",
+        )
+
     def test_approval_readiness_uses_candidate_approval_execution_report(
         self,
     ) -> None:
@@ -6561,6 +6611,65 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
         readiness = body["approval_readiness"]
         self.assertFalse(readiness["repaired_artifacts_published"])
         self.assertIn("repaired_artifacts_not_published", readiness["blockers"])
+
+    def test_approval_readiness_accepts_bound_workspace_publication_paths(self) -> None:
+        artifacts = _workspace_artifacts()
+        artifacts.pop(idea_to_spec_workspace.CANDIDATE_APPROVAL_DECISION_ARTIFACT)
+        artifacts.pop(
+            idea_to_spec_workspace.PLATFORM_CANDIDATE_APPROVAL_EXECUTION_REPORT_ARTIFACT
+        )
+        artifacts[
+            idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT
+        ] = _product_repair_rerun_execution_report()
+        workspace_id = "idea-alpha"
+        publication = _product_repair_rerun_publication_report()
+        publication["workspace_binding"] = {
+            "contract_ref": "platform.product-workspace.binding.v1",
+            "status": "ready",
+            "workspace_id": workspace_id,
+            "platform_default_run_dir_ref": f"runs/{workspace_id}",
+            "product_artifact_bundle_ref": f"workspaces/{workspace_id}",
+        }
+        publication["publication_scope"] = {
+            "run_dir_ref": f"runs/{workspace_id}",
+            "bundle_ref": f"workspaces/{workspace_id}",
+        }
+        publication["published_artifacts"] = [
+            path.replace("runs/", f"runs/{workspace_id}/", 1)
+            for path in _published_repaired_artifacts()
+        ]
+        artifacts[
+            idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_PUBLICATION_REPORT_ARTIFACT
+        ] = publication
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_CANDIDATE_PROMOTION_HANDOFF_REPORT_ARTIFACT
+        ] = _repaired_handoff_report()
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_ACTIVE_IDEA_TO_SPEC_CANDIDATE_ARTIFACT
+        ] = _active_candidate()
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_CANDIDATE_SPEC_GRAPH_ARTIFACT
+        ] = _candidate_graph()
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_REPAIR_SESSION_ARTIFACT
+        ] = _repaired_repair_session_journal()
+        artifacts[
+            idea_to_spec_workspace.REPAIRED_IDEA_TO_SPEC_PROMOTION_GATE_ARTIFACT
+        ] = _repaired_promotion_gate()
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertTrue(body["approval_readiness"]["repaired_artifacts_published"])
+
+        publication["publication_scope"]["run_dir_ref"] = "runs/foreign"
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+        self.assertFalse(body["approval_readiness"]["repaired_artifacts_published"])
 
     def test_approval_readiness_allows_legacy_missing_rerun_reports(self) -> None:
         artifacts = _workspace_artifacts()
