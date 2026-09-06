@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 import sys
+import tempfile
 from http import HTTPStatus
 from pathlib import Path
 from typing import Any
@@ -19,8 +21,12 @@ from viewer import (
 EXECUTION_REPORT_ARTIFACT = (
     "platform_product_repair_rerun_request_gate_execution_report.json"
 )
+IMPORT_EXECUTION_REPORT_ARTIFACT = (
+    "platform_product_repair_draft_import_preview_execution_report.json"
+)
 REQUEST_GATE_ARTIFACT = "specspace_repair_rerun_request_gate.json"
 IMPORT_PREVIEW_ARTIFACT = "specspace_repair_draft_import_preview.json"
+CLARIFICATION_REQUESTS_ARTIFACT = "idea_to_spec_clarification_requests.json"
 REPAIR_SESSION_ARTIFACTS = {
     "idea_to_spec_repair_session.json",
     "repaired_idea_to_spec_repair_session.json",
@@ -36,6 +42,23 @@ def _text(value: Any) -> str | None:
         return None
     stripped = value.strip()
     return stripped or None
+
+
+def _repair_session_clarification_ref(path: Path) -> str | None:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    source = _record(_record(payload.get("source_artifacts")).get("clarification_requests"))
+    return _text(source.get("source_ref"))
+
+
+def _file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _execution_disabled_payload(next_action: str | None = None) -> dict[str, Any]:
@@ -139,29 +162,10 @@ def _request_usable_for_current_workspace(
     request: dict[str, Any],
     hygiene: dict[str, Any],
 ) -> bool:
-    request_state = next(
-        (
-            item
-            for item in hygiene.get("states", [])
-            if isinstance(item, dict) and item.get("kind") == "repair_rerun_request"
-        ),
-        {},
+    return idea_to_spec_workspace_state_hygiene.repair_rerun_request_is_usable(
+        request,
+        hygiene,
     )
-    if request_state.get("status") != "usable":
-        return False
-    workspace_id = _text(hygiene.get("workspace_id"))
-    candidate_id = _text(hygiene.get("candidate_id"))
-    repair_session_id = _text(hygiene.get("repair_session_id"))
-    repair_session_ref = _text(hygiene.get("repair_session_ref"))
-    if workspace_id and _text(request.get("workspace_id")) != workspace_id:
-        return False
-    if candidate_id and _text(request.get("candidate_id")) != candidate_id:
-        return False
-    if repair_session_id and _text(request.get("repair_session_id")) != repair_session_id:
-        return False
-    if repair_session_ref and _text(request.get("repair_session_ref")) != repair_session_ref:
-        return False
-    return True
 
 
 def _active_requested_gate(
@@ -308,7 +312,6 @@ def execute_requested_request_gate(
                 f"{idea_to_spec_repair_rerun_requests.RERUN_REQUEST_FILENAME}"
             ),
         }
-
     import_preview_ref = _text(request.get("import_preview_ref"))
     import_preview_path = _safe_runs_ref_to_path(
         server,
@@ -320,11 +323,25 @@ def execute_requested_request_gate(
             "error": "import_preview_ref must point to a safe runs/* repair draft import preview.",
             "field": "import_preview_ref",
         }
-    if not import_preview_path.is_file():
+    prepare_import_preview = request.get("prepare_import_preview") is True
+    if not import_preview_path.is_file() and not prepare_import_preview:
         return HTTPStatus.NOT_FOUND, {
             "error": "Repair draft import preview artifact not found.",
             "import_preview_ref": import_preview_ref,
         }
+    if not prepare_import_preview:
+        expected_import_preview_sha256 = _text(
+            request.get("import_preview_sha256")
+        )
+        if (
+            expected_import_preview_sha256 is not None
+            and _file_sha256(import_preview_path) != expected_import_preview_sha256
+        ):
+            return HTTPStatus.CONFLICT, {
+                "error": "Repair draft import preview changed after the request was created.",
+                "reason": "repair_import_preview_digest_mismatch",
+                "request_id": request.get("id"),
+            }
 
     repair_session_ref = _text(request.get("repair_session_ref"))
     repair_session_path = _safe_runs_ref_to_path(
@@ -354,59 +371,184 @@ def execute_requested_request_gate(
     output_dir.mkdir(parents=True, exist_ok=True)
     output_gate_path = output_dir / REQUEST_GATE_ARTIFACT
     output_report_path = output_dir / EXECUTION_REPORT_ARTIFACT
+    output_import_report_path = output_dir / IMPORT_EXECUTION_REPORT_ARTIFACT
     output_gate_ref = (
         f"runs/{output_gate_path.resolve().relative_to(runs_dir.resolve()).as_posix()}"
     )
     output_report_ref = (
         f"runs/{output_report_path.resolve().relative_to(runs_dir.resolve()).as_posix()}"
     )
-    consume_status, consume_body = idea_to_spec_repair_rerun_requests.mark_request_consumed(
-        server,
-        workspace_id=selected_workspace_id,
-        request_id=str(request.get("id")),
-    )
-    if consume_status != HTTPStatus.OK:
-        return consume_status, {
-            "artifact_kind": "specspace_managed_repair_rerun_request_gate_execution",
-            "ok": False,
-            "status": "repair_rerun_request_not_active",
-            "workspace_id": selected_workspace_id,
-            "request_id": request.get("id"),
-            "rerun_request_ref": (
-                "specspace-state://"
-                f"{idea_to_spec_repair_rerun_requests.RERUN_REQUEST_FILENAME}"
-            ),
-            "import_preview_ref": import_preview_ref,
-            "repair_session_ref": repair_session_ref,
-            "output_gate_ref": output_gate_ref,
-            "output_ref": output_report_ref,
-            "summary": {
-                "status": "managed_repair_rerun_request_gate_request_not_active",
-                "executed": False,
-            },
-            "error": consume_body.get("error")
-            if isinstance(consume_body.get("error"), str)
-            else "Repair rerun request is no longer active.",
-            "authority_boundary": {
-                "browser_executes_platform": False,
-                "specspace_backend_executes_platform": False,
-                "executes_specgraph": False,
-                "executes_repair_rerun": False,
-                "applies_repair_drafts": False,
-                "creates_git_commits": False,
-                "opens_pull_requests": False,
-                "publishes_read_models": False,
-                "writes_ontology_packages": False,
-                "accepts_ontology_terms": False,
-            },
-        }
-
+    draft_state_path: Path | None = None
+    clarification_requests_path: Path | None = None
+    if prepare_import_preview:
+        try:
+            draft_state_path = specspace_state_backend.materialize_state(
+                server,
+                "idea_to_spec_repair_drafts.json",
+                workspace_id=selected_workspace_id,
+            )
+        except specspace_state_backend.StateBackendError:
+            return HTTPStatus.SERVICE_UNAVAILABLE, {
+                "error": "SpecSpace repair draft state provider is unavailable.",
+                "reason": "specspace_state_provider_unavailable",
+            }
+        if draft_state_path is None:
+            return HTTPStatus.NOT_FOUND, {
+                "error": "Repair draft state artifact not found.",
+                "reason": "repair_draft_state_missing",
+            }
+        try:
+            draft_state_payload = json.loads(draft_state_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return HTTPStatus.UNPROCESSABLE_ENTITY, {
+                "error": "Repair draft state artifact is unreadable.",
+                "reason": "repair_draft_state_invalid",
+            }
+        request_drafts = [
+            item
+            for item in draft_state_payload.get("drafts", [])
+            if isinstance(item, dict)
+            and item.get("workspace_id") == selected_workspace_id
+            and item.get("repair_session_id") == request.get("repair_session_id")
+            and item.get("repair_session_ref") == request.get("repair_session_ref")
+        ]
+        expected_draft_set_sha256 = _text(request.get("draft_set_sha256"))
+        actual_draft_set_sha256 = (
+            idea_to_spec_repair_rerun_requests.repair_draft_set_sha256(
+                request_drafts
+            )
+        )
+        if (
+            expected_draft_set_sha256 is None
+            or actual_draft_set_sha256 != expected_draft_set_sha256
+        ):
+            return HTTPStatus.CONFLICT, {
+                "error": "Saved repair drafts changed after the rerun request was created.",
+                "reason": "repair_draft_set_digest_mismatch",
+                "request_id": request.get("id"),
+            }
+        clarification_requests_path = _safe_runs_ref_to_path(
+            server,
+            _repair_session_clarification_ref(repair_session_path),
+            filenames={CLARIFICATION_REQUESTS_ARTIFACT},
+        )
+        if clarification_requests_path is None or not clarification_requests_path.is_file():
+            return HTTPStatus.NOT_FOUND, {
+                "error": "Repair clarification requests artifact not found.",
+                "reason": "repair_clarification_requests_missing",
+            }
+    request_state_snapshot = request_state_path.read_bytes()
     timeout = getattr(server, "platform_execution_timeout_seconds", 120)
     try:
         timeout_seconds = int(timeout)
     except (TypeError, ValueError):
         timeout_seconds = 120
     timeout_seconds = max(1, min(timeout_seconds, 600))
+
+    import_report: dict[str, Any] | None = None
+    if prepare_import_preview:
+        assert draft_state_path is not None
+        assert clarification_requests_path is not None
+        snapshot_payload = {
+            **draft_state_payload,
+            "drafts": request_drafts,
+        }
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            prefix="specspace-repair-drafts-",
+            suffix=".json",
+            delete=False,
+        ) as draft_snapshot_handle:
+            json.dump(snapshot_payload, draft_snapshot_handle, sort_keys=True)
+            draft_snapshot_handle.write("\n")
+            draft_state_snapshot_path = Path(draft_snapshot_handle.name)
+        import_preview_path.parent.mkdir(parents=True, exist_ok=True)
+        import_command = [
+            sys.executable,
+            str(platform_script),
+            "product-repair-rerun",
+            "import-preview",
+            "--specgraph-dir",
+            str(specgraph_dir),
+            "--run-dir",
+            str(output_dir),
+            "--draft-state",
+            str(draft_state_snapshot_path),
+            "--repair-session",
+            str(repair_session_path),
+            "--clarification-requests",
+            str(clarification_requests_path),
+            "--workspace-id",
+            selected_workspace_id,
+            "--output-preview",
+            str(import_preview_path),
+            "--output",
+            str(output_import_report_path),
+            "--format",
+            "json",
+        ]
+        try:
+            import_completed = subprocess.run(
+                import_command,
+                cwd=str(platform_script.parent.parent),
+                capture_output=True,
+                text=True,
+                timeout=timeout_seconds,
+            )
+        except subprocess.TimeoutExpired:
+            return HTTPStatus.GATEWAY_TIMEOUT, {
+                "artifact_kind": "specspace_managed_repair_rerun_request_gate_execution",
+                "ok": False,
+                "status": "repair_draft_import_preview_timed_out",
+                "workspace_id": selected_workspace_id,
+                "request_id": request.get("id"),
+                "reason": "platform_execution_timed_out",
+                "authority_boundary": {
+                    **_execution_disabled_payload()["authority_boundary"],
+                    "specspace_backend_executes_platform": True,
+                    "executes_specgraph": True,
+                },
+            }
+        finally:
+            draft_state_snapshot_path.unlink(missing_ok=True)
+        try:
+            import_report = (
+                json.loads(import_completed.stdout.strip())
+                if import_completed.stdout.strip()
+                else {}
+            )
+        except json.JSONDecodeError:
+            import_report = {}
+        if import_completed.returncode != 0 or not import_preview_path.is_file():
+            return HTTPStatus.BAD_GATEWAY, {
+                "artifact_kind": "specspace_managed_repair_rerun_request_gate_execution",
+                "ok": False,
+                "status": "repair_draft_import_preview_failed",
+                "workspace_id": selected_workspace_id,
+                "request_id": request.get("id"),
+                "platform_returncode": import_completed.returncode,
+                "platform_report": import_report,
+                "stderr_tail": import_completed.stderr[-2000:] if import_completed.stderr else "",
+                "authority_boundary": {
+                    **_execution_disabled_payload()["authority_boundary"],
+                    "specspace_backend_executes_platform": True,
+                    "executes_specgraph": bool(
+                        _record(_record(import_report).get("authority_boundary")).get(
+                            "executes_specgraph_make_target"
+                        )
+                    ),
+                },
+            }
+
+    with tempfile.NamedTemporaryFile(
+        mode="wb",
+        prefix="specspace-repair-rerun-request-",
+        suffix=".json",
+        delete=False,
+    ) as snapshot_handle:
+        snapshot_handle.write(request_state_snapshot)
+        request_state_snapshot_path = Path(snapshot_handle.name)
 
     command = [
         sys.executable,
@@ -416,7 +558,7 @@ def execute_requested_request_gate(
         "--specgraph-dir",
         str(specgraph_dir),
         "--rerun-request",
-        str(request_state_path),
+        str(request_state_snapshot_path),
         "--import-preview",
         str(import_preview_path),
         "--repair-session",
@@ -434,13 +576,16 @@ def execute_requested_request_gate(
         command.extend(
             ["--workspace-initialization", str(workspace_initialization_path)]
         )
-    completed = subprocess.run(
-        command,
-        cwd=str(platform_script.parent.parent),
-        capture_output=True,
-        text=True,
-        timeout=timeout_seconds,
-    )
+    try:
+        completed = subprocess.run(
+            command,
+            cwd=str(platform_script.parent.parent),
+            capture_output=True,
+            text=True,
+            timeout=timeout_seconds,
+        )
+    finally:
+        request_state_snapshot_path.unlink(missing_ok=True)
     stdout = completed.stdout.strip()
     try:
         report = json.loads(stdout) if stdout else {}
@@ -463,12 +608,16 @@ def execute_requested_request_gate(
         "output_ref": output_report_ref,
         "platform_returncode": completed.returncode,
         "platform_report": report,
+        "import_preview_platform_report": import_report,
         "stderr_tail": completed.stderr[-2000:] if completed.stderr else "",
         "authority_boundary": {
             "browser_executes_platform": False,
             "specspace_backend_executes_platform": True,
             "executes_specgraph": bool(
                 _record(report.get("authority_boundary")).get(
+                    "executes_specgraph_make_target"
+                )
+                or _record(_record(import_report).get("authority_boundary")).get(
                     "executes_specgraph_make_target"
                 )
             ),

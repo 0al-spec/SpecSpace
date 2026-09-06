@@ -16,6 +16,7 @@ export type IdeaToSpecRepairRerunRequest = {
   updatedAt: string;
   draftCount: number;
   acceptedForRerunCount: number;
+  prepareImportPreview: boolean;
   operatorCommand: string | null;
   canonicalMutationsAllowed: false;
   trackedArtifactsWritten: false;
@@ -58,6 +59,8 @@ export type IdeaToSpecRepairRerunRequestState = {
     latestJournalState: string;
     operatorCommand: string | null;
     requestReady: boolean;
+    requestWillPrepareImportPreview: boolean;
+    blockers: readonly string[];
   };
   consumerBoundary: {
     specspaceOwnedState: boolean;
@@ -181,6 +184,12 @@ function stringMap(value: unknown): Record<string, string> {
   return out;
 }
 
+function stringList(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string" && item.length > 0)
+    : [];
+}
+
 function firstTrue(raw: Record<string, unknown>, fields: readonly string[]): string | null {
   return fields.find((field) => raw[field] === true) ?? null;
 }
@@ -209,6 +218,7 @@ function parseRequest(raw: Record<string, unknown>): IdeaToSpecRepairRerunReques
     updatedAt: stringValue(raw.updated_at, "unknown"),
     draftCount: numberValue(raw.draft_count),
     acceptedForRerunCount: numberValue(raw.accepted_for_rerun_count),
+    prepareImportPreview: boolValue(raw.prepare_import_preview),
     operatorCommand: optionalString(raw.operator_command),
     canonicalMutationsAllowed: false,
     trackedArtifactsWritten: false,
@@ -296,6 +306,8 @@ export function parseIdeaToSpecRepairRerunRequestState(
         latestJournalState: stringValue(workflow.latest_journal_state, "not_requested"),
         operatorCommand: optionalString(workflow.operator_command),
         requestReady: boolValue(workflow.request_ready),
+        requestWillPrepareImportPreview: boolValue(workflow.request_will_prepare_import_preview),
+        blockers: stringList(workflow.blockers),
       },
       consumerBoundary: {
         specspaceOwnedState: boolValue(consumerBoundary.specspace_owned_state),

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+import tempfile
 from http import HTTPStatus
 from pathlib import Path
 from typing import Any
@@ -152,35 +153,10 @@ def _request_usable_for_current_workspace(
     request: dict[str, Any],
     hygiene: dict[str, Any],
 ) -> bool:
-    request_state = next(
-        (
-            item
-            for item in hygiene.get("states", [])
-            if isinstance(item, dict) and item.get("kind") == "repair_rerun_request"
-        ),
-        {},
+    return idea_to_spec_workspace_state_hygiene.repair_rerun_request_is_usable(
+        request,
+        hygiene,
     )
-    if request_state.get("status") != "usable":
-        return False
-    workspace_id = _text(hygiene.get("workspace_id"))
-    candidate_id = _text(hygiene.get("candidate_id"))
-    repair_session_id = _text(hygiene.get("repair_session_id"))
-    repair_session_ref = _text(hygiene.get("repair_session_ref"))
-    if workspace_id and _text(request.get("workspace_id")) != workspace_id:
-        return False
-    if candidate_id and _text(request.get("candidate_id")) != candidate_id:
-        return False
-    if (
-        repair_session_id
-        and _text(request.get("repair_session_id")) != repair_session_id
-    ):
-        return False
-    if (
-        repair_session_ref
-        and _text(request.get("repair_session_ref")) != repair_session_ref
-    ):
-        return False
-    return True
 
 
 def _request_gate_error(
@@ -411,6 +387,7 @@ def execute_requested_rerun(
                 f"{idea_to_spec_repair_rerun_requests.RERUN_REQUEST_FILENAME}"
             ),
         }
+    request_state_snapshot = request_state_path.read_bytes()
 
     import_preview_ref = _text(request.get("import_preview_ref"))
     import_preview_path = _safe_runs_ref_to_path(
@@ -450,11 +427,18 @@ def execute_requested_rerun(
     if not isinstance(runs_dir, Path):
         return HTTPStatus.SERVICE_UNAVAILABLE, _execution_disabled_payload()
 
-    request_gate_path = runs_dir / REQUEST_GATE_ARTIFACT
+    output_dir = (
+        specspace_provider.runs_dir_for_workspace(server, selected_workspace_id)
+        or runs_dir
+    )
+    request_gate_path = output_dir / REQUEST_GATE_ARTIFACT
+    request_gate_ref = (
+        f"runs/{request_gate_path.resolve().relative_to(runs_dir.resolve()).as_posix()}"
+    )
     if not request_gate_path.is_file():
         return HTTPStatus.CONFLICT, {
             "error": "Repair rerun execution requires a ready request gate artifact.",
-            "request_gate_ref": f"runs/{REQUEST_GATE_ARTIFACT}",
+            "request_gate_ref": request_gate_ref,
             "reason": "request_gate_missing",
         }
     gate_error = _request_gate_error(
@@ -465,27 +449,33 @@ def execute_requested_rerun(
     if gate_error is not None:
         return HTTPStatus.CONFLICT, {
             "error": "Repair rerun execution requires a ready request gate for the selected request.",
-            "request_gate_ref": f"runs/{REQUEST_GATE_ARTIFACT}",
+            "request_gate_ref": request_gate_ref,
             **gate_error,
         }
 
-    output_dir = (
-        specspace_provider.runs_dir_for_workspace(server, selected_workspace_id)
-        or runs_dir
-    )
     output_dir.mkdir(parents=True, exist_ok=True)
+    run_dir_arg = str(output_dir.resolve())
     plan_dir = output_dir / "managed_repair_rerun_plans"
     plan_dir.mkdir(parents=True, exist_ok=True)
     plan_path = plan_dir / f"{_safe_fragment(_text(request.get('id')))}.{PLAN_ARTIFACT}"
     output_path = output_dir / EXECUTION_REPORT_ARTIFACT
     plan_ref = f"runs/{plan_path.resolve().relative_to(runs_dir.resolve()).as_posix()}"
     output_ref = f"runs/{output_path.resolve().relative_to(runs_dir.resolve()).as_posix()}"
+    with tempfile.NamedTemporaryFile(
+        mode="wb",
+        prefix="specspace-repair-rerun-request-",
+        suffix=".json",
+        delete=False,
+    ) as snapshot_handle:
+        snapshot_handle.write(request_state_snapshot)
+        request_state_snapshot_path = Path(snapshot_handle.name)
     consume_status, consume_body = idea_to_spec_repair_rerun_requests.mark_request_consumed(
         server,
         workspace_id=selected_workspace_id,
         request_id=str(request.get("id")),
     )
     if consume_status != HTTPStatus.OK:
+        request_state_snapshot_path.unlink(missing_ok=True)
         return consume_status, {
             "artifact_kind": "specspace_managed_repair_rerun_execution",
             "ok": False,
@@ -498,7 +488,7 @@ def execute_requested_rerun(
             ),
             "import_preview_ref": import_preview_ref,
             "repair_session_ref": repair_session_ref,
-            "request_gate_ref": f"runs/{REQUEST_GATE_ARTIFACT}",
+            "request_gate_ref": request_gate_ref,
             "plan_ref": plan_ref,
             "output_ref": output_ref,
             "summary": {
@@ -538,8 +528,10 @@ def execute_requested_rerun(
         "plan",
         "--specgraph-dir",
         str(specgraph_dir),
+        "--run-dir",
+        run_dir_arg,
         "--rerun-request",
-        str(request_state_path),
+        str(request_state_snapshot_path),
         "--import-preview",
         str(import_preview_path),
         "--repair-session",
@@ -567,6 +559,7 @@ def execute_requested_rerun(
             timeout_seconds=timeout_seconds,
         )
     except subprocess.TimeoutExpired as error:
+        request_state_snapshot_path.unlink(missing_ok=True)
         return HTTPStatus.GATEWAY_TIMEOUT, {
             "artifact_kind": "specspace_managed_repair_rerun_execution",
             "ok": False,
@@ -579,7 +572,7 @@ def execute_requested_rerun(
             ),
             "import_preview_ref": import_preview_ref,
             "repair_session_ref": repair_session_ref,
-            "request_gate_ref": f"runs/{REQUEST_GATE_ARTIFACT}",
+            "request_gate_ref": request_gate_ref,
             "plan_ref": plan_ref,
             "output_ref": output_ref,
             "summary": {
@@ -604,6 +597,9 @@ def execute_requested_rerun(
                 "accepts_ontology_terms": False,
             },
         }
+    except BaseException:
+        request_state_snapshot_path.unlink(missing_ok=True)
+        raise
 
     execute_completed: subprocess.CompletedProcess[str] | None = None
     execution_report: dict[str, Any] = {}
@@ -628,6 +624,7 @@ def execute_requested_rerun(
                 timeout_seconds=timeout_seconds,
             )
         except subprocess.TimeoutExpired as error:
+            request_state_snapshot_path.unlink(missing_ok=True)
             return HTTPStatus.GATEWAY_TIMEOUT, {
                 "artifact_kind": "specspace_managed_repair_rerun_execution",
                 "ok": False,
@@ -640,7 +637,7 @@ def execute_requested_rerun(
                 ),
                 "import_preview_ref": import_preview_ref,
                 "repair_session_ref": repair_session_ref,
-                "request_gate_ref": f"runs/{REQUEST_GATE_ARTIFACT}",
+                "request_gate_ref": request_gate_ref,
                 "plan_ref": plan_ref,
                 "output_ref": output_ref,
                 "summary": {
@@ -665,6 +662,11 @@ def execute_requested_rerun(
                     "accepts_ontology_terms": False,
                 },
             }
+        except BaseException:
+            request_state_snapshot_path.unlink(missing_ok=True)
+            raise
+
+    request_state_snapshot_path.unlink(missing_ok=True)
 
     execution_returncode = (
         execute_completed.returncode if execute_completed is not None else None
@@ -692,7 +694,7 @@ def execute_requested_rerun(
         ),
         "import_preview_ref": import_preview_ref,
         "repair_session_ref": repair_session_ref,
-        "request_gate_ref": f"runs/{REQUEST_GATE_ARTIFACT}",
+        "request_gate_ref": request_gate_ref,
         "plan_ref": plan_ref,
         "output_ref": output_ref,
         "platform_returncode": execution_returncode

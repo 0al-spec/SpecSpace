@@ -663,6 +663,7 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("Repair drafts loading");
     expect(html).toContain("Repair rerun request loading");
     expect(html).toContain("Save draft");
+    expect(html).toContain("answer_needed");
     expect(html).toContain("Ontology gap term");
     expect(html).toContain("Term");
     expect(html).toContain("Spec mutations");
@@ -704,6 +705,26 @@ describe("IdeaToSpecWorkspacePanel", () => {
       "Continue candidate generation from the ready intake session.",
     );
     expect(html).not.toContain("Answer template missing");
+  });
+
+  it("explains partial repair follow-up without claiming completion", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    raw.repair_review.platform_execution.execution.status =
+      "follow_up_required";
+    raw.repair_review.platform_execution.execution.follow_up_required = true;
+    const parsed = parseIdeaToSpecWorkspace(raw);
+    if (parsed.kind !== "ok") {
+      throw new Error("Modified idea-to-spec fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(IdeaToSpecWorkspacePanel, {
+        state: { kind: "ok", data: parsed.data },
+      }),
+    );
+
+    expect(html).toContain("Another repair pass required");
+    expect(html).toContain("remaining repair targets");
   });
 
   it("keeps an unready active candidate in review instead of marking it ready", () => {

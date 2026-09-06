@@ -52,6 +52,7 @@ def test_managed_operations_use_normalized_state_vocabulary() -> None:
         "execution_requested",
         "running_or_waiting",
         "failed",
+        "follow_up_required",
         "stale",
         "completed",
         "blocked",
@@ -205,7 +206,6 @@ def test_consume_on_attempt_operations_require_new_request_for_retry() -> None:
     consume_on_attempt_operation_ids = {
         "real_idea_intake_execute",
         "real_idea_answer_continuation_execute",
-        "repair_rerun_request_gate_execute",
         "repair_rerun_execute",
         "candidate_approval_execute",
     }
@@ -213,3 +213,10 @@ def test_consume_on_attempt_operations_require_new_request_for_retry() -> None:
     for operation_id in consume_on_attempt_operation_ids:
         policy = _operation(operation_id).replay_policy
         assert "new UI" in policy
+
+
+def test_repair_rerun_request_gate_is_replay_safe() -> None:
+    policy = _operation("repair_rerun_request_gate_execute").replay_policy
+
+    assert "replay-safe" in policy
+    assert "leaves the repair rerun request active" in policy

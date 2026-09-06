@@ -1320,6 +1320,33 @@ Production rollout remains bounded:
 Future multi-user work remains separate: backend sessions, workspace ownership,
 roles, rate limiting, and durable security audit logs.
 
+### 21. Pre-Session Repair Draft Recovery
+
+Status: implemented and verified through a real Mac operator repair pass.
+
+The repair UI can recover operator drafts authored before an initial repair
+session existed without silently rebinding them. Session-bound drafts can
+author a digest-pinned rerun request directly. Legacy null-session drafts are
+usable only when a validated Platform import preview pins the exact draft set.
+
+The guided repair path now:
+
+- sorts unanswered targets before saved drafts and labels both states;
+- explains why `Request rerun preview` is unavailable instead of presenting an
+  unexplained disabled button;
+- keeps the replay-safe request gate separate from consume-on-attempt rerun
+  execution;
+- reports a successful but incomplete rerun as `follow_up_required` and points
+  back to the remaining repair target;
+- preserves failure status for identity, artifact-kind, runtime, or authority
+  diagnostics even when hosted transport succeeded.
+
+The `idea-4cfafedbf9` smoke preserved all 18 saved drafts, accepted all of them,
+and removed 17 gaps. One unanswered ontology decision for `add own ID` remains
+operator-owned. The next accepted action is to answer that card in Product
+Workspace and run another controlled repair pass; no draft recovery or manual
+JSON editing is required.
+
 ## Accepted Constraints And Runbook Notes
 
 The items below are accepted authority boundaries or operator runbook notes, not

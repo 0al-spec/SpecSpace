@@ -25,39 +25,63 @@ def build_hygiene(
     workspace_payload: dict[str, Any] | None,
 ) -> tuple[HTTPStatus, dict[str, Any]]:
     payload = workspace_payload or {}
+    if not _record(payload.get("workspace_binding")):
+        payload = {
+            **payload,
+            "workspace_binding": product_workspace_binding.discover_binding(
+                server,
+                workspace_id=workspace_id,
+            ),
+        }
     current = _current_identity(workspace_id=workspace_id, workspace_payload=payload)
+    repair_drafts_status = idea_to_spec_repair_drafts.read_state(server)
+    repair_rerun_request_status = idea_to_spec_repair_rerun_requests.read_state(server)
+    candidate_approval_intent_status = idea_to_spec_candidate_approval_intents.read_state(
+        server
+    )
+    repair_drafts = _state_status(
+        kind="repair_drafts",
+        state_status=repair_drafts_status,
+        records_key="drafts",
+        current=current,
+        blocks=["repair_draft_import_preview", "repair_rerun_request"],
+        missing_next_action="Save repair drafts for the current repair session.",
+        stale_next_action="Replace repair drafts for the current workspace and repair session.",
+    )
+    repair_rerun_request = _state_status(
+        kind="repair_rerun_request",
+        state_status=repair_rerun_request_status,
+        records_key="requests",
+        current=current,
+        blocks=["repair_rerun_smoke", "repair_rerun_execution"],
+        missing_next_action="Request a repair rerun after drafts and import preview are ready.",
+        stale_next_action="Replace the rerun request for the current workspace and repair session.",
+        active_status="requested",
+    )
+    candidate_approval_intent = _state_status(
+        kind="candidate_approval_intent",
+        state_status=candidate_approval_intent_status,
+        records_key="intents",
+        current=current,
+        blocks=["candidate_approval_gate", "candidate_approval_materialization"],
+        missing_next_action="Record approval intent after the repaired candidate is approval-ready.",
+        stale_next_action="Record a fresh approval intent for the current workspace and repair session.",
+        active_status="requested",
+    )
     states = [
-        _state_status(
-            kind="repair_drafts",
-            state_status=idea_to_spec_repair_drafts.read_state(server),
-            records_key="drafts",
-            current=current,
-            blocks=["repair_draft_import_preview", "repair_rerun_request"],
-            missing_next_action="Save repair drafts for the current repair session.",
-            stale_next_action="Replace repair drafts for the current workspace and repair session.",
-        ),
-        _state_status(
-            kind="repair_rerun_request",
-            state_status=idea_to_spec_repair_rerun_requests.read_state(server),
-            records_key="requests",
-            current=current,
-            blocks=["repair_rerun_smoke", "repair_rerun_execution"],
-            missing_next_action="Request a repair rerun after drafts and import preview are ready.",
-            stale_next_action="Replace the rerun request for the current workspace and repair session.",
-            active_status="requested",
-        ),
-        _state_status(
-            kind="candidate_approval_intent",
-            state_status=idea_to_spec_candidate_approval_intents.read_state(server),
-            records_key="intents",
-            current=current,
-            blocks=["candidate_approval_gate", "candidate_approval_materialization"],
-            missing_next_action="Record approval intent after the repaired candidate is approval-ready.",
-            stale_next_action="Record a fresh approval intent for the current workspace and repair session.",
-            active_status="requested",
-        ),
+        repair_drafts,
+        repair_rerun_request,
+        candidate_approval_intent,
     ]
-    states.extend(_artifact_state_statuses(payload, current))
+    states.extend(
+        _artifact_state_statuses(
+            payload,
+            current,
+            active_rerun_request_id=_text(
+                repair_rerun_request.get("current_record_id")
+            ),
+        )
+    )
     summary = _summary(states)
     recommended_actions = _recommended_actions(
         states=states,
@@ -520,10 +544,17 @@ def _state_status(
         "stale_record_count": len(records_for_current) - len(current_matches),
     }
     if current_matches:
+        current_record = _latest_record(current_matches)
         return {
             **result,
             "status": "usable",
             "reason": "current_workspace_session_state_present",
+            "current_record_id": _text(current_record.get("id")),
+            "current_record_ids": [
+                record_id
+                for item in current_matches
+                if (record_id := _record_identity(item)) is not None
+            ],
             "next_action": "Continue with the current idea-to-spec workflow.",
         }
     if _source_repair_state_consumed_by_repaired_handoff(kind, latest, current):
@@ -531,6 +562,12 @@ def _state_status(
             **result,
             "status": "usable",
             "reason": "source_repair_state_consumed_by_repaired_handoff",
+            "current_record_id": _text(latest.get("id")),
+            "current_record_ids": [
+                record_id
+                for item in (workspace_matches or records_for_current)
+                if (record_id := _record_identity(item)) is not None
+            ],
             "current_record_count": len(workspace_matches) or len(records_for_current),
             "stale_record_count": 0,
             "next_action": "Continue with the repaired idea-to-spec workflow.",
@@ -543,9 +580,15 @@ def _state_status(
     }
 
 
+def _record_identity(record: dict[str, Any]) -> str | None:
+    return _text(record.get("request_id")) or _text(record.get("id"))
+
+
 def _artifact_state_statuses(
     workspace_payload: dict[str, Any],
     current: dict[str, str | None],
+    *,
+    active_rerun_request_id: str | None = None,
 ) -> list[dict[str, Any]]:
     artifacts = _record(workspace_payload.get("artifacts"))
     import_preview_artifact = _record(
@@ -572,6 +615,7 @@ def _artifact_state_statuses(
             kind="repair_rerun_request_gate",
             artifact=request_gate_artifact,
             current=current,
+            active_request_id=active_rerun_request_id,
             blocks=["repair_rerun_execution", "repair_rerun_smoke"],
             missing_next_action="Run SpecGraph rerun request gate for the current request.",
         ),
@@ -639,6 +683,8 @@ def _request_gate_from_platform_execution(report: dict[str, Any]) -> dict[str, A
     if request_gate.get("ready") is not True:
         return {}
     repair_session_ref = _text(report.get("repair_session_ref"))
+    request_gate_summary = _record(request_gate.get("summary"))
+    selected_request_id = _text(request_gate_summary.get("selected_request_id"))
     return {
         "available": True,
         "path": _text(request_gate.get("path")),
@@ -648,7 +694,11 @@ def _request_gate_from_platform_execution(report: dict[str, Any]) -> dict[str, A
         "summary": {
             "status": _text(request_gate.get("status")) or "ready",
             "source": "platform_product_repair_rerun_request_gate_execution",
+            "selected_request_id": selected_request_id,
         },
+        "selected_request": {"id": selected_request_id}
+        if selected_request_id
+        else {},
         "source_mode": "platform_request_gate_execution",
         "readiness": {
             "ready": True,
@@ -670,6 +720,7 @@ def _artifact_state_status(
     current: dict[str, str | None],
     blocks: list[str],
     missing_next_action: str,
+    active_request_id: str | None = None,
 ) -> dict[str, Any]:
     status = _text(artifact.get("status"))
     available = artifact.get("available") is True
@@ -689,6 +740,9 @@ def _artifact_state_status(
     )
     session = _record(artifact.get("session"))
     selected_request = _record(artifact.get("selected_request"))
+    stored_request_id = _text(selected_request.get("id")) or _text(
+        summary.get("selected_request_id")
+    )
     stored_candidate_id = (
         _text(artifact.get("candidate_id"))
         or _text(summary.get("candidate_id"))
@@ -717,6 +771,8 @@ def _artifact_state_status(
         "stored_candidate_id": stored_candidate_id,
         "stored_repair_session_id": stored_repair_session_id,
         "stored_repair_session_ref": session_ref,
+        "stored_request_id": stored_request_id,
+        "current_request_id": active_request_id,
         "current_workspace_id": current["workspace_id"],
         "current_candidate_id": current["candidate_id"],
         "current_repair_session_id": current["repair_session_id"],
@@ -729,6 +785,17 @@ def _artifact_state_status(
     }
     if not available:
         return {**base, "reason": "artifact_missing"}
+    if kind == "repair_rerun_request_gate" and active_request_id:
+        if stored_request_id != active_request_id:
+            return {
+                **base,
+                "status": "stale",
+                "reason": "repair_rerun_request_id_mismatch",
+                "stale_record_count": 1,
+            "next_action": (
+                "Rebuild repair_rerun_request_gate for the active rerun request."
+            ),
+            }
     ready_statuses = _ready_statuses_for_artifact(kind)
     if session_ref and current_ref and session_ref != current_ref:
         if artifact.get("source_mode") in {
@@ -916,6 +983,59 @@ def _source_repair_state_consumed_by_repaired_handoff(
         and (
             not current.get("source_repair_session_ref")
             or repair_session_ref == current.get("source_repair_session_ref")
+        )
+    )
+
+
+def repair_rerun_request_is_usable(
+    request: dict[str, Any],
+    hygiene: dict[str, Any],
+) -> bool:
+    """Bind a rerun request to the current or consumed source repair session."""
+    request_state = next(
+        (
+            item
+            for item in hygiene.get("states", [])
+            if isinstance(item, dict) and item.get("kind") == "repair_rerun_request"
+        ),
+        {},
+    )
+    if request_state.get("status") != "usable":
+        return False
+    workspace_id = _text(hygiene.get("workspace_id"))
+    candidate_id = _text(hygiene.get("candidate_id"))
+    repair_session_id = _text(hygiene.get("repair_session_id"))
+    repair_session_ref = _text(hygiene.get("repair_session_ref"))
+    if workspace_id and _text(request.get("workspace_id")) != workspace_id:
+        return False
+    if candidate_id and _text(request.get("candidate_id")) != candidate_id:
+        return False
+    request_repair_session_id = _text(request.get("repair_session_id"))
+    request_repair_session_ref = _text(request.get("repair_session_ref"))
+    matches_current_session = (
+        (not repair_session_id or request_repair_session_id == repair_session_id)
+        and (
+            not repair_session_ref
+            or request_repair_session_ref == repair_session_ref
+        )
+    )
+    if matches_current_session:
+        return True
+
+    return bool(
+        request_state.get("reason")
+        == "source_repair_state_consumed_by_repaired_handoff"
+        and _text(request_state.get("current_record_id")) == _text(request.get("id"))
+        and _text(request_state.get("stored_workspace_id"))
+        == _text(request.get("workspace_id"))
+        and _text(request_state.get("stored_candidate_id"))
+        == _text(request.get("candidate_id"))
+        and _text(request_state.get("stored_repair_session_ref"))
+        == request_repair_session_ref
+        and (
+            not _text(request_state.get("stored_repair_session_id"))
+            or _text(request_state.get("stored_repair_session_id"))
+            == request_repair_session_id
         )
     )
 

@@ -705,6 +705,7 @@ export type IdeaToSpecProductRepairRerunExecution = {
   ok: boolean;
   dryRun: boolean;
   status: string | null;
+  followUpRequired: boolean;
   errorCount: number;
   outputArtifactCount: number;
   rerunReportDigest: string | null;
@@ -3805,6 +3806,7 @@ function parseProductRepairRerunExecution(
     ok: execution.ok === true,
     dryRun: execution.dry_run === true,
     status: optionalString(execution.status),
+    followUpRequired: execution.follow_up_required === true,
     errorCount: numberValue(execution.error_count),
     outputArtifactCount: numberValue(execution.output_artifact_count),
     rerunReportDigest: optionalString(execution.rerun_report_digest),

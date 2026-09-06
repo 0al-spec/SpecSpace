@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import json
+import os
+import signal
 import subprocess
 import sys
+import time
 from http import HTTPStatus
 from pathlib import Path
 from typing import Any
 
-from viewer import specspace_provider
+from viewer import product_workspace_binding, specspace_provider
 
 EXECUTION_REPORT_ARTIFACT = "platform_product_repair_rerun_execution_report.json"
 PUBLICATION_REPORT_ARTIFACT = "platform_product_repair_rerun_publication_report.json"
@@ -82,6 +85,85 @@ def _load_json(path: Path) -> dict[str, Any] | None:
     except (OSError, json.JSONDecodeError):
         return None
     return value if isinstance(value, dict) else None
+
+
+def _process_group_exists(process_group_id: int) -> bool:
+    try:
+        os.killpg(process_group_id, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def _wait_for_process_group_exit(
+    process_group_id: int,
+    *,
+    timeout_seconds: float,
+) -> bool:
+    deadline = time.monotonic() + timeout_seconds
+    while _process_group_exists(process_group_id):
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(0.05)
+    return True
+
+
+def _terminate_process_group(process: subprocess.Popen[str]) -> bool:
+    process_group_id = process.pid
+    try:
+        os.killpg(process_group_id, signal.SIGTERM)
+    except ProcessLookupError:
+        return True
+    try:
+        process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        pass
+    if _wait_for_process_group_exit(process_group_id, timeout_seconds=0.25):
+        return True
+    try:
+        os.killpg(process_group_id, signal.SIGKILL)
+    except ProcessLookupError:
+        return True
+    try:
+        process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        pass
+    return _wait_for_process_group_exit(process_group_id, timeout_seconds=5)
+
+
+def _run_platform_process(
+    command: list[str],
+    *,
+    cwd: Path,
+    timeout_seconds: int,
+) -> tuple[subprocess.CompletedProcess[str] | None, str, str, bool, bool]:
+    process = subprocess.Popen(
+        command,
+        cwd=str(cwd),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        start_new_session=True,
+    )
+    try:
+        stdout, stderr = process.communicate(timeout=timeout_seconds)
+    except subprocess.TimeoutExpired as error:
+        terminated = _terminate_process_group(process)
+        if terminated:
+            stdout, stderr = process.communicate()
+        else:
+            stdout = error.stdout if isinstance(error.stdout, str) else ""
+            stderr = error.stderr if isinstance(error.stderr, str) else ""
+        return None, stdout, stderr, True, terminated
+    return (
+        subprocess.CompletedProcess(command, process.returncode, stdout, stderr),
+        stdout,
+        stderr,
+        False,
+        True,
+    )
 
 
 def publish_repair_rerun(
@@ -159,6 +241,22 @@ def publish_repair_rerun(
             "execution_report_ref": f"runs/{EXECUTION_REPORT_ARTIFACT}",
             "reason": "execution_report_not_publishable",
         }
+    if getattr(server, "allow_legacy_workspace_execution", False) is not True:
+        active_binding = product_workspace_binding.discover_binding(
+            server,
+            workspace_id=selected_workspace_id,
+        )
+        execution_binding = _record(execution_report.get("workspace_binding"))
+        if (
+            execution_binding.get("workspace_id") != selected_workspace_id
+            or execution_binding.get("binding_revision_sha256")
+            != active_binding.get("binding_revision_sha256")
+        ):
+            return HTTPStatus.CONFLICT, {
+                "error": "Repair rerun execution report does not match the active workspace binding.",
+                "reason": "execution_report_workspace_binding_mismatch",
+                "workspace_id": selected_workspace_id,
+            }
 
     runs_dir = getattr(server, "runs_dir", None)
     assert isinstance(runs_dir, Path)
@@ -193,14 +291,43 @@ def publish_repair_rerun(
         "--format",
         "json",
     ]
-    completed = subprocess.run(
-        command,
-        cwd=str(platform_script.parent.parent),
-        capture_output=True,
-        text=True,
-        timeout=timeout_seconds,
+    completed, stdout_value, stderr_value, timed_out, process_group_terminated = (
+        _run_platform_process(
+            command,
+            cwd=platform_script.parent.parent,
+            timeout_seconds=timeout_seconds,
+        )
     )
-    stdout = completed.stdout.strip()
+    if timed_out:
+        return HTTPStatus.GATEWAY_TIMEOUT, {
+            "artifact_kind": "specspace_managed_repair_rerun_publication",
+            "ok": False,
+            "status": "platform_execution_timeout",
+            "workspace_id": selected_workspace_id,
+            "execution_report_ref": f"runs/{EXECUTION_REPORT_ARTIFACT}",
+            "output_ref": output_ref,
+            "platform_timeout_seconds": timeout_seconds,
+            "process_group_terminated": process_group_terminated,
+            "stderr_tail": stderr_value[-2000:],
+            "authority_boundary": {
+                "browser_executes_platform": False,
+                "specspace_backend_executes_platform": True,
+                "executes_specgraph": False,
+                "publishes_public_bundle": False,
+                "creates_git_commits": False,
+                "opens_pull_requests": False,
+                "publishes_read_models": False,
+                "writes_ontology_packages": False,
+                "accepts_ontology_terms": False,
+            },
+            "summary": {
+                "status": "managed_repair_rerun_publication_timeout",
+                "executed": False,
+                "output_ref": output_ref,
+            },
+        }
+    assert completed is not None
+    stdout = stdout_value.strip()
     try:
         report = json.loads(stdout) if stdout else {}
     except json.JSONDecodeError:
@@ -216,7 +343,7 @@ def publish_repair_rerun(
         "output_ref": output_ref,
         "platform_returncode": completed.returncode,
         "platform_report": report,
-        "stderr_tail": completed.stderr[-2000:] if completed.stderr else "",
+        "stderr_tail": stderr_value[-2000:],
         "authority_boundary": {
             "browser_executes_platform": False,
             "specspace_backend_executes_platform": True,
