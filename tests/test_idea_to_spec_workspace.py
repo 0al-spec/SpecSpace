@@ -3692,6 +3692,82 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             [action["category"] for action in ranking["secondary_actions"]],
         )
 
+    def test_quality_guided_ranking_puts_required_lifecycle_before_depth(self) -> None:
+        for stage_id, category in (
+            (idea_to_spec_workspace.STAGE_CANDIDATE_APPROVAL_INTENT, "approval"),
+            (idea_to_spec_workspace.STAGE_PLATFORM_APPROVAL_DECISION, "approval"),
+            (idea_to_spec_workspace.STAGE_PROMOTION_REQUEST, "promotion"),
+        ):
+            for status in ("available", "waiting_for_operator", "blocked"):
+                with self.subTest(stage_id=stage_id, status=status):
+                    stages = [
+                        _quality_overview_stage(
+                            idea_to_spec_workspace.STAGE_CANDIDATE_GRAPH, "completed"
+                        ),
+                        _quality_overview_stage(
+                            idea_to_spec_workspace.STAGE_REPAIRED_HANDOFF, "completed"
+                        ),
+                        _quality_overview_stage(
+                            stage_id,
+                            status,
+                            blockers=["candidate_approval_required"]
+                            if status == "blocked"
+                            else [],
+                        ),
+                    ]
+                    if category == "approval":
+                        stages.append(
+                            _quality_overview_stage(
+                                idea_to_spec_workspace.STAGE_PROMOTION_REQUEST,
+                                "blocked",
+                                blockers=["candidate_approval_required"],
+                            )
+                        )
+                    payload = _quality_overview_payload(
+                        stages=stages,
+                        current_stage=stage_id,
+                    )
+                    baseline = idea_to_spec_workspace._product_workspace_overview(
+                        payload
+                    )
+                    payload["idea_maturity"]["report"]["readiness_explainers"] = [
+                        {
+                            "kind": "candidate_structure_workflow_topology_flat",
+                            "next_action": "Repair event-storming topology.",
+                        }
+                    ]
+                    original = deepcopy(payload)
+
+                    result = idea_to_spec_workspace._product_workspace_overview(
+                        payload
+                    )
+
+                    ranking = result["action_ranking"]
+                    primary = ranking["primary_action"]
+                    self.assertEqual(primary["category"], category)
+                    self.assertEqual(primary["disposition"], "required")
+                    self.assertEqual(primary["status"], status)
+                    self.assertEqual(
+                        result["next_safe_action"], f"Next action for {stage_id}"
+                    )
+                    self.assertEqual(
+                        result["primary_target_section"], f"section-{stage_id}"
+                    )
+                    depth = ranking["secondary_actions"][0]
+                    self.assertEqual(depth["category"], "structural_depth")
+                    self.assertEqual(depth["disposition"], "recommended")
+                    self.assertEqual(depth["blockers"], [])
+                    self.assertIn(
+                        "not an approval or promotion gate", depth["reason"]
+                    )
+                    self.assertEqual(result["status"], baseline["status"])
+                    self.assertEqual(result["readiness"], baseline["readiness"])
+                    self.assertEqual(
+                        ranking["authority_boundary"],
+                        baseline["action_ranking"]["authority_boundary"],
+                    )
+                    self.assertEqual(payload, original)
+
     def test_quality_guided_ranking_labels_depth_only_as_recommended(self) -> None:
         stages = [
             _quality_overview_stage(
@@ -3703,15 +3779,11 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             _quality_overview_stage(
                 idea_to_spec_workspace.STAGE_REPAIR_REVIEW, "completed"
             ),
-            _quality_overview_stage(
-                idea_to_spec_workspace.STAGE_CANDIDATE_APPROVAL_INTENT,
-                "available",
-            ),
         ]
         result = idea_to_spec_workspace._product_workspace_overview(
             _quality_overview_payload(
                 stages=stages,
-                current_stage=idea_to_spec_workspace.STAGE_CANDIDATE_APPROVAL_INTENT,
+                current_stage=idea_to_spec_workspace.STAGE_REPAIR_REVIEW,
                 depth_explainers=[
                     {
                         "id": "candidate-structure-workflow-topology-flat",
@@ -3807,7 +3879,7 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
                 "state_hygiene",
                 "managed_operation_failure",
                 "clarification_repair",
-                "structural_depth",
+                "approval",
             ],
         )
         self.assertEqual(ranking["candidate_count"], 7)

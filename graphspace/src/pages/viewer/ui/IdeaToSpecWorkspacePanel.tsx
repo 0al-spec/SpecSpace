@@ -81,6 +81,8 @@ import {
   type ArtifactContentState,
 } from "../model/use-artifact-catalog";
 import styles from "./OntologySemanticReviewPanel.module.css";
+import { ProductAuthoringWorkbench } from "./ProductAuthoringWorkbench";
+import { repairQuestionPresentation, repairSourceSessionIsHistorical, repairSpecificationForRequest, specificationAnchor } from "../model/repair-authoring";
 
 export const MATERIALIZED_SPEC_PREVIEW_LIMIT = 40_000;
 
@@ -1356,7 +1358,9 @@ export function IdeaToSpecWorkspacePanel({
   const productWorkspaceOverviewSection = (
     <ProductWorkspaceOverviewSection
       overview={data.productWorkspaceOverview}
-      workspace={data.workspace}
+      workspace={{ ...data.workspace, displayName:
+        data.workspaceCreation.activeRequest?.workspaceId === (data.selectedWorkspaceId ?? data.workspace.id)
+          ? data.workspaceCreation.activeRequest.displayName : data.workspace.displayName }}
     />
   );
   const productDemoPresentationSection = (
@@ -1496,10 +1500,12 @@ export function IdeaToSpecWorkspacePanel({
   const renderDiagnosticSections = (
     includeIntakeClarification = true,
     includeSpecificationReview = false,
+    authoring = false,
   ) => (
     <>
+      {technicalSummary}
       {includeSpecificationReview ? specificationReviewSection : null}
-      <CandidateOverviewSection overview={data.candidateOverview} />
+      {!authoring ? <CandidateOverviewSection overview={data.candidateOverview} /> : null}
       <WorkflowSection workflow={data.workflow} />
       <WorkspaceSection workspace={data.workspace} />
       <FrameSection
@@ -1511,13 +1517,13 @@ export function IdeaToSpecWorkspacePanel({
       <IntakeSection state={state} />
       {includeIntakeClarification ? intakeClarificationSection : null}
       <OntologySeedSection seed={data.ontologySeed} />
-      <ProjectLocalOntologyReviewSection
+      {!authoring ? <ProjectLocalOntologyReviewSection
         lane={data.projectLocalOntologyReview}
         importPreview={data.projectLocalOntologyDecisionImportPreview}
         decisions={projectLocalOntologyReviewDecisions}
         workspaceId={data.selectedWorkspaceId ?? data.workspace.id}
         readOnly={readOnly}
-      />
+      /> : null}
       <CandidateGraphSection nodes={data.candidateGraph.nodes} />
       <PreSibSection state={state} />
       <RepairSection actions={data.repairLoop.actions} />
@@ -1529,14 +1535,14 @@ export function IdeaToSpecWorkspacePanel({
         }
       />
       <WorkspaceStateHygieneSection hygiene={data.workspaceStateHygiene} />
-      <ProductRepairReviewSection
+      {!authoring ? <ProductRepairReviewSection
         state={state}
         repairDrafts={repairDrafts}
         repairRerunRequests={repairRerunRequests}
         workspaceId={data.selectedWorkspaceId ?? data.workspace.id}
         onWorkspaceRefreshRequest={onWorkspaceRefreshRequest}
         readOnly={readOnly}
-      />
+      /> : null}
       <PromotionGateSection state={state} />
       <ApprovalReadinessSection
         readiness={data.approvalReadiness}
@@ -1560,8 +1566,8 @@ export function IdeaToSpecWorkspacePanel({
     </>
   );
 
-  return (
-    <section className={styles.panel} aria-label="Idea-to-spec workspace">
+  const technicalSummary = (
+    <>
       <div className={styles.summary}>
         <Metric label="Artifacts" value={data.summary.availableArtifactCount} />
         <Metric label="Nodes" value={data.summary.candidateNodeCount} />
@@ -1627,10 +1633,12 @@ export function IdeaToSpecWorkspacePanel({
         />
       </div>
 
+    </>
+  );
+  return (
+    <section className={styles.panel} aria-label="Idea-to-spec workspace">
       <div className={styles.entries} onClickCapture={handleWorkspaceAnchorClick}>
         {productWorkspaceOverviewSection}
-        {!freshWorkspaceFocus ? specificationReviewSection : null}
-        {managedOperationsSection}
         {freshWorkspaceFocus ? (
           <>
             <FreshWorkspaceFocusSection
@@ -1653,6 +1661,7 @@ export function IdeaToSpecWorkspacePanel({
                 Diagnostics / advanced artifacts
               </summary>
               <div className={styles.diagnosticsBody} ref={diagnosticsBodyRef}>
+                {managedOperationsSection}
                 {guidedFlowSection}
                 {!focusShowsWorkspaceInitialization
                   ? guidedWorkspaceInitializationPathSection
@@ -1666,15 +1675,68 @@ export function IdeaToSpecWorkspacePanel({
             </details>
           </>
         ) : (
-          <>
-            {ideaIntakeDraftSection}
-            {guidedWorkspaceInitializationPathSection}
-            {workspaceCreationSection}
-            {guidedFlowSection}
-            {guidedRepairPathSection}
-            {guidedApprovalPathSection}
-            {renderDiagnosticSections()}
-          </>
+          <ProductAuthoringWorkbench
+            key={data.selectedWorkspaceId ?? data.workspace.id}
+            initialView={data.productWorkspaceOverview.currentPhase === "repair"
+              ? data.guidedRepairPath.stage === "repaired_ready" ? "specification" : "questions"
+              : "specification"}
+          >
+            {{
+              questions: <>
+                <details className={styles.diagnosticsDisclosure}>
+                  <summary className={styles.diagnosticsSummary}>Original idea and intake</summary>
+                  {ideaIntakeDraftSection}
+                </details>
+                <ProductRepairReviewSection
+                  state={state}
+                  repairDrafts={repairDrafts}
+                  repairRerunRequests={repairRerunRequests}
+                  workspaceId={data.selectedWorkspaceId ?? data.workspace.id}
+                  onWorkspaceRefreshRequest={onWorkspaceRefreshRequest}
+                  readOnly={readOnly}
+                  showExecution={false}
+                />
+                <ProjectLocalOntologyReviewSection
+                  lane={data.projectLocalOntologyReview}
+                  importPreview={data.projectLocalOntologyDecisionImportPreview}
+                  decisions={projectLocalOntologyReviewDecisions}
+                  workspaceId={data.selectedWorkspaceId ?? data.workspace.id}
+                  readOnly={readOnly}
+                />
+                <a className={styles.actionButton} href="#idea-to-spec-authoring-update">Review answers and update candidate</a>
+              </>,
+              update: <div id="idea-to-spec-authoring-update">
+                <RepairRerunRequestStatus
+                  state={repairRerunRequests.state}
+                  pending={repairRerunRequests.pending}
+                  requestError={repairRerunRequests.requestError}
+                  onRequest={() => {
+                    if (readOnly) return;
+                    repairRerunRequests.requestRerun({
+                      workspaceId: data.selectedWorkspaceId ?? data.workspace.id,
+                      operatorRef: "operator://specspace-local",
+                    });
+                  }}
+                  readOnly={readOnly}
+                />
+                {guidedRepairPathSection}
+                <ProductRepairRerunExecutionStatus platformExecution={data.repairReview.platformExecution} />
+                <a className={styles.actionButton} href="#idea-to-spec-materialization">Inspect specification</a>
+              </div>,
+              specification: <>
+                {specificationReviewSection}
+                <CandidateOverviewSection overview={data.candidateOverview} />
+                {guidedApprovalPathSection}
+              </>,
+              diagnostics: <>
+                {managedOperationsSection}
+                {guidedWorkspaceInitializationPathSection}
+                {workspaceCreationSection}
+                {guidedFlowSection}
+                {renderDiagnosticSections(true, false, true)}
+              </>,
+            }}
+          </ProductAuthoringWorkbench>
         )}
       </div>
     </section>
@@ -2171,9 +2233,8 @@ function ProductWorkspaceOverviewSection({
             <Pill value={overview.status.replace(/_/g, " ")} />
           </div>
         </div>
-        <h3 className={styles.title} data-testid="product-workspace-overview-next-action">
-          {primaryAction.label}
-        </h3>
+        <details>
+        <summary className={styles.statusDetail}>Lifecycle evidence</summary>
         <div
           className={`${styles.postureStrip} ${styles.overviewPostureStrip}`}
           data-testid="product-workspace-overview-posture"
@@ -2217,6 +2278,7 @@ function ProductWorkspaceOverviewSection({
             value={joined(overview.confidence.sourceRefs)}
           />
         </div>
+        </details>
         {primaryHref ? (
           <a
             className={`${styles.guidedStage} ${styles.qualityActionStage}`}
@@ -2230,7 +2292,7 @@ function ProductWorkspaceOverviewSection({
                   ? "Optional follow-up"
                   : "Required next step"}
             </span>
-            <span className={styles.navHint}>{primaryAction.label}</span>
+            <span className={styles.navHint} data-testid="product-workspace-overview-next-action">{primaryAction.label}</span>
             <span className={styles.statusDetail}>{primaryAction.reason}</span>
             {primaryAction.blockers.length > 0 ? (
               <span className={styles.statusDetail}>
@@ -2241,7 +2303,14 @@ function ProductWorkspaceOverviewSection({
               {primaryAction.owner} / {primaryAction.category.replace(/_/g, " ")}
             </span>
           </a>
-        ) : null}
+        ) : (
+          <div className={`${styles.guidedStage} ${styles.qualityActionStage}`}>
+            <span className={styles.navHint} data-testid="product-workspace-overview-next-action">{primaryAction.label}</span>
+            <span className={styles.statusDetail}>{primaryAction.reason}</span>
+          </div>
+        )}
+        <details>
+        <summary className={styles.statusDetail}>Other actions and completed handoffs</summary>
         {overview.actionRanking.secondaryActions.length > 0 ? (
           <div
             className={`${styles.guidedRail} ${styles.qualityActionRail}`}
@@ -2310,18 +2379,14 @@ function ProductWorkspaceOverviewSection({
             </span>
           </a>
         ) : null}
+        </details>
       </div>
-      <div className={styles.guidedRail} data-testid="product-workspace-phase-timeline">
+      <div className={styles.overviewTimeline} data-testid="product-workspace-phase-timeline">
         {overview.phases.map((phase) => {
           const href = phase.targetSection ? `#${phase.targetSection}` : undefined;
           const content = (
             <>
               <span className={styles.navLabel}>{phase.label}</span>
-              <span className={styles.navHint}>
-                {phase.blockers.length > 0
-                  ? joined(phase.blockers)
-                  : joined(phase.evidenceRefs)}
-              </span>
               <span className={styles.guidedStageMeta}>
                 {phase.state.replace(/_/g, " ")}
               </span>
@@ -2339,7 +2404,8 @@ function ProductWorkspaceOverviewSection({
         })}
       </div>
       {overview.readiness.blockers.length > 0 ? (
-        <div className={styles.row}>
+        <details className={styles.row}>
+          <summary className={styles.statusDetail}>Blocker evidence ({overview.readiness.blockers.length})</summary>
           <div className={styles.rowHeader}>
             <span className={styles.rowId}>Overview blockers</span>
             <span className={styles.sectionCount}>
@@ -2349,7 +2415,7 @@ function ProductWorkspaceOverviewSection({
           <p className={styles.statusDetail}>
             {joined(overview.readiness.blockers)}
           </p>
-        </div>
+        </details>
       ) : null}
     </section>
   );
@@ -3804,8 +3870,8 @@ function GuidedRepairPathSection({
         </h3>
         <div className={styles.postureStrip}>
           <PostureItem
-            label="Answers"
-            value={`${path.counts.acceptedAnswerCount}/${path.counts.productSpecTargetCount}`}
+            label="Reported accepted answers"
+            value={String(path.counts.acceptedAnswerCount)}
           />
           <PostureItem
             label="Open answers"
@@ -3813,7 +3879,7 @@ function GuidedRepairPathSection({
           />
           <PostureItem
             label="Ontology decisions"
-            value={`${path.counts.ontologyDecisionCount}/${path.counts.ontologyGapRequestCount}`}
+            value={String(path.counts.ontologyDecisionCount)}
           />
           <PostureItem
             label="Local terms"
@@ -7394,6 +7460,7 @@ function ProductRepairReviewSection({
   workspaceId,
   onWorkspaceRefreshRequest,
   readOnly,
+  showExecution = true,
 }: {
   state: Extract<UseIdeaToSpecWorkspaceState, { kind: "ok" }>;
   repairDrafts: ReturnType<typeof useIdeaToSpecRepairDrafts>;
@@ -7401,6 +7468,7 @@ function ProductRepairReviewSection({
   workspaceId: string | null;
   onWorkspaceRefreshRequest?: () => void;
   readOnly: boolean;
+  showExecution?: boolean;
 }) {
   const lane = state.data.repairReview;
   const quality = lane.rerunPreview.candidateQualityPreview;
@@ -7416,16 +7484,62 @@ function ProductRepairReviewSection({
     repairDrafts.state.kind === "ok"
       ? repairDrafts.state.data.summary.draftCount
       : 0;
+  const sourceSessionHistorical = repairSourceSessionIsHistorical(state.data.guidedRepairPath);
+  const questionRows = lane.clarificationRequests.requests.map((request) => {
+    const draft = repairDrafts.draftsByRequestId.get(request.id);
+    const presentation = repairQuestionPresentation(request, sourceSessionHistorical,
+      !!draft, repairDrafts.state.kind === "ok");
+    return { request, draft, presentation };
+  });
+  const renderQuestion = ({ request, draft, presentation }: (typeof questionRows)[number]) => (
+    <ClarificationRequestRow
+      key={request.id}
+      request={request}
+      repairTarget={repairTargetsByRequestId.get(request.id)}
+      draft={draft}
+      presentation={presentation}
+      acceptedAnswer={lane.clarificationAnswers.acceptedAnswers.find((answer) =>
+        answer.requestId === request.id && answer.targetRef === request.targetRef &&
+        answer.targetArtifact === request.targetArtifact)}
+      resultFile={repairSpecificationForRequest(request, state.data.materialization.files)}
+      materialization={lane.rerunMaterialization}
+      pending={repairDrafts.pendingRequestId === request.id}
+      saveError={repairDrafts.saveError?.requestId === request.id ? repairDrafts.saveError : null}
+      onSave={(input) => void repairDrafts.saveDraft({
+        ...input, workspaceId, operatorRef: "operator://specspace-local",
+      }).then((saved) => { if (saved) onWorkspaceRefreshRequest?.(); })}
+      readOnly={readOnly}
+    />
+  );
   return (
     <section id="idea-to-spec-repair-review" className={styles.reviewSection}>
       <SectionHeader
         title="Product repair review"
-        count={
-          lane.clarificationRequests.requestCount +
-          lane.ontologyDecisions.decisionCount +
-          draftCount
-        }
+        count={questionRows.filter((row) => !row.presentation.historical).length}
       />
+      <div className={styles.row}>
+        <h3 className={styles.title}>{sourceSessionHistorical ? "Repair complete" : "Current questions"}</h3>
+        <p className={styles.statusDetail}>
+          {sourceSessionHistorical
+            ? "The repaired candidate is published. Original requests and saved answers remain in source session history."
+            : "Saved answers remain drafts until SpecGraph validates them. Validation and candidate publication are separate steps."}
+        </p>
+        <a className={styles.actionButton} href={sourceSessionHistorical
+          ? "#idea-to-spec-materialization" : showExecution ? "#idea-to-spec-guided-repair-path" : "#idea-to-spec-authoring-update"}>
+          {sourceSessionHistorical ? "Inspect repaired specification" : "Review answers and update candidate"}
+        </a>
+      </div>
+      {questionRows.filter((row) => !row.presentation.historical).map(renderQuestion)}
+      {questionRows.some((row) => row.presentation.historical) ? (
+        <details className={styles.diagnosticsDisclosure}>
+          <summary className={styles.diagnosticsSummary}>
+            Source session history ({questionRows.filter((row) => row.presentation.historical).length})
+          </summary>
+          {questionRows.filter((row) => row.presentation.historical).map(renderQuestion)}
+        </details>
+      ) : null}
+      <details className={styles.diagnosticsDisclosure}>
+      <summary className={styles.diagnosticsSummary}>Repair evidence and counts</summary>
       <div className={styles.postureStrip}>
         <PostureItem
           label="Requests"
@@ -7464,7 +7578,7 @@ function ProductRepairReviewSection({
         />
       ) : null}
       <RepairDraftStatus state={repairDrafts.state} />
-      <RepairRerunRequestStatus
+      {showExecution ? <RepairRerunRequestStatus
         state={repairRerunRequests.state}
         pending={repairRerunRequests.pending}
         requestError={repairRerunRequests.requestError}
@@ -7476,8 +7590,8 @@ function ProductRepairReviewSection({
           });
         }}
         readOnly={readOnly}
-      />
-      <ProductRepairRerunExecutionStatus platformExecution={platformExecution} />
+      /> : null}
+      {showExecution ? <ProductRepairRerunExecutionStatus platformExecution={platformExecution} /> : null}
       <div className={styles.row}>
         <div className={styles.rowHeader}>
           <span className={styles.rowId}>Ontology gap quality</span>
@@ -7499,44 +7613,13 @@ function ProductRepairReviewSection({
           />
         </div>
       </div>
-      {[...lane.clarificationRequests.requests]
-        .sort(
-          (left, right) =>
-            Number(repairDrafts.draftsByRequestId.has(left.id)) -
-            Number(repairDrafts.draftsByRequestId.has(right.id)),
-        )
-        .map((request) => (
-        <ClarificationRequestRow
-          key={request.id}
-          request={request}
-          repairTarget={repairTargetsByRequestId.get(request.id)}
-          draft={repairDrafts.draftsByRequestId.get(request.id)}
-          pending={repairDrafts.pendingRequestId === request.id}
-          saveError={
-            repairDrafts.saveError?.requestId === request.id
-              ? repairDrafts.saveError
-              : null
-          }
-          onSave={(input) =>
-            void repairDrafts
-              .saveDraft({
-                ...input,
-                workspaceId,
-                operatorRef: "operator://specspace-local",
-              })
-              .then((saved) => {
-                if (saved) onWorkspaceRefreshRequest?.();
-              })
-          }
-          readOnly={readOnly}
-        />
-        ))}
       {lane.ontologyDecisions.decisions.map((decision) => (
         <OntologyDecisionRow key={decision.id} decision={decision} />
       ))}
       {lane.rerunPreview.resolvedGaps.map((gap) => (
         <ResolvedGapRow key={gap.gapId} gap={gap} />
       ))}
+      </details>
     </section>
   );
 }
@@ -7711,6 +7794,8 @@ function ProductRepairRerunExecutionStatus({
           detail="The controlled rerun completed, but remaining repair targets must be answered before approval readiness."
         />
       ) : null}
+      <details>
+      <summary className={styles.statusDetail}>Execution-time evidence{rerunStatus === "published" ? " (before publication)" : ""}</summary>
       {execution.operations.map((operation) => (
         <div key={operation.name} className={styles.subRow}>
           <span>{operation.name}</span>
@@ -7729,6 +7814,7 @@ function ProductRepairRerunExecutionStatus({
           </span>
         </div>
       ))}
+      </details>
     </div>
   );
 }
@@ -8006,6 +8092,10 @@ function ClarificationRequestRow({
   saveError,
   onSave,
   readOnly,
+  presentation,
+  acceptedAnswer,
+  resultFile,
+  materialization,
 }: {
   request: IdeaToSpecClarificationRequest;
   repairTarget: IdeaToSpecRepairTarget | undefined;
@@ -8014,6 +8104,10 @@ function ClarificationRequestRow({
   saveError: IdeaToSpecRepairDraftSaveError | null;
   onSave: (input: IdeaToSpecRepairDraftInput) => void;
   readOnly: boolean;
+  presentation: ReturnType<typeof repairQuestionPresentation>;
+  acceptedAnswer: IdeaToSpecWorkspace["repairReview"]["clarificationAnswers"]["acceptedAnswers"][number] | undefined;
+  resultFile: IdeaToSpecMaterializedFile | null;
+  materialization: IdeaToSpecWorkspace["repairReview"]["rerunMaterialization"];
 }) {
   const defaultAction = request.suggestedActions[0] ?? "";
   const ontologyGapRequest = request.kind === "ontology_gap";
@@ -8066,15 +8160,38 @@ function ClarificationRequestRow({
   const productTarget = productSpecGapRequest
     ? productSpecRepairTarget(request, repairTarget)
     : null;
+  const gapId = resultFile && request.targetRef?.startsWith(`${resultFile.candidateNodeId}.gaps.`)
+    ? request.targetRef.slice(`${resultFile.candidateNodeId}.gaps.`.length) : null;
+  const gapRemoved = materialization.available && materialization.readiness.ready && gapId &&
+    materialization.delta.removedGapIds.includes(gapId) &&
+    !materialization.delta.unresolvedOntologyGapIds.includes(gapId);
   return (
     <div className={styles.row}>
       <div className={styles.rowHeader}>
-        <span className={styles.rowId}>{request.id}</span>
-        <Pill value={request.status} />
-        <Pill value={draft ? "draft_saved" : "answer_needed"} />
+        <span className={styles.rowId}>{repairTarget?.label ?? request.targetRef ?? request.kind}</span>
+        <Pill value={presentation.label} />
       </div>
       <h3 className={styles.title}>{compact(request.question, request.kind)}</h3>
+      {resultFile ? <p className={styles.statusDetail}>{resultFile.displayAlias ?? resultFile.materializedId}</p> : null}
+      <div className={styles.answerTrail}>
+        {draft ? <>
+          <strong>Saved answer</strong>
+          <pre>{repairDraftText(draft) ?? JSON.stringify(draft.answerValue, null, 2)}</pre>
+          <span className={styles.statusDetail}>Saved {draft.updatedAt}</span>
+        </> : null}
+        {acceptedAnswer ? <span className={styles.statusDetail}>
+          SpecGraph reports an accepted answer for this target. Validation of the latest saved revision is not separately recorded.
+        </span> : null}
+        {gapRemoved ? <span className={styles.statusDetail}>Result: target gap removed in the materialized candidate. This is target evidence, not a receipt for this draft revision.</span> : null}
+        <a className={styles.actionButton} href={resultFile ? `#${specificationAnchor(resultFile)}` : "#idea-to-spec-materialization"}>
+          {resultFile ? `Inspect requirement: ${resultFile.displayAlias ?? resultFile.materializedId}` : "Inspect current specification"}
+        </a>
+      </div>
+      <details>
+      <summary className={styles.statusDetail}>Request evidence</summary>
       <div className={styles.metaGrid}>
+        <Meta label="Request" value={request.id} />
+        <Meta label="Source status" value={request.status} />
         <Meta label="Severity" value={request.severity} />
         <Meta label="Target" value={request.targetRef} />
         <Meta label="Target artifact" value={request.targetArtifact} />
@@ -8086,6 +8203,9 @@ function ClarificationRequestRow({
           </>
         ) : null}
       </div>
+      </details>
+      <details open={!presentation.historical}>
+      <summary className={styles.statusDetail}>{presentation.historical ? "Review or revise saved answer" : "Answer"}</summary>
       <form
         className={styles.draftForm}
         onSubmit={(event) => {
@@ -8168,6 +8288,7 @@ function ClarificationRequestRow({
           </span>
         ) : null}
       </form>
+      </details>
     </div>
   );
 }
@@ -9449,6 +9570,25 @@ function MaterializationSection({
   const materialization = state.data.materialization;
   const request = materialization.promotionRequest;
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  useEffect(() => {
+    const selectHash = (hash: string) => {
+      const file = materialization.files.find((item) => `#${specificationAnchor(item)}` === hash);
+      if (file) setSelectedPath(file.path);
+    };
+    const selectFromHash = () => selectHash(window.location.hash);
+    const selectFromLink = (event: globalThis.MouseEvent) => {
+      const link = event.target instanceof Element
+        ? event.target.closest<HTMLAnchorElement>("a[href^='#']") : null;
+      if (link) selectHash(link.hash);
+    };
+    selectFromHash();
+    window.addEventListener("hashchange", selectFromHash);
+    document.addEventListener("click", selectFromLink);
+    return () => {
+      window.removeEventListener("hashchange", selectFromHash);
+      document.removeEventListener("click", selectFromLink);
+    };
+  }, [materialization.files]);
   const activePath = materialization.files.some((file) => file.path === selectedPath)
     ? selectedPath
     : null;
@@ -9568,6 +9708,7 @@ function MaterializedFileRow({
 }) {
   return (
     <button
+      id={specificationAnchor(file)}
       type="button"
       className={[
         styles.specificationFileButton,

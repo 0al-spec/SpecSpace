@@ -75,6 +75,9 @@ export function UiCatalogPage() {
               <a className={styles.sectionAction} href="/dev/idea-to-spec-fixtures">
                 Open fixture gallery
               </a>
+              <a className={styles.sectionAction} href="/dev/idea-to-spec-fixtures?view=authoring">
+                Specification authoring
+              </a>
             </div>
             <div className={styles.cardGrid}>
               {utilityPanelComponentItems.map((item) => (

@@ -7746,7 +7746,11 @@ def _quality_guided_action_ranking(
 
     ordered: list[dict[str, Any]] = []
     seen: set[tuple[str, str | None, str]] = set()
-    for _priority, _sequence, action in sorted(candidates, key=lambda item: item[:2]):
+    # Report-only quality guidance cannot outrank required lifecycle or safety work.
+    for _priority, _sequence, action in sorted(
+        candidates,
+        key=lambda item: (item[2].get("disposition") != "required", *item[:2]),
+    ):
         key = (
             _text(action.get("category")),
             _optional_text(action.get("target_section")),
