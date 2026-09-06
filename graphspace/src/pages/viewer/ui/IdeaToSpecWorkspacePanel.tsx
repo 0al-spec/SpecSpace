@@ -9571,13 +9571,23 @@ function MaterializationSection({
   const request = materialization.promotionRequest;
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   useEffect(() => {
-    const selectFromHash = () => {
-      const file = materialization.files.find((item) => `#${specificationAnchor(item)}` === window.location.hash);
+    const selectHash = (hash: string) => {
+      const file = materialization.files.find((item) => `#${specificationAnchor(item)}` === hash);
       if (file) setSelectedPath(file.path);
+    };
+    const selectFromHash = () => selectHash(window.location.hash);
+    const selectFromLink = (event: globalThis.MouseEvent) => {
+      const link = event.target instanceof Element
+        ? event.target.closest<HTMLAnchorElement>("a[href^='#']") : null;
+      if (link) selectHash(link.hash);
     };
     selectFromHash();
     window.addEventListener("hashchange", selectFromHash);
-    return () => window.removeEventListener("hashchange", selectFromHash);
+    document.addEventListener("click", selectFromLink);
+    return () => {
+      window.removeEventListener("hashchange", selectFromHash);
+      document.removeEventListener("click", selectFromLink);
+    };
   }, [materialization.files]);
   const activePath = materialization.files.some((file) => file.path === selectedPath)
     ? selectedPath
