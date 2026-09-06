@@ -209,7 +209,7 @@ MANAGED_OPERATIONS: tuple[ManagedOperation, ...] = (
         overwrite_policy="Writes a managed plan path and executes only after the request gate is ready.",
         timeout_policy="Plan and execute phases are separately timeout bounded and surfaced as failed/pending evidence.",
         replay_policy="The request is consumed before Platform execution; retry after timeout or failure requires a new UI repair rerun request.",
-        expected_ui_states=_COMMON_GATE_STATES,
+        expected_ui_states=(*_COMMON_GATE_STATES, "follow_up_required"),
     ),
     ManagedOperation(
         operation_id="repair_rerun_publish",

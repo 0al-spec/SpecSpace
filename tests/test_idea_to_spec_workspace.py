@@ -8273,6 +8273,37 @@ class IdeaToSpecWorkspaceTests(unittest.TestCase):
             body["guided_repair_path"]["blockers"],
         )
 
+    def test_repair_follow_up_ignores_stale_publication_failure(self) -> None:
+        artifacts = self._repair_rerun_ready_artifacts()
+        execution = _product_repair_rerun_execution_report(ok=False)
+        execution["operations"] = [
+            {"name": "execute_specgraph_requested_rerun", "status": "succeeded"},
+            {
+                "name": "execute_specgraph_repaired_promotion_handoff",
+                "status": "succeeded",
+            },
+        ]
+        execution["summary"]["rerun_report_ready"] = True
+        execution["diagnostics"] = [
+            {"code": "product_repair_rerun_repaired_handoff_not_ready"}
+        ]
+        artifacts[
+            idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_EXECUTION_REPORT_ARTIFACT
+        ] = execution
+        artifacts[
+            idea_to_spec_workspace.PLATFORM_PRODUCT_REPAIR_RERUN_PUBLICATION_REPORT_ARTIFACT
+        ] = _product_repair_rerun_publication_report(ok=False)
+
+        body = idea_to_spec_workspace.build_idea_to_spec_workspace(
+            artifacts=artifacts,
+            source={"provider": "fixture", "read_only": True},
+        )
+
+        self.assertNotIn(
+            "repair_rerun_publication_failed",
+            body["guided_repair_path"]["blockers"],
+        )
+
     def test_platform_repair_rerun_reports_are_optional(self) -> None:
         body = idea_to_spec_workspace.build_idea_to_spec_workspace(
             artifacts=_workspace_artifacts(),

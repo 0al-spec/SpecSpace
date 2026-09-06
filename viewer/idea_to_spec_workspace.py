@@ -5315,13 +5315,14 @@ def _workflow(
         and not product_repair_execution_view["ok"]
         and not product_repair_execution_view["follow_up_required"]
     )
-    product_repair_publication_failed = (
-        product_repair_rerun_publication is not None
-        and not product_repair_publication_view["ok"]
-    )
     product_repair_execution_ready = (
         product_repair_execution_view["ok"]
         and not product_repair_execution_view["dry_run"]
+    )
+    product_repair_publication_failed = (
+        product_repair_execution_ready
+        and product_repair_rerun_publication is not None
+        and not product_repair_publication_view["ok"]
     )
     product_repair_execution_dry_run = (
         product_repair_execution_view["ok"]
@@ -6856,11 +6857,6 @@ def _guided_repair_path(payload: dict[str, Any]) -> dict[str, Any]:
             or _number(rerun_execution.get("error_count")) > 0
         )
     )
-    rerun_publication_failed = rerun_publication_available and (
-        rerun_publication.get("ok") is not True
-        or _number(rerun_publication.get("error_count")) > 0
-        or _number(rerun_publication.get("missing_artifact_count")) > 0
-    )
     unresolved_ontology_gap_count = _number(
         readiness_impact.get("unresolved_ontology_gap_count")
     )
@@ -6892,6 +6888,14 @@ def _guided_repair_path(payload: dict[str, Any]) -> dict[str, Any]:
         and not rerun_execution_superseded
         and rerun_execution.get("ok") is True
         and rerun_execution.get("dry_run") is not True
+    )
+    rerun_publication_failed = rerun_execution_complete and (
+        rerun_publication_available
+        and (
+            rerun_publication.get("ok") is not True
+            or _number(rerun_publication.get("error_count")) > 0
+            or _number(rerun_publication.get("missing_artifact_count")) > 0
+        )
     )
     rerun_publication_required = rerun_execution_complete
     rerun_publication_complete = (

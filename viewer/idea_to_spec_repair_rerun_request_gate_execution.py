@@ -449,6 +449,20 @@ def execute_requested_request_gate(
     if prepare_import_preview:
         assert draft_state_path is not None
         assert clarification_requests_path is not None
+        snapshot_payload = {
+            **draft_state_payload,
+            "drafts": request_drafts,
+        }
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            prefix="specspace-repair-drafts-",
+            suffix=".json",
+            delete=False,
+        ) as draft_snapshot_handle:
+            json.dump(snapshot_payload, draft_snapshot_handle, sort_keys=True)
+            draft_snapshot_handle.write("\n")
+            draft_state_snapshot_path = Path(draft_snapshot_handle.name)
         import_preview_path.parent.mkdir(parents=True, exist_ok=True)
         import_command = [
             sys.executable,
@@ -460,7 +474,7 @@ def execute_requested_request_gate(
             "--run-dir",
             str(output_dir),
             "--draft-state",
-            str(draft_state_path),
+            str(draft_state_snapshot_path),
             "--repair-session",
             str(repair_session_path),
             "--clarification-requests",
@@ -474,13 +488,30 @@ def execute_requested_request_gate(
             "--format",
             "json",
         ]
-        import_completed = subprocess.run(
-            import_command,
-            cwd=str(platform_script.parent.parent),
-            capture_output=True,
-            text=True,
-            timeout=timeout_seconds,
-        )
+        try:
+            import_completed = subprocess.run(
+                import_command,
+                cwd=str(platform_script.parent.parent),
+                capture_output=True,
+                text=True,
+                timeout=timeout_seconds,
+            )
+        except subprocess.TimeoutExpired:
+            return HTTPStatus.GATEWAY_TIMEOUT, {
+                "artifact_kind": "specspace_managed_repair_rerun_request_gate_execution",
+                "ok": False,
+                "status": "repair_draft_import_preview_timed_out",
+                "workspace_id": selected_workspace_id,
+                "request_id": request.get("id"),
+                "reason": "platform_execution_timed_out",
+                "authority_boundary": {
+                    **_execution_disabled_payload()["authority_boundary"],
+                    "specspace_backend_executes_platform": True,
+                    "executes_specgraph": True,
+                },
+            }
+        finally:
+            draft_state_snapshot_path.unlink(missing_ok=True)
         try:
             import_report = (
                 json.loads(import_completed.stdout.strip())
@@ -584,6 +615,9 @@ def execute_requested_request_gate(
             "specspace_backend_executes_platform": True,
             "executes_specgraph": bool(
                 _record(report.get("authority_boundary")).get(
+                    "executes_specgraph_make_target"
+                )
+                or _record(_record(import_report).get("authority_boundary")).get(
                     "executes_specgraph_make_target"
                 )
             ),

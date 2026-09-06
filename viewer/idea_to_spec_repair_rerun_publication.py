@@ -12,7 +12,7 @@ from http import HTTPStatus
 from pathlib import Path
 from typing import Any
 
-from viewer import specspace_provider
+from viewer import product_workspace_binding, specspace_provider
 
 EXECUTION_REPORT_ARTIFACT = "platform_product_repair_rerun_execution_report.json"
 PUBLICATION_REPORT_ARTIFACT = "platform_product_repair_rerun_publication_report.json"
@@ -241,6 +241,22 @@ def publish_repair_rerun(
             "execution_report_ref": f"runs/{EXECUTION_REPORT_ARTIFACT}",
             "reason": "execution_report_not_publishable",
         }
+    if getattr(server, "allow_legacy_workspace_execution", False) is not True:
+        active_binding = product_workspace_binding.discover_binding(
+            server,
+            workspace_id=selected_workspace_id,
+        )
+        execution_binding = _record(execution_report.get("workspace_binding"))
+        if (
+            execution_binding.get("workspace_id") != selected_workspace_id
+            or execution_binding.get("binding_revision_sha256")
+            != active_binding.get("binding_revision_sha256")
+        ):
+            return HTTPStatus.CONFLICT, {
+                "error": "Repair rerun execution report does not match the active workspace binding.",
+                "reason": "execution_report_workspace_binding_mismatch",
+                "workspace_id": selected_workspace_id,
+            }
 
     runs_dir = getattr(server, "runs_dir", None)
     assert isinstance(runs_dir, Path)

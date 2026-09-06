@@ -337,14 +337,18 @@ def save_rerun_request(
         import_preview_status.get("available") is True
         and import_preview_status.get("status") == "repair_draft_import_preview_ready"
     )
-    if import_preview_status.get("available") is True and not import_preview_ready:
+    if (
+        not drafts
+        and import_preview_status.get("available") is True
+        and not import_preview_ready
+    ):
         return HTTPStatus.CONFLICT, {
             "error": "Repair rerun request requires ready SpecGraph repair draft import preview.",
             "reason": "import_preview_not_ready",
             "status": import_preview_status.get("status"),
         }
     accepted_count = _number(_record(import_preview_status.get("summary")).get("accepted_for_rerun_count"))
-    if import_preview_ready and accepted_count <= 0:
+    if not drafts and import_preview_ready and accepted_count <= 0:
         return HTTPStatus.CONFLICT, {
             "error": "Repair rerun request requires at least one accepted draft import.",
             "reason": "accepted_draft_imports_missing",
@@ -587,19 +591,9 @@ def _with_workflow_status(
     request_ready = (
         repair_session_ready
         and (
-            (
-                len(current_drafts) > 0
-                and (
-                    import_preview_status == "missing"
-                    or (
-                        import_preview_status == "ready"
-                        and accepted_for_rerun_count > 0
-                    )
-                )
-            )
+            len(current_drafts) > 0
             or (recovered_preview and accepted_for_rerun_count > 0)
         )
-        and import_preview_status != "not_ready"
     )
     blockers: list[str] = []
     if not repair_session_ready:
@@ -608,9 +602,13 @@ def _with_workflow_status(
         blockers.append("legacy_or_stale_drafts_require_revalidation")
     elif not drafts and not recovered_preview:
         blockers.append("repair_drafts_missing")
-    if import_preview_status == "not_ready":
+    if not current_drafts and import_preview_status == "not_ready":
         blockers.append("import_preview_not_ready")
-    elif import_preview_status == "ready" and accepted_for_rerun_count <= 0:
+    elif (
+        not current_drafts
+        and import_preview_status == "ready"
+        and accepted_for_rerun_count <= 0
+    ):
         blockers.append("accepted_draft_imports_missing")
     state["workflow_status"] = {
         "drafts_saved": draft_count > 0,
@@ -667,13 +665,15 @@ def _effective_import_preview_status(artifacts: dict[str, Any]) -> dict[str, Any
     if output.get("ready") is not True:
         return import_preview
     output_path = _text(output.get("path")) or IMPORT_PREVIEW_PATH
-    if (
-        import_preview.get("available") is True
-        and _text(import_preview.get("path")) not in {None, output_path}
-    ):
+    if import_preview.get("available") is not True:
+        return import_preview
+    if _text(import_preview.get("path")) != output_path:
         return import_preview
     output_sha256 = _text(output.get("sha256"))
-    if output_sha256 is None:
+    if (
+        output_sha256 is None
+        or _text(import_preview.get("sha256")) != output_sha256
+    ):
         return import_preview
     status = _text(output.get("status")) or "repair_draft_import_preview_ready"
     return {
