@@ -227,7 +227,7 @@ export function ViewerPage({
     useState<ViewerUtilityPanelId | null>(
       productWorkspace ? "idea-to-spec" : null,
     );
-  const [utilityPanelExpanded, setUtilityPanelExpanded] = useState(false);
+  const [utilityPanelExpanded, setUtilityPanelExpanded] = useState(productWorkspace);
   const [proposalContextFilter, setProposalContextFilter] =
     useState<ProposalViewerContextFilter | null>(null);
   const [metricsContextFilter, setMetricsContextFilter] =
@@ -1125,8 +1125,8 @@ export function ViewerPage({
   }, [productWorkspace, workspace.id]);
 
   useEffect(() => {
-    setUtilityPanelExpanded(false);
-  }, [activeUtilityPanel]);
+    setUtilityPanelExpanded(productWorkspace && activeUtilityPanel === "idea-to-spec");
+  }, [activeUtilityPanel, productWorkspace, workspace.id]);
 
   useEffect(() => {
     specSelectionHistoryRef.current = specSelectionHistory;
@@ -1680,6 +1680,7 @@ export function ViewerPage({
             expanded={utilityPanelExpanded}
             onToggleExpanded={() => setUtilityPanelExpanded((expanded) => !expanded)}
             onClose={closeUtilityPanel}
+            authoring={productWorkspace && activeUtilityPanel === "idea-to-spec"}
           />
 
           {activeUtilityPanel === "recent" ? (

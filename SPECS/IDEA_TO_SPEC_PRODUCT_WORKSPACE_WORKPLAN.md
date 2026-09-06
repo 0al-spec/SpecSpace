@@ -1,7 +1,7 @@
 # Idea-to-Spec Product Workspace Workplan
 
 Status: active planning
-Updated: 2026-08-02
+Updated: 2026-09-06
 
 ## Purpose
 
@@ -65,6 +65,79 @@ Do not expand to export, repair execution or a general SDK before evaluating
 this bounded result.
 
 ## Near-Term Delivery Order
+
+### Immediate Local Product Priority: Task-First Draft Workflow
+
+Status: first task-first authoring implementation complete; local tests and bounded
+Chrome verification passed. PR review/merge remains pending.
+
+The [2026-09-06 local UX audit](../docs/PRODUCT_WORKSPACE_UX_AUDIT_2026-09-06.md)
+reopened the usability question after the repair contract fixes. Accurate
+individual guided paths do not yet produce a coherent authoring experience.
+The existing local workspace shows a completed, published repair alongside
+historical `open` draft cards, `answer_needed` on aggregate evidence, and an
+optional topology recommendation above the required approval follow-up.
+
+Implemented in the existing repair flow:
+
+1. **Current versus historical state.** Reconcile displayed task status with
+   matching execution/publication evidence; separate future prerequisites and
+   optional quality advice from current blockers. Preserve genuinely reopened,
+   stale, failed, and foreign-state cases. Do not change authority gates.
+2. **Task-first workspace shell.** Make authoring the main page, with a compact
+   resume header, readable project identity, private idea context, and one
+   current task. Move graph and operational diagnostics into explicit views;
+   do not add another guided panel to the existing long panel.
+3. **Unified answer inbox.** Present contextual questions with explicit local,
+   saved and reported-accepted evidence, with materialized target results kept
+   separate from draft revision validation. Counts no longer use unrelated
+   denominators. Completed source-session answers belong in
+   history, not the default outstanding-task list.
+4. **Bounded update step.** Put the existing request, gate, execution, and
+   publication controls in one stable step with durable progress and recovery
+   guidance. Initially retain separate explicit actions and existing wrappers;
+   any later combined backend operation requires its own registry/contract
+   review, not a browser-side execution chain.
+5. **Review the result.** Connect each answer to the affected requirement/spec
+   through an exact, unique candidate-node reference and show target gap removal
+   evidence when available before offering
+   approval. Keep quality improvements optional and Git review/publication
+   outside automatic continuation.
+
+Acceptance: a returning operator can find the original idea, resume the next
+outstanding question, distinguish saved from applied answers, inspect the
+updated specification, and identify the next required action without searching
+artifact names or opening diagnostics. Verify the small composite states in the
+UI catalog, then use the authenticated Chrome/Playwright connection. Preserve
+all existing drafts; no state migration is implied.
+
+Verification on 2026-09-06:
+
+- Backend workspace tests: 141 passed, 30 subtests passed.
+- Frontend suite: 584 passed; build and FSD lint passed.
+- Two focused Playwright tests cover mounted draft preservation, target-file
+  navigation, keyboard tabs, and a 390px viewport. They use the read-only UI
+  fixture, not production writes or a new execution-backed lifecycle.
+- Local authenticated operator workspace: the required approval intent ranks
+  above optional topology advice; completed source requests appear in history;
+  the specification view occupies the main workspace. No forms were submitted
+  and no rerun, approval, promotion, or state migration was executed.
+
+Remaining, explicitly not claimed by this slice:
+
+- A revision-pinned per-answer application receipt requires a producer contract.
+  Existing accepted-answer and removed-gap reports do not prove that a newly
+  edited draft was validated/applied. The UI labels these as separate evidence,
+  not as an inferred "applied" state or answer-specific before/after diff.
+- Background proposals, Ontology, and SpecPM requests returned 500/404/503 in
+  the local product route. Triage/lazy loading of those optional surfaces is a
+  separate follow-up; authoring smoke is not a clean-console sign-off.
+- A full new repair execution and creation-to-publication regression remain
+  separate from this read-only operator verification.
+
+The audit did not execute a new rerun, approve a candidate, or test a fresh
+creation-to-publication lifecycle. Existing rollout and protocol plans below
+remain separate from this local authoring priority.
 
 ### 1. External Durable State Backend
 
@@ -504,8 +577,9 @@ Status: implemented.
 The Product Workspace now has multiple accurate guided paths: workspace
 initialization, real idea intake, clarification continuation, repair rerun,
 approval, promotion, publication, managed operations, Idea Maturity, candidate
-overview, and depth impact. The action-competition risk is closed through a
-single lifecycle-wide priority model.
+overview, and depth impact. A single lifecycle-wide priority model is
+implemented. The 2026-09-06 Safari audit found that this does not yet close the
+user-facing action-competition problem; see the immediate local priority above.
 
 Implemented behavior:
 
@@ -1341,11 +1415,12 @@ The guided repair path now:
 - preserves failure status for identity, artifact-kind, runtime, or authority
   diagnostics even when hosted transport succeeded.
 
-The `idea-4cfafedbf9` smoke preserved all 18 saved drafts, accepted all of them,
+The earlier `idea-4cfafedbf9` smoke preserved all 18 saved drafts, accepted all of them,
 and removed 17 gaps. One unanswered ontology decision for `add own ID` remains
-operator-owned. The next accepted action is to answer that card in Product
-Workspace and run another controlled repair pass; no draft recovery or manual
-JSON editing is required.
+operator-owned in that historical snapshot. No draft recovery or manual JSON
+editing was required. Do not use that snapshot as the current next action: the
+2026-09-06 Safari walkthrough shows the subsequent repair as completed and
+published, with zero open answers and approval still pending.
 
 ## Accepted Constraints And Runbook Notes
 

@@ -258,3 +258,12 @@
     flex-direction: column;
   }
 }
+.authoringPage {
+  height: 100dvh;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.authoringPage > section {
+  height: 100%;
+}
