@@ -7,6 +7,7 @@ type Props = {
   expanded: boolean;
   onToggleExpanded: () => void;
   onClose: () => void;
+  authoring?: boolean;
 };
 
 export function UtilityPanelHeader({
@@ -15,15 +16,16 @@ export function UtilityPanelHeader({
   expanded,
   onToggleExpanded,
   onClose,
+  authoring = false,
 }: Props) {
   const expandAction = expanded ? "Collapse" : "Expand";
 
   return (
     <div className={styles.utilityHeader}>
       <div className={styles.utilityHeaderText}>
-        <span className={styles.utilityKicker}>Utility panel</span>
+        <span className={styles.utilityKicker}>{authoring ? "Product workspace" : "Utility panel"}</span>
         <h2 className={styles.utilityTitle}>{title}</h2>
-        <p className={styles.utilityCaption}>{caption}</p>
+        {!authoring ? <p className={styles.utilityCaption}>{caption}</p> : null}
       </div>
       <PanelBtnRow className={styles.utilityHeaderActions}>
         <PanelBtn
@@ -36,13 +38,13 @@ export function UtilityPanelHeader({
           <ExpandPanelIcon />
         </PanelBtn>
         <button
-          title={`Close ${title}`}
-          aria-label={`Close ${title}`}
+          title={authoring ? "View graph" : `Close ${title}`}
+          aria-label={authoring ? "View graph" : `Close ${title}`}
           className={styles.closeButton}
           type="button"
           onClick={onClose}
         >
-          Close
+          {authoring ? "View graph" : "Close"}
         </button>
       </PanelBtnRow>
     </div>

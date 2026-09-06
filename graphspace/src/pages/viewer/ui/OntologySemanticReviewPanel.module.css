@@ -1394,3 +1394,72 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+.authoringWorkbench {
+  min-width: 0;
+}
+
+.overviewTimeline {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(105px, 1fr));
+  gap: 1px;
+}
+
+.overviewTimeline .guidedStage {
+  min-height: 0;
+  padding: 8px;
+}
+
+.overviewTimeline .guidedStageMeta {
+  overflow-wrap: anywhere;
+}
+
+.authoringTabs {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--gs-paper);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--gs-rule-mid);
+}
+
+.authoringWorkbench [id] {
+  scroll-margin-top: 120px;
+}
+
+.authoringTabs button {
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--gs-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.authoringTabs button[aria-selected="true"] {
+  color: var(--gs-ink);
+  border-bottom-color: currentColor;
+  font-weight: 600;
+}
+
+.authoringTabs button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: -2px;
+}
+
+.answerTrail {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+  overflow-wrap: anywhere;
+}
+
+.answerTrail pre {
+  margin: 0;
+  white-space: pre-wrap;
+  font-size: 12px;
+}

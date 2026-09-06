@@ -117,6 +117,9 @@ function renderInitializationPreview() {
 }
 
 export function IdeaToSpecFixtureGalleryPage() {
+  if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("view") === "authoring") {
+    return <main className={styles.authoringPage}>{renderPanelPreview()}</main>;
+  }
   const workspaceName =
     teamDecisionState.kind === "ok"
       ? teamDecisionState.data.workspace.displayName

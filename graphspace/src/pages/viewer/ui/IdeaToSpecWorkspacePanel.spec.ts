@@ -27,6 +27,33 @@ const state: UseIdeaToSpecWorkspaceState = {
 };
 
 describe("IdeaToSpecWorkspacePanel", () => {
+  it("separates a published source session from current authoring tasks", () => {
+    const data = structuredClone(parsed.data);
+    data.guidedRepairPath = {
+      ...data.guidedRepairPath, available: true, stage: "repaired_ready", blockers: [],
+      state: { ...data.guidedRepairPath.state, rerunRequestStatus: "consumed", rerunExecutionStatus: "completed", rerunPublicationStatus: "published" },
+      counts: { ...data.guidedRepairPath.counts, unresolvedBlockingAnswerCount: 0, unresolvedCandidateGapCount: 0, unresolvedOntologyGapCount: 0 },
+    };
+    const html = renderToStaticMarkup(createElement(IdeaToSpecWorkspacePanel, {
+      state: { kind: "ok", data }, auxiliaryDataEnabled: false, readOnly: true,
+    }));
+    expect(html.includes("Source session history (1)")).toBe(true);
+    expect(html.includes("Inspect repaired specification")).toBe(true);
+    expect(html.includes('role="tablist" aria-label="Specification authoring"')).toBe(true);
+    expect(html.includes("source session history")).toBe(true);
+    expect(html.includes("Original idea and intake")).toBe(true);
+  });
+
+  it("does not label a pending new rerun as completed source history", () => {
+    const data = structuredClone(parsed.data);
+    data.guidedRepairPath.state.rerunRequestStatus = "usable";
+    const html = renderToStaticMarkup(createElement(IdeaToSpecWorkspacePanel, {
+      state: { kind: "ok", data }, auxiliaryDataEnabled: false, readOnly: true,
+    }));
+    expect(html.includes("Current questions")).toBe(true);
+    expect(html.includes("Inspect repaired specification")).toBe(false);
+  });
+
   it("rejects delayed initialization preparation state for another workspace", () => {
     expect(
       workspacePreparationResponseIsCurrent("pantry-rotation", "pantry-rotation"),
@@ -663,7 +690,7 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html).toContain("Repair drafts loading");
     expect(html).toContain("Repair rerun request loading");
     expect(html).toContain("Save draft");
-    expect(html).toContain("answer_needed");
+    expect(html).toContain("draft state unavailable");
     expect(html).toContain("Ontology gap term");
     expect(html).toContain("Term");
     expect(html).toContain("Spec mutations");
