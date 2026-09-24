@@ -1,6 +1,12 @@
 import { Panel } from "@/shared/ui/panel";
 import { PanelBtn } from "@/shared/ui/panel-btn";
 import styles from "./UiCatalogPage.module.css";
+import { CanonicalDecisionsPanel, type ProductWorkspaceDecisions } from "@/widgets/canonical-decisions";
+
+const decisionFixture: ProductWorkspaceDecisions = {
+  status: "available", available: true, workspace_id: "team-decision-log",
+  decisions: [{ id: "DEC-001", key: "decision.workspace-read-model", title: "Publish canonical Decisions as a read-only workspace view", status: "reviewed", created_at: "2026-09-24T00:00:00Z", updated_at: "2026-09-24T00:00:00Z", revision: 1, statement: "Keep canonical Decision identity and provenance visible in Product Workspace.", rationale: "The legacy SpecSpace graph requires a different node contract.", provenance: { authority: "product-owner", authored_by: "workspace-team" }, source_ref: "specs/nodes/DEC-001.yaml", source_sha256: "a".repeat(64) }],
+};
 
 const utilityPanelComponentItems = [
   "Report status row",
@@ -131,6 +137,11 @@ export function UiCatalogPage() {
                 </PanelBtn>
               </div>
             </div>
+          </section>
+
+          <section className={styles.section} id="canonical-decisions">
+            <div className={styles.sectionHeader}><div><span className={styles.sectionKicker}>Product Workspace surface</span><h2 className={styles.sectionTitle}>Canonical decisions</h2></div><span className={styles.badge}>fixture</span></div>
+            <CanonicalDecisionsPanel url="/fixture" artifactContentUrl="/fixture" fixture={decisionFixture} />
           </section>
         </div>
       </div>

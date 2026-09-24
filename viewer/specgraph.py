@@ -111,6 +111,10 @@ def build_spec_graph(
     blocked: list[dict[str, Any]] = []
 
     for raw in nodes:
+        # Canonical SpecGraph envelopes are not legacy graph nodes. Their id is
+        # nested under metadata and they belong to a separate read model.
+        if raw.get("kind") == "Node":
+            continue
         node_id = raw.get("id")
         file_name = raw.get("_file_name", "unknown.yaml")
 

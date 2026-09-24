@@ -1,0 +1,76 @@
+{
+  "artifact_kind": "specgraph_product_workspace_decision_index",
+  "contract_ref": "specgraph.product-workspace-decisions.v0.1",
+  "decisions": [
+    {
+      "alternatives_considered": [
+        {
+          "disposition": "rejected",
+          "name": "Alternative"
+        }
+      ],
+      "created_at": "2026-09-24T06:00:00Z",
+      "id": "01JQ4M8N7QAZP6Y4N2M8T5V9KS",
+      "key": "decision.zed",
+      "lifecycle": {
+        "supersededBy": null
+      },
+      "provenance": {
+        "authored_by": "workspace-owner",
+        "authority": "authored",
+        "sources": [
+          {
+            "doc": "docs/adr/decision.md",
+            "section": "Choice"
+          }
+        ]
+      },
+      "rationale": "Rationale decision.zed",
+      "revision": 1,
+      "source_ref": "specs/nested/decision-zed.yaml",
+      "source_sha256": "d9817b9c5fe02ab00a73bbb1a2fa3f979f1a0b7640639a9f5a0d122c074d5f27",
+      "statement": "Statement decision.zed",
+      "status": "reviewed",
+      "title": "Title decision.zed",
+      "updated_at": "2026-09-24T06:00:00Z"
+    },
+    {
+      "alternatives_considered": [
+        {
+          "disposition": "rejected",
+          "name": "Alternative"
+        }
+      ],
+      "created_at": "2026-09-24T06:00:00Z",
+      "id": "01JQ4M8N7QAZP6Y4N2M8T5V9KR",
+      "key": "decision.alpha",
+      "lifecycle": {
+        "supersededBy": null
+      },
+      "provenance": {
+        "authored_by": "workspace-owner",
+        "authority": "authored",
+        "sources": [
+          {
+            "doc": "docs/adr/decision.md",
+            "section": "Choice"
+          }
+        ]
+      },
+      "rationale": "Rationale decision.alpha",
+      "revision": 1,
+      "source_ref": "specs/nodes/decision-alpha.yaml",
+      "source_sha256": "4e0f997e9f7653078a6bd492b8d4c1bc07c61617cc671de00cf3399df0b03ff1",
+      "statement": "Statement decision.alpha",
+      "status": "reviewed",
+      "title": "Title decision.alpha",
+      "updated_at": "2026-09-24T06:00:00Z"
+    }
+  ],
+  "schema_version": 1,
+  "status": "ready",
+  "summary": {
+    "decision_count": 2
+  },
+  "workspace_id": "team-decision-log"
+}
