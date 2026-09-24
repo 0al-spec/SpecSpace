@@ -28,4 +28,15 @@ describe("canonical Decision index", () => {
     const badSources = structuredClone(golden); badSources.decisions[0].provenance.sources = [{ doc: "../../secret.md" }];
     expect(parseProductWorkspaceDecisions(asResponse(badSources))).toBeNull();
   });
+  it("requires a non-empty authority and validates Decision supersession", () => {
+    const emptyAuthority = structuredClone(golden);
+    emptyAuthority.decisions[0].provenance.authority = "  ";
+    expect(parseProductWorkspaceDecisions(asResponse(emptyAuthority))).toBeNull();
+    const emptySuccessor = structuredClone(golden);
+    emptySuccessor.decisions[0].lifecycle.supersededBy = " ";
+    expect(parseProductWorkspaceDecisions(asResponse(emptySuccessor))).toBeNull();
+    const superseded = structuredClone(golden);
+    superseded.decisions[0].lifecycle.supersededBy = "decision.next";
+    expect(parseProductWorkspaceDecisions(asResponse(superseded))?.decisions[0].lifecycle?.supersededBy).toBe("decision.next");
+  });
 });

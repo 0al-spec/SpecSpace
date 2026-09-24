@@ -85,11 +85,16 @@ function isDecision(value: unknown): value is CanonicalDecision {
     typeof value.statement === "string" &&
     typeof value.rationale === "string" &&
     typeof provenance.authority === "string" &&
+    provenance.authority.trim().length > 0 &&
     (provenance.authored_by === undefined ||
       (typeof provenance.authored_by === "string" && provenance.authored_by.length > 0)) &&
     (sources === undefined || (Array.isArray(sources) && sources.every(isDecisionSource))) &&
     (alternatives === undefined || Array.isArray(alternatives)) &&
-    (lifecycle === undefined || isRecord(lifecycle)) &&
+    (lifecycle === undefined ||
+      (isRecord(lifecycle) &&
+        (lifecycle.supersededBy === undefined ||
+          lifecycle.supersededBy === null ||
+          (typeof lifecycle.supersededBy === "string" && lifecycle.supersededBy.trim().length > 0)))) &&
     isSafeRelativePath(value.source_ref) &&
     value.source_ref.startsWith("specs/") &&
     typeof value.source_sha256 === "string" &&
@@ -188,6 +193,7 @@ export function CanonicalDecisionsPanel({
     }
 
     const controller = new AbortController();
+    setSourceText(null);
     const separator = artifactContentUrl.includes("?") ? "&" : "?";
     fetch(`${artifactContentUrl}${separator}path=${encodeURIComponent(selected.source_ref)}`, {
       signal: controller.signal,
@@ -261,6 +267,11 @@ export function CanonicalDecisionsPanel({
                 <span>
                   Lifecycle status <code>{selected.status}</code>
                 </span>
+                {typeof selected.lifecycle?.supersededBy === "string" && (
+                  <span>
+                    Superseded by <code>{selected.lifecycle.supersededBy}</code>
+                  </span>
+                )}
               </div>
               <h3>{selected.title}</h3>
               <h4>Statement</h4>

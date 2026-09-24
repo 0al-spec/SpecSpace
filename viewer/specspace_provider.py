@@ -640,7 +640,11 @@ def _validate_product_workspace_decisions(
         if not isinstance(item.get("revision"), int) or isinstance(item.get("revision"), bool) or item["revision"] <= 0:
             return _decisions_invalid(workspace_id, "Decision revision must be a positive integer")
         provenance = item.get("provenance")
-        if not isinstance(provenance, dict) or not isinstance(provenance.get("authority"), str):
+        if (
+            not isinstance(provenance, dict)
+            or not isinstance(provenance.get("authority"), str)
+            or not provenance["authority"].strip()
+        ):
             return _decisions_invalid(workspace_id, "Decision provenance.authority is required")
         authored_by = provenance.get("authored_by")
         if authored_by is not None and (not isinstance(authored_by, str) or not authored_by):
@@ -671,8 +675,18 @@ def _validate_product_workspace_decisions(
         alternatives = item.get("alternatives_considered")
         if alternatives is not None and not isinstance(alternatives, list):
             return _decisions_invalid(workspace_id, "alternatives_considered must be a list")
-        if "lifecycle" in item and not isinstance(item["lifecycle"], dict):
-            return _decisions_invalid(workspace_id, "lifecycle must be an object")
+        if "lifecycle" in item:
+            lifecycle = item["lifecycle"]
+            if not isinstance(lifecycle, dict):
+                return _decisions_invalid(workspace_id, "lifecycle must be an object")
+            superseded_by = lifecycle.get("supersededBy")
+            if superseded_by is not None and (
+                not isinstance(superseded_by, str) or not superseded_by.strip()
+            ):
+                return _decisions_invalid(
+                    workspace_id,
+                    "lifecycle.supersededBy must be a non-empty key or null",
+                )
     return HTTPStatus.OK, {
         "api_version": SPECSPACE_API_VERSION,
         "artifact_kind": PRODUCT_WORKSPACE_DECISION_ARTIFACT_KIND,
@@ -1398,12 +1412,28 @@ class FileSpecGraphProvider:
             roots.append(self.spec_nodes_dir.parent.parent)
         return list(dict.fromkeys(roots))
 
-    def _local_public_manifest(self) -> tuple[Path, dict[str, Any]] | None:
+    def _local_public_manifest(
+        self,
+        *,
+        workspace_id: str | None = None,
+    ) -> tuple[Path, dict[str, Any]] | None:
         for root in self._local_artifact_roots():
-            for path in (
+            paths = (
+                (
+                    root
+                    / "dist"
+                    / "specgraph-public"
+                    / "workspaces"
+                    / workspace_id
+                    / "artifact_manifest.json",
+                )
+                if workspace_id is not None
+                else ()
+            ) + (
                 root / "dist" / "specgraph-public" / "artifact_manifest.json",
                 root / "artifact_manifest.json",
-            ):
+            )
+            for path in paths:
                 if not path.exists() or not path.is_file():
                     continue
                 try:
@@ -1702,7 +1732,7 @@ class ProductWorkspaceFileProvider:
 
     def _content_artifact_map(self) -> dict[str, Path]:
         artifact_map = self._artifact_map()
-        manifest_entry = self.delegate._local_public_manifest()
+        manifest_entry = self.delegate._local_public_manifest(workspace_id=self.workspace_id)
         if manifest_entry is not None:
             artifact_root, manifest = manifest_entry
             status, payload = self.read_product_workspace_decisions()
@@ -1777,7 +1807,7 @@ class ProductWorkspaceFileProvider:
         }
 
     def read_product_workspace_decisions(self) -> tuple[HTTPStatus, dict[str, Any]]:
-        entry = self.delegate._local_public_manifest()
+        entry = self.delegate._local_public_manifest(workspace_id=self.workspace_id)
         if entry is None:
             return _decisions_unavailable(self.workspace_id)
         artifact_root, manifest = entry
@@ -1792,14 +1822,42 @@ class ProductWorkspaceFileProvider:
         expected_digest = next((item.get("sha256") for item in manifest.get("files", []) if isinstance(item, dict) and item.get("path") == PRODUCT_WORKSPACE_DECISION_ARTIFACT), None)
         if not isinstance(expected_digest, str) or hashlib.sha256(raw).hexdigest() != expected_digest:
             return _decisions_invalid(self.workspace_id, "manifest digest is missing or does not match")
+        if (
+            isinstance(payload, dict)
+            and isinstance(payload.get("workspace_id"), str)
+            and payload["workspace_id"] != self.workspace_id
+        ):
+            return _decisions_unavailable(self.workspace_id)
         status, result = _validate_product_workspace_decisions(payload, self.workspace_id)
         if status == HTTPStatus.OK and result.get("available") is True:
             if any(
-                _manifest_digest(manifest, item["source_ref"]) != item["source_sha256"]
+                not _manifest_declares(manifest, item["source_ref"])
+                or _manifest_digest(manifest, item["source_ref"]) != item["source_sha256"]
+                or not self._local_decision_source_matches(
+                    artifact_root,
+                    item["source_ref"],
+                    item["source_sha256"],
+                )
                 for item in result["decisions"]
             ):
-                return _decisions_invalid(self.workspace_id, "a source_ref is undeclared or its digest differs from the manifest")
+                return _decisions_invalid(
+                    self.workspace_id,
+                    "a source_ref is undeclared or its source bytes do not match the digest",
+                )
         return status, result
+
+    @staticmethod
+    def _local_decision_source_matches(
+        artifact_root: Path,
+        source_ref: str,
+        expected_digest: str,
+    ) -> bool:
+        source_path = artifact_root / Path(*PurePosixPath(source_ref).parts)
+        try:
+            raw = _read_regular_file(source_path, max_bytes=ARTIFACT_CONTENT_MAX_BYTES)
+        except (OSError, OverflowError):
+            return False
+        return hashlib.sha256(raw).hexdigest() == expected_digest
 
     def read_spec_node(self, node_id: str) -> tuple[HTTPStatus, dict[str, Any]]:
         nodes, _ = self._candidate_spec_nodes()
@@ -1933,6 +1991,19 @@ class ProductWorkspaceFileProvider:
                 "reason": "invalid_artifact_path",
                 "path": path,
             }
+        decision_source_digest: str | None = None
+        if safe_path.startswith("specs/"):
+            decisions_status, decisions_payload = self.read_product_workspace_decisions()
+            if decisions_status != HTTPStatus.OK:
+                return decisions_status, decisions_payload
+            decision_source_digest = next(
+                (
+                    item["source_sha256"]
+                    for item in decisions_payload.get("decisions", [])
+                    if item.get("source_ref") == safe_path
+                ),
+                None,
+            )
         artifact_path = self._content_artifact_map().get(safe_path)
         if artifact_path is None:
             return HTTPStatus.NOT_FOUND, {
@@ -1960,6 +2031,11 @@ class ProductWorkspaceFileProvider:
                 "path": safe_path,
                 "detail": str(exc),
             }
+        if decision_source_digest is not None and hashlib.sha256(content).hexdigest() != decision_source_digest:
+            return _decisions_invalid(
+                self.workspace_id,
+                "Decision source bytes changed before the source preview was read",
+            )
         try:
             text = content.decode("utf-8")
         except UnicodeDecodeError as exc:
@@ -2094,7 +2170,12 @@ class HttpSpecGraphProvider:
             return False
         return path in (manifest_paths if manifest_paths is not None else self._manifest_path_set(manifest))
 
-    def _read_artifact_text(self, path: str) -> tuple[int, str | None, dict[str, Any] | None]:
+    def _read_artifact_text(
+        self,
+        path: str,
+        *,
+        refresh: bool = False,
+    ) -> tuple[int, str | None, dict[str, Any] | None]:
         if safe_manifest_path(path) is None:
             return HTTPStatus.BAD_REQUEST, None, {"error": "Invalid artifact path.", "path": path}
 
@@ -2110,7 +2191,7 @@ class HttpSpecGraphProvider:
                 if self.cache.text_by_path is not None
                 else None
             )
-        if cached is not None and now - cached[0] <= self.cache_ttl_seconds:
+        if not refresh and cached is not None and now - cached[0] <= self.cache_ttl_seconds:
             return HTTPStatus.OK, cached[1], None
 
         url = self._artifact_url(path)
@@ -3413,11 +3494,31 @@ class ProductWorkspaceHttpProvider:
             return _decisions_invalid(self.workspace_id, str(exc))
         status, result = _validate_product_workspace_decisions(payload, self.workspace_id)
         if status == HTTPStatus.OK and result.get("available") is True:
-            if any(
-                self._manifest_sha256(manifest, item["source_ref"]) != item["source_sha256"]
-                for item in result["decisions"]
-            ):
-                return _decisions_invalid(self.workspace_id, "a source_ref is undeclared or its digest differs from the manifest")
+            for item in result["decisions"]:
+                source_ref = item["source_ref"]
+                source_sha256 = item["source_sha256"]
+                if (
+                    self._manifest_sha256(manifest, source_ref) != source_sha256
+                    or not self.delegate._has_artifact(manifest, source_ref)
+                ):
+                    return _decisions_invalid(
+                        self.workspace_id,
+                        "a source_ref is undeclared or its digest differs from the manifest",
+                    )
+                source_status, source_text, source_error = self.delegate._read_artifact_text(
+                    source_ref,
+                    refresh=True,
+                )
+                if (
+                    source_error is not None
+                    or source_status != HTTPStatus.OK
+                    or source_text is None
+                    or hashlib.sha256(source_text.encode("utf-8")).hexdigest() != source_sha256
+                ):
+                    return _decisions_invalid(
+                        self.workspace_id,
+                        "a source_ref is missing or its bytes do not match source_sha256",
+                    )
         return status, result
 
     def read_spec_node(self, node_id: str) -> tuple[int, dict[str, Any]]:
@@ -3572,6 +3673,19 @@ class ProductWorkspaceHttpProvider:
                 "reason": "invalid_artifact_path",
                 "path": path,
             }
+        decision_source_digest: str | None = None
+        if safe_path.startswith("specs/"):
+            decisions_status, decisions_payload = self.read_product_workspace_decisions()
+            if decisions_status != HTTPStatus.OK:
+                return decisions_status, decisions_payload
+            decision_source_digest = next(
+                (
+                    item["source_sha256"]
+                    for item in decisions_payload.get("decisions", [])
+                    if item.get("source_ref") == safe_path
+                ),
+                None,
+            )
         manifest, manifest_error = self._manifest()
         if manifest_error is not None:
             return HTTPStatus.SERVICE_UNAVAILABLE, manifest_error
@@ -3613,6 +3727,11 @@ class ProductWorkspaceHttpProvider:
                 "url": url,
                 "detail": error["detail"] if error is not None else f"HTTP {int(status)}",
             }
+        if decision_source_digest is not None and hashlib.sha256(text.encode("utf-8")).hexdigest() != decision_source_digest:
+            return _decisions_invalid(
+                self.workspace_id,
+                "Decision source bytes changed before the source preview was read",
+            )
         return HTTPStatus.OK, decode_artifact_content(
             path=safe_path,
             text=text,

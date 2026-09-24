@@ -175,6 +175,7 @@ PUBLIC_GET_PATHS = frozenset(
         "/api/v1/practical-ontology",
         "/api/v1/proposal-spec-trace-index",
         "/api/v1/proposals",
+        "/api/v1/product-workspace-decisions",
         "/api/v1/runs-watch",
         "/api/v1/runs/recent",
         "/api/v1/spec-activity",
