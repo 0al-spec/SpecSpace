@@ -95,6 +95,7 @@ import {
 import { LiveArtifactStatusPanel } from "./LiveArtifactStatusPanel";
 import { AgentSurfacesPanel } from "./AgentSurfacesPanel";
 import { IdeaToSpecWorkspacePanel } from "./IdeaToSpecWorkspacePanel";
+import { CanonicalDecisionsPanel } from "@/widgets/canonical-decisions";
 import { MetricsViewerPanel } from "./MetricsViewerPanel";
 import { OntologyComplianceReviewPanel } from "./OntologyComplianceReviewPanel";
 import { OntologyOwnerDecisionReviewPanel } from "./OntologyOwnerDecisionReviewPanel";
@@ -276,6 +277,7 @@ export function ViewerPage({
   const workspaceApiUrls = useMemo(
     () => ({
       specGraph: workspaceApiUrl("/api/v1/spec-graph", workspace),
+      canonicalDecisions: `/api/v1/product-workspace-decisions?workspace_id=${encodeURIComponent(workspace.id)}`,
       specNodes: workspaceApiUrl("/api/v1/spec-nodes", workspace),
       specMarkdown: workspaceApiUrl("/api/v1/spec-markdown", workspace),
       specMarkdownCompile: workspaceApiUrl("/api/v1/spec-markdown/compile", workspace),
@@ -1064,6 +1066,8 @@ export function ViewerPage({
     }
   })();
   const ideaToSpecPanel = (
+    <>
+    {productWorkspace && <CanonicalDecisionsPanel url={workspaceApiUrls.canonicalDecisions} artifactContentUrl={workspaceApiUrls.artifactContent} refreshKey={runsWatchVersion} />}
     <IdeaToSpecWorkspacePanel
       state={ideaToSpecWorkspaceState}
       repairDraftsUrl={workspaceApiUrls.ideaToSpecRepairDrafts}
@@ -1116,6 +1120,7 @@ export function ViewerPage({
       }
       demoView={productDemoView}
     />
+    </>
   );
 
   useEffect(() => {

@@ -1,7 +1,32 @@
 # Idea-to-Spec Product Workspace Workplan
 
 Status: active planning
-Updated: 2026-08-02
+Updated: 2026-09-24
+
+## Canonical Decision read model in Product Workspace
+
+Status: bounded SpecSpace consumer implementation prepared in a dedicated PR;
+the SpecGraph producer is stacked after the completed review of PR #709 and
+must merge first.
+
+SpecSpace consumes only the manifest-declared artifact through a dedicated
+workspace-scoped API and displays it in a separate read-only Canonical
+Decisions section. Preserve `metadata.id` and `metadata.key` as distinct
+identifiers, treat status as lifecycle, retain provenance/source links, and do
+not merge Decisions into the legacy specification graph or reviewable files.
+The producer owns public projection and fixtures; SpecSpace owns validation,
+workspace selection, source artifact preview, UI, and legacy graph envelope
+compatibility. The checked-in SpecSpace golden artifact was generated from the
+same canonical YAML fixture as the SpecGraph producer tests, including a legacy
+spec, a requirement, and two Decisions.
+
+Acceptance: available, empty, unpublished, malformed, duplicate, mismatched
+workspace, source-link, and legacy graph cases are covered. A local integration
+run verified canonical YAML → public bundle/manifest → SpecSpace provider/API
+and source preview; the UI was checked in `/dev/ui-catalog` at desktop and
+mobile widths. Re-run the integrated path after the producer PR merges. No
+authoring, adoption, approval, refinement, or canonical write authority is
+added.
 
 ## Purpose
 

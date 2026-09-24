@@ -1176,6 +1176,19 @@ def handle_v1_spec_graph(handler: SpecSpaceV1Handler, parsed: Any) -> None:
     json_response(handler, status, payload)
 
 
+def handle_v1_product_workspace_decisions(handler: SpecSpaceV1Handler, parsed: Any) -> None:
+    raw_workspace_id = query_value(query_params(parsed), "workspace_id", None)
+    workspace_id = specspace_provider.normalize_workspace_id(raw_workspace_id)
+    if workspace_id is None:
+        json_response(handler, HTTPStatus.BAD_REQUEST, {
+            "error": "workspace_id is required for canonical Decisions.",
+            "reason": "workspace_id_required",
+        })
+        return
+    status, payload = _provider(handler, workspace_id).read_product_workspace_decisions()
+    json_response(handler, status, payload)
+
+
 def handle_v1_spec_node(handler: SpecSpaceV1Handler, parsed: Any) -> None:
     prefix = "/api/v1/spec-nodes/"
     node_id = unquote(parsed.path[len(prefix):]).strip()
