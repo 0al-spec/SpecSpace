@@ -175,16 +175,15 @@ def build_spec_graph(
                     }
                 )
 
-    # Identify roots: nodes that are not the target of any *refines* edge
-    # (i.e. no other node refines them AND they don't refine anyone else —
-    # actually: roots = nodes with no incoming *refines* targeting them from
-    # another node).  We want top-level specs that are not children of anything.
-    refined_by_others: set[str] = set()
+    # `refines` is stored child → parent. A hierarchy root therefore has no
+    # resolved outgoing `refines` edge to another node in this graph.
+    # Broken references do not make a node a child of a missing graph node.
+    refines_parent: set[str] = set()
     for edge in edges:
-        if edge["edge_kind"] == "refines":
-            refined_by_others.add(edge["target_id"])
+        if edge["edge_kind"] == "refines" and edge["status"] == "resolved":
+            refines_parent.add(edge["source_id"])
 
-    roots: list[str] = [nid for nid in nodes_by_id if nid not in refined_by_others]
+    roots: list[str] = [nid for nid in nodes_by_id if nid not in refines_parent]
 
     # Serialize nodes into the viewer-facing shape
     serialized_nodes = []

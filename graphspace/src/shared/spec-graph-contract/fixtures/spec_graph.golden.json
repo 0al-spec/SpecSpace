@@ -92,7 +92,7 @@
         "status": "broken"
       }
     ],
-    "roots": ["SG-SPEC-0002", "SG-SPEC-0003"],
+    "roots": ["SG-SPEC-0001", "SG-SPEC-0003"],
     "blocked_files": [],
     "diagnostics": [
       {
