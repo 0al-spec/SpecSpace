@@ -4,6 +4,7 @@ import type {
   SpecGraphNode,
   SpecGraphResponse,
 } from "@/shared/spec-graph-contract";
+import { SAMPLE_SPEC_GRAPH } from "../model/sample-data";
 import { buildSpecGraphCanvasSubtreeCollapseModel } from "../model/subtree-collapse";
 
 const node = (node_id: string, refines: string[] = []): SpecGraphNode => ({
@@ -78,6 +79,23 @@ const response = {
 } satisfies SpecGraphResponse;
 
 describe("SpecGraph canvas subtree collapse", () => {
+  it("collapses a sample root while retaining its disconnected root", () => {
+    const model = buildSpecGraphCanvasSubtreeCollapseModel(
+      SAMPLE_SPEC_GRAPH,
+      new Set(["SG-SPEC-SAMPLE-ROOT"]),
+    );
+
+    expect(model.hiddenNodeIds.has("SG-SPEC-SAMPLE-RUNTIME")).toBe(true);
+    expect(model.response.graph.nodes.map((spec) => spec.node_id)).toEqual([
+      "SG-SPEC-SAMPLE-ROOT",
+      "SG-SPEC-SAMPLE-EVIDENCE",
+    ]);
+    expect(model.response.graph.roots).toEqual([
+      "SG-SPEC-SAMPLE-ROOT",
+      "SG-SPEC-SAMPLE-EVIDENCE",
+    ]);
+  });
+
   it("hides collapsed descendants and incident edges", () => {
     const model = buildSpecGraphCanvasSubtreeCollapseModel(
       response,

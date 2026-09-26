@@ -92,6 +92,16 @@ describe("loadSpecGraph", () => {
   });
 });
 
+describe("sample SpecGraph roots", () => {
+  it("uses the refines parent and disconnected node as roots", () => {
+    expect(SAMPLE_SPEC_GRAPH.graph.roots).toEqual([
+      "SG-SPEC-SAMPLE-ROOT",
+      "SG-SPEC-SAMPLE-EVIDENCE",
+    ]);
+    expect(SAMPLE_SPEC_GRAPH.graph.summary.root_count).toBe(2);
+  });
+});
+
 describe("toSpecGraphFlowElements", () => {
   it("maps sample graph nodes into deterministic flow positions", () => {
     const { nodes, edges } = toSpecGraphFlowElements(SAMPLE_SPEC_GRAPH);
