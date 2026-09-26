@@ -177,15 +177,34 @@ class BuildSpecGraphTests(unittest.TestCase):
         self.assertEqual(len(edge_diags), 1)
         self.assertIn("GHOST", edge_diags[0]["message"])
 
-    def test_roots_are_nodes_not_refined_by_others(self) -> None:
-        # SG-SPEC-0001 is refined by 0002 → NOT a root
-        # SG-SPEC-0002 refines 0001 → 0002 IS a root (nothing refines it)
+    def test_roots_are_nodes_that_do_not_refine_another_node(self) -> None:
+        # `refines` points child → parent, so the parent is the hierarchy root.
         parent = {**MINIMAL_SPEC, "id": "SG-SPEC-0001", "_file_name": "a.yaml"}
         child = {**MINIMAL_SPEC, "id": "SG-SPEC-0002", "refines": ["SG-SPEC-0001"], "_file_name": "b.yaml"}
         graph = specgraph.build_spec_graph([parent, child])
 
-        self.assertIn("SG-SPEC-0002", graph["roots"])
-        self.assertNotIn("SG-SPEC-0001", graph["roots"])
+        self.assertEqual(graph["roots"], ["SG-SPEC-0001"])
+
+    def test_roots_include_disconnected_nodes_but_not_refinement_children(self) -> None:
+        parent = {**MINIMAL_SPEC, "id": "SG-SPEC-0001", "_file_name": "a.yaml"}
+        child = {**MINIMAL_SPEC, "id": "SG-SPEC-0002", "refines": ["SG-SPEC-0001"], "_file_name": "b.yaml"}
+        disconnected = {**MINIMAL_SPEC, "id": "SG-SPEC-0003", "_file_name": "c.yaml"}
+
+        graph = specgraph.build_spec_graph([parent, child, disconnected])
+
+        self.assertEqual(graph["roots"], ["SG-SPEC-0001", "SG-SPEC-0003"])
+
+    def test_broken_refinement_does_not_hide_node_from_graph_roots(self) -> None:
+        orphan = {
+            **MINIMAL_SPEC,
+            "id": "SG-SPEC-0001",
+            "refines": ["SG-SPEC-MISSING"],
+            "_file_name": "a.yaml",
+        }
+
+        graph = specgraph.build_spec_graph([orphan])
+
+        self.assertEqual(graph["roots"], ["SG-SPEC-0001"])
 
     def test_node_missing_id_is_blocked(self) -> None:
         bad = {"title": "No ID", "kind": "spec", "_file_name": "bad.yaml"}
