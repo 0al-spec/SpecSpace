@@ -103,7 +103,7 @@ export const SAMPLE_SPEC_GRAPH: SpecGraphResponse = {
   graph: {
     nodes: SAMPLE_NODES,
     edges: SAMPLE_EDGES,
-    roots: ["SG-SPEC-SAMPLE-RUNTIME", "SG-SPEC-SAMPLE-EVIDENCE"],
+    roots: ["SG-SPEC-SAMPLE-ROOT", "SG-SPEC-SAMPLE-EVIDENCE"],
     blocked_files: [],
     diagnostics: [],
     summary: SAMPLE_SUMMARY,
