@@ -14,6 +14,12 @@ test("authoring tabs preserve draft input and reveal requirement anchors", async
   await expect(page.getByRole("tab", { name: "Specification", exact: true })).toHaveAttribute("aria-selected", "true");
   const selectedFile = page.getByRole("button", { pressed: true }).filter({ hasText: "Numeric input" });
   await expect(selectedFile).toBeVisible();
+  await page.getByRole("button", { name: /Calculator product/ }).click();
+  await expect(page.getByRole("button", { pressed: true }).filter({ hasText: "Calculator product" })).toBeVisible();
+  await questions.click();
+  await page.getByRole("link", { name: "Inspect requirement: Numeric input", exact: true }).click();
+  await expect(page.getByRole("tab", { name: "Specification", exact: true })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("button", { pressed: true }).filter({ hasText: "Numeric input" })).toBeVisible();
   const tabsBounds = await page.getByRole("tablist", { name: "Specification authoring" }).boundingBox();
   expect(tabsBounds?.y).toBeGreaterThanOrEqual(0);
   await questions.click();

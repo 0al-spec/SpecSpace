@@ -159,7 +159,7 @@ const FRESH_WORKSPACE_FOCUS_STATUSES = new Set([
   "intake",
   "clarification",
 ]);
-const FRESH_WORKSPACE_FOCUS_BLOCKED_PHASES = new Set([
+const FRESH_WORKSPACE_FOCUS_PHASES = new Set([
   "workspace",
   "intake",
   "clarification",
@@ -173,9 +173,8 @@ const FRESH_WORKSPACE_FOCUS_TARGET_SECTIONS = new Set([
 
 function usesFreshWorkspaceFocus(overview: IdeaToSpecWorkspace["productWorkspaceOverview"]) {
   if (FRESH_WORKSPACE_FOCUS_STATUSES.has(overview.status)) return true;
-  if (overview.status !== "blocked") return false;
   return (
-    FRESH_WORKSPACE_FOCUS_BLOCKED_PHASES.has(overview.currentPhase) ||
+    FRESH_WORKSPACE_FOCUS_PHASES.has(overview.currentPhase) ||
     FRESH_WORKSPACE_FOCUS_TARGET_SECTIONS.has(overview.primaryTargetSection ?? "")
   );
 }
@@ -7491,6 +7490,8 @@ function ProductRepairReviewSection({
       !!draft, repairDrafts.state.kind === "ok");
     return { request, draft, presentation };
   });
+  const completedSourceSession = sourceSessionHistorical &&
+    questionRows.every((row) => row.presentation.historical);
   const renderQuestion = ({ request, draft, presentation }: (typeof questionRows)[number]) => (
     <ClarificationRequestRow
       key={request.id}
@@ -7500,7 +7501,8 @@ function ProductRepairReviewSection({
       presentation={presentation}
       acceptedAnswer={lane.clarificationAnswers.acceptedAnswers.find((answer) =>
         answer.requestId === request.id && answer.targetRef === request.targetRef &&
-        answer.targetArtifact === request.targetArtifact)}
+        (!answer.targetArtifact || !request.targetArtifact ||
+          answer.targetArtifact === request.targetArtifact))}
       resultFile={repairSpecificationForRequest(request, state.data.materialization.files)}
       materialization={lane.rerunMaterialization}
       pending={repairDrafts.pendingRequestId === request.id}
@@ -7518,15 +7520,15 @@ function ProductRepairReviewSection({
         count={questionRows.filter((row) => !row.presentation.historical).length}
       />
       <div className={styles.row}>
-        <h3 className={styles.title}>{sourceSessionHistorical ? "Repair complete" : "Current questions"}</h3>
+        <h3 className={styles.title}>{completedSourceSession ? "Repair complete" : "Current questions"}</h3>
         <p className={styles.statusDetail}>
-          {sourceSessionHistorical
+          {completedSourceSession
             ? "The repaired candidate is published. Original requests and saved answers remain in source session history."
             : "Saved answers remain drafts until SpecGraph validates them. Validation and candidate publication are separate steps."}
         </p>
-        <a className={styles.actionButton} href={sourceSessionHistorical
+        <a className={styles.actionButton} href={completedSourceSession
           ? "#idea-to-spec-materialization" : showExecution ? "#idea-to-spec-guided-repair-path" : "#idea-to-spec-authoring-update"}>
-          {sourceSessionHistorical ? "Inspect repaired specification" : "Review answers and update candidate"}
+          {completedSourceSession ? "Inspect repaired specification" : "Review answers and update candidate"}
         </a>
       </div>
       {questionRows.filter((row) => !row.presentation.historical).map(renderQuestion)}
