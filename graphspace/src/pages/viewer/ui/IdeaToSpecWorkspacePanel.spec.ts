@@ -54,6 +54,41 @@ describe("IdeaToSpecWorkspacePanel", () => {
     expect(html.includes("Inspect repaired specification")).toBe(false);
   });
 
+  it("shows a SpecGraph accepted answer when the legacy request omits its artifact", () => {
+    const request = parsed.data.repairReview.clarificationRequests.requests[0];
+    const answer = parsed.data.repairReview.clarificationAnswers.acceptedAnswers[0];
+    expect(request.targetArtifact).toBeNull();
+    expect(answer.targetArtifact).toBe("runs/candidate_spec_graph.json");
+
+    const html = renderToStaticMarkup(createElement(IdeaToSpecWorkspacePanel, {
+      state, auxiliaryDataEnabled: false, readOnly: true,
+    }));
+
+    expect(html).toContain("SpecGraph reports an accepted answer for this target.");
+  });
+
+  it("keeps a legacy early workspace phase in the primary task focus", () => {
+    const raw = JSON.parse(JSON.stringify(ideaToSpecWorkspace));
+    delete raw.product_workspace_overview;
+    raw.guided_flow.current_stage = "workspace_initialization";
+    raw.guided_flow.current_stage_label = "Workspace initialization";
+    raw.guided_flow.overall_status = "waiting_for_operator";
+    const legacy = parseIdeaToSpecWorkspace(raw);
+    if (legacy.kind !== "ok") {
+      throw new Error("Legacy workspace fixture must parse");
+    }
+
+    const html = renderToStaticMarkup(createElement(IdeaToSpecWorkspacePanel, {
+      state: { kind: "ok", data: legacy.data }, auxiliaryDataEnabled: false, readOnly: true,
+    }));
+
+    expect(html).toContain('data-testid="fresh-workspace-focus"');
+    expect(html).toContain('data-testid="fresh-workspace-diagnostics"');
+    expect(html.indexOf('data-testid="workspace-initialization-path-next-action"')).toBeLessThan(
+      html.indexOf('data-testid="fresh-workspace-diagnostics"'),
+    );
+  });
+
   it("rejects delayed initialization preparation state for another workspace", () => {
     expect(
       workspacePreparationResponseIsCurrent("pantry-rotation", "pantry-rotation"),

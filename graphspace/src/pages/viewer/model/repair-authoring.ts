@@ -34,11 +34,13 @@ export function repairQuestionPresentation(
 ) {
   const covered = request.status === "covered_by_repair_context";
   const closed = ["closed", "resolved", "superseded"].includes(request.status);
+  const historicalSourceRequest = sourceSessionHistorical &&
+    !request.targetRef?.startsWith("event_storming_hints.") && !draftSaved;
   return {
-    historical: (sourceSessionHistorical && !request.targetRef?.startsWith("event_storming_hints.")) || covered || closed,
-    label: sourceSessionHistorical && !request.targetRef?.startsWith("event_storming_hints.") ? "source session history"
-      : covered ? "covered by repair context"
+    historical: historicalSourceRequest || covered || closed,
+    label: covered ? "covered by repair context"
       : closed ? request.status
+      : historicalSourceRequest ? "source session history"
       : !draftStateLoaded ? "draft state unavailable"
       : draftSaved ? "saved, awaiting validation" : "answer needed",
   };

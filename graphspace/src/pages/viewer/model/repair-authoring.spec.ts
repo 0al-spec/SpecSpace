@@ -31,7 +31,8 @@ describe("repair authoring evidence", () => {
     expect(repairSourceSessionIsHistorical({ ...complete, counts: { ...complete.counts, unresolvedBlockingAnswerCount: 1 } })).toBe(false);
   });
   it("does not turn successful publication into per-answer application", () => {
-    expect(repairQuestionPresentation(request, true, true, true)).toEqual({ historical: true, label: "source session history" });
+    expect(repairQuestionPresentation(request, true, false, true)).toEqual({ historical: true, label: "source session history" });
+    expect(repairQuestionPresentation(request, true, true, true)).toEqual({ historical: false, label: "saved, awaiting validation" });
     expect(repairQuestionPresentation(request, false, true, true)).toEqual({ historical: false, label: "saved, awaiting validation" });
   });
   it("keeps new depth questions active after repair and does not ask for covered aggregate answers", () => {
