@@ -2,7 +2,7 @@
 
 ## Intent and scope
 Reuse the delivered Ontology read-only declaration canvas, inspector and filters
-in the existing SpecSpace /ontology-viewer route. Preserve normalized IR/archive
+in the existing SpecSpace /ontology route. Preserve normalized IR/archive
 loading. New diagram-projection/v1 files retain upstream validation and package,
 source/digest/pointer semantics. No YAML writer, loopback service or agent API.
 

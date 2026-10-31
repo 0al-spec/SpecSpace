@@ -96,6 +96,9 @@ jobs:
       - name: Check GraphSpace API boundary
         run: python scripts/check-graphspace-api-boundary.py
 
+      - name: Verify pinned Ontology Viewer sources
+        run: npm run check:ontology-viewer --prefix graphspace
+
       - name: Test GraphSpace
         run: npm test --prefix graphspace
 
@@ -104,6 +107,24 @@ jobs:
 
       - name: Build GraphSpace
         run: npm run build --prefix graphspace
+
+      - name: Install Ontology Viewer smoke browser
+        working-directory: graphspace
+        run: npx playwright install --with-deps chromium
+
+      - name: Smoke Ontology Viewer on desktop and mobile
+        working-directory: graphspace
+        env:
+          SPECSPACE_E2E_PORT: "5198"
+        run: npm run e2e:ui-started -- ontology-explorer.spec.ts --workers=1
+
+      - name: Upload Ontology Viewer browser evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ontology-viewer-browser-evidence
+          path: graphspace/test-results
+          if-no-files-found: ignore
 
   specspace-images:
     name: SpecSpace Images

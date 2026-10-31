@@ -8,6 +8,8 @@ describe("UiCatalogPage", () => {
     const html = renderToStaticMarkup(createElement(UiCatalogPage));
 
     expect(html).toContain("Design system workbench");
+    expect(html).toContain('id="ontology-explorer"');
+    expect(html).toContain("org.0al.motivation.core");
     expect(html).toContain('id="utility-panel-components"');
     expect(html).toContain('id="shared-primitives"');
     expect(html).toContain("/dev/idea-to-spec-fixtures#report-status-row");

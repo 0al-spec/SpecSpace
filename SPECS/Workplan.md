@@ -2435,7 +2435,8 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
 - **✅ Complete** — Task finished and archived
 
 ## SS-ONT-001 — Embed the Ontology Viewer
-- Status: in progress; operator-selected first read-only integration.
+- Status: local implementation and validation PASS; CI/review pending.
 - Plan: [Viewer integration](INPROGRESS/SS-ONT-001_Viewer_Integration.md).
 - Upstream: Ontology 613b0ac, merged Viewer and README.
-- Next: catalog fixture, route integration, compatibility and UI checks, PR.
+- Validation: [local report](INPROGRESS/SS-ONT-001_Validation_Report.md).
+- Next: review this integration, then consume the selected workspace artifact.

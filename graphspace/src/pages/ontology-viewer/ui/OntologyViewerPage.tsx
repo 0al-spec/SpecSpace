@@ -1,3 +1,6 @@
+import { OntologyExplorer } from "@/widgets/ontology-explorer";
+import type { Projection } from "@/entities/ontology-diagram";
+import { selectDiagramArtifact } from "../model/diagram-artifact";
 import { useMemo, useRef, useState, type ChangeEvent, type DragEvent } from "react";
 import {
   Background,
@@ -79,19 +82,40 @@ export function OntologyViewerPage() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const loadSequence = useRef(0);
+  const [diagram, setDiagram] = useState<{ projection: Projection; sequence: number } | null>(null);
+  const [loadError, setLoadError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const loadFiles = async (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
-    setImportState({ kind: "loading" });
-    const files = await filesFromList(fileList);
-    const expanded = await expandLocalOntologyArtifactFiles(files);
-    const result = loadLocalOntologyArtifact(expanded.files);
-    const diagnostics = [...expanded.diagnostics, ...result.diagnostics];
-    if (result.kind === "loaded") {
-      setImportState({ kind: "loaded", result: { ...result, diagnostics } });
-      return;
+    const sequence = ++loadSequence.current;
+    setLoadError('');
+    setLoading(true);
+    try {
+      const files = await filesFromList(fileList);
+      const expanded = await expandLocalOntologyArtifactFiles(files);
+      if (sequence !== loadSequence.current) return;
+      const selected = selectDiagramArtifact(expanded.files);
+      if (selected.kind === 'diagram') {
+        if (expanded.diagnostics.some(item => item.severity === 'error')) throw new Error('Archive could not be read completely.');
+        setDiagram({ projection: selected.projection, sequence });
+        return;
+      }
+      const result = loadLocalOntologyArtifact(expanded.files);
+      const diagnostics = [...expanded.diagnostics, ...result.diagnostics];
+      if (result.kind === 'loaded') {
+        setDiagram(null);
+        setImportState({ kind: 'loaded', result: { ...result, diagnostics } });
+      } else {
+        setLoadError(diagnostics.map(item => item.message).join(' '));
+        if (!diagram && importState.kind !== 'loaded') setImportState({ kind: 'failed', diagnostics, result });
+      }
+    } catch (error) {
+      if (sequence === loadSequence.current) setLoadError(error instanceof Error ? error.message : 'Could not read the selected file.');
+    } finally {
+      if (sequence === loadSequence.current) setLoading(false);
     }
-    setImportState({ kind: "failed", diagnostics, result });
   };
 
   const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -126,6 +150,20 @@ export function OntologyViewerPage() {
   const selectedNode = loadedProjection?.nodes.find((node) => node.id === selectedNodeId);
   const selectedEdge = loadedProjection?.edges.find((edge) => edge.id === selectedEdgeId);
 
+  if (diagram) return (
+    <main className={styles.diagramPage} aria-label="Ontology viewer" onDragOver={handleDragOver} onDrop={handleDrop}>
+      <header className={styles.header}>
+        <div><h1 className={styles.title}>Ontology</h1><p>Read-only declaration explorer · local browser state</p></div>
+        <button type="button" onClick={() => inputRef.current?.click()}>Open another artifact</button>
+        <a className={styles.link} href="/">SpecGraph</a>
+        <input ref={inputRef} className={styles.fileInput} type="file" accept=".json,.zip,.yaml,.yml" multiple aria-label="Open ontology artifact" onChange={handleInputChange} />
+      </header>
+      {loading && <p role="status">Reading ontology artifact…</p>}
+      {loadError && <p role="alert" className={styles.loadError}>Could not open artifact. {loadError} The previous view is retained.</p>}
+      <OntologyExplorer key={diagram.sequence} projection={diagram.projection} />
+    </main>
+  );
+
   return (
     <main className={styles.root} aria-label="Ontology viewer">
       <header className={styles.header}>
@@ -133,11 +171,16 @@ export function OntologyViewerPage() {
           <h1 className={styles.title}>Ontology</h1>
           <span className={styles.kicker}>local artifact viewer</span>
         </div>
+        <button type="button" onClick={() => inputRef.current?.click()}>Open ontology artifact</button>
         <a className={styles.link} href="/">
           SpecGraph
         </a>
       </header>
 
+      <div>
+        {loading && <p role="status">Reading ontology artifact…</p>}
+        {loadError && <p role="alert" className={styles.loadError}>Could not open artifact. {loadError}</p>}
+      </div>
       <div className={styles.content}>
         <section
           className={styles.surface}
@@ -203,10 +246,10 @@ export function OntologyViewerPage() {
                   O
                 </span>
                 <span className={styles.dropTitle}>
-                  Drop ontology package files or ZIP
+                  Drop a diagram JSON, ontology package or ZIP
                 </span>
                 <span className={styles.dropCaption}>
-                  Supports generated/ontology.normalized.json and package metadata.
+                  Supports ontology.graph.json, generated/ontology.normalized.json and package metadata.
                   No upload is performed.
                 </span>
               </button>
@@ -217,6 +260,7 @@ export function OntologyViewerPage() {
               type="file"
               accept="application/json,.json,.yaml,.yml,.zip,application/zip"
               multiple
+              aria-label="Open ontology artifact"
               onChange={handleInputChange}
             />
           </div>
