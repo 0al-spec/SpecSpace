@@ -4,6 +4,7 @@ import argparse
 import json
 import subprocess  # nosec B404 # trusted local tools, argument lists only
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -34,6 +35,33 @@ def audit(command, cwd, output):
     return count
 
 
+def audit_runtime(output):
+    # Install as Docker does, but audit only the resulting runtime tree.
+    with tempfile.TemporaryDirectory(prefix="specspace-runtime-audit-") as target:
+        subprocess.run(  # nosec B603 # fixed pip command, no shell
+            [sys.executable, "-m", "pip", "install", "--target", target, "-r", "requirements.txt"],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            timeout=300,
+            check=True,
+        )
+        return audit(
+            [
+                sys.executable,
+                "-m",
+                "pip_audit",
+                "--path",
+                target,
+                "--strict",
+                "--progress-spinner=off",
+                "--format=json",
+            ],
+            ROOT,
+            output,
+        )
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
@@ -45,22 +73,6 @@ def main():
             (name, ROOT / name, ["npm", "audit", "--package-lock-only", "--json"])
             for name in ("graphspace", "viewer/app", "quality")
         ],
-        (
-            "python-runtime",
-            ROOT,
-            [
-                sys.executable,
-                "-m",
-                "pip_audit",
-                "--requirement",
-                "requirements.txt",
-                "--disable-pip",
-                "--no-deps",
-                "--strict",
-                "--progress-spinner=off",
-                "--format=json",
-            ],
-        ),
         (
             "python",
             ROOT,
@@ -89,6 +101,17 @@ def main():
             subprocess.SubprocessError,
         ) as error:
             errors[name] = str(error)
+    try:
+        counts["python-runtime"] = audit_runtime(args.output / "python-runtime.json")
+    except (
+        OSError,
+        ValueError,
+        KeyError,
+        TypeError,
+        RuntimeError,
+        subprocess.SubprocessError,
+    ) as error:
+        errors["python-runtime"] = str(error)
     report = {"vulnerability_counts": counts, "errors": errors}
     (args.output / "report.json").write_text(json.dumps(report, indent=2) + "\n")
     print(json.dumps(report, indent=2))

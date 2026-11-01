@@ -143,8 +143,10 @@ incomplete/failed audit. All raw structured audit reports are retained. Audits n
 network access and advisory results change over time, so they have a separate
 weekly/manual workflow, outside the reproducible static baseline and PR gate.
 Existing advisories are not hidden by `continue-on-error`. No automatic dependency
-upgrades or `audit fix` run. Python audits runtime requirements independently from
-the locked application/dev/tool environment; npm includes runtime and development tooling.
+upgrades or `audit fix` run. Python resolves and audits the runtime dependency tree
+independently from the locked application/dev/tool environment; npm includes runtime
+and development tooling. Runtime transitive versions are resolved at audit time and
+may differ from an earlier image build unless its dependency tree is locked.
 
 ## Extending the profile
 

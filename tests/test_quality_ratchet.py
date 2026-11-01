@@ -215,6 +215,7 @@ def test_dependency_audit_checks_runtime_and_quality_separately(tmp_path):
             module.sys, "argv", ["audit_dependencies.py", "--output", str(tmp_path / "report")]
         ),
         patch.object(module, "audit", side_effect=fake_audit),
+        patch.object(module, "audit_runtime", return_value=0) as runtime_audit,
     ):
         assert module.main() == 0
     python_requirements = [
@@ -222,4 +223,41 @@ def test_dependency_audit_checks_runtime_and_quality_separately(tmp_path):
         for command in calls
         if "--requirement" in command
     ]
-    assert set(python_requirements) == {"requirements.txt", "quality/requirements.txt"}
+    assert python_requirements == ["quality/requirements.txt"]
+    runtime_audit.assert_called_once()
+
+
+def test_runtime_transitive_advisory_is_reported(tmp_path):
+    import json
+    import subprocess  # nosec B404 # only constructs a mocked result
+
+    module_spec = importlib.util.spec_from_file_location(
+        "dependency_audit", ROOT / "quality/audit_dependencies.py"
+    )
+    assert module_spec and module_spec.loader
+    module = importlib.util.module_from_spec(module_spec)
+    module_spec.loader.exec_module(module)
+    payload = {
+        "dependencies": [
+            {"name": "direct", "version": "1", "vulns": []},
+            {"name": "transitive", "version": "1", "vulns": [{"id": "PYSEC-example"}]},
+        ]
+    }
+    commands = []
+
+    def run(command, **_kwargs):
+        commands.append(command)
+        if "pip_audit" in command:
+            return subprocess.CompletedProcess(command, 1, json.dumps(payload))
+        return subprocess.CompletedProcess(command, 0, "")
+
+    with (
+        patch.object(module.subprocess, "run", side_effect=run),
+        patch.object(module.tempfile, "tempdir", str(tmp_path)),
+    ):
+        assert module.audit_runtime(tmp_path / "audit.json") == 1
+    install, audit_command = commands
+    assert "requirements.txt" in install and "--no-deps" not in install
+    target = install[install.index("--target") + 1]
+    assert audit_command[audit_command.index("--path") + 1] == target
+    assert not Path(target).exists()
