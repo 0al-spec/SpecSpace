@@ -33,3 +33,10 @@ redaction. The secret scan temporary copy is removed even if the tool fails.
 
 No hosted CI result, independent review, merge or deployment is asserted by this
 local report. Existing primary checkout reused; no extra Git worktree created.
+
+After #436 review fixes, bootstrap was regenerated against `ce50f3b4`: 7,787
+diagnostics, all 15 analyzers completed, zero analyzer errors and zero findings
+in the quality implementation/configs. Scope initialization and typed JSON test
+fixtures removed additional diagnostics. This is still the initial profile;
+ongoing CI cannot refresh the baseline. The first #437 head passed hosted CI;
+the updated stack requires new checks on its new head.
