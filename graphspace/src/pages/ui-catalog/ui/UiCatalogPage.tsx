@@ -1,3 +1,4 @@
+import { OntologyExplorerFixture } from "@/widgets/ontology-explorer";
 import { Panel } from "@/shared/ui/panel";
 import { PanelBtn } from "@/shared/ui/panel-btn";
 import styles from "./UiCatalogPage.module.css";
@@ -15,6 +16,7 @@ const utilityPanelComponentItems = [
 ] as const;
 
 const catalogSections = [
+  { id: "ontology-explorer", title: "Ontology Explorer", status: "active", href: "#ontology-explorer", items: ["Compiler projection"] },
   {
     id: "utility-panel-components",
     title: "Utility panel components",
@@ -72,6 +74,10 @@ export function UiCatalogPage() {
         </nav>
 
         <div className={styles.content}>
+          <section className={styles.section} id="ontology-explorer">
+            <div className={styles.sectionHeader}><h2 className={styles.sectionTitle}>Ontology Explorer</h2><span className={styles.badge}>real compiler projection · read only</span></div>
+            <OntologyExplorerFixture />
+          </section>
           <section className={styles.section} id="utility-panel-components">
             <div className={styles.sectionHeader}>
               <div>

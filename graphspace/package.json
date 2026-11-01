@@ -10,14 +10,16 @@
     "e2e:ui-started": "playwright test --config playwright.config.ts",
     "lint:fsd": "steiger ./src",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "check:ontology-viewer": "node scripts/sync-ontology-viewer.mjs --check"
   },
   "dependencies": {
     "@assistant-ui/react": "^0.14.5",
     "@xyflow/react": "^12.10.2",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "@dagrejs/dagre": "1.1.5"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",
@@ -28,6 +30,7 @@
     "steiger": "^0.5.5",
     "typescript": "~5.8.3",
     "vite": "^6.3.5",
-    "vitest": "^2.1.9"
+    "vitest": "^2.1.9",
+    "postcss": "8.5.14"
   }
 }

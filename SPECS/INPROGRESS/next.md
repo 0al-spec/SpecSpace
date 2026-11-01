@@ -134,3 +134,12 @@
 - Completed context: `CTXB-P10-T1` through `CTXB-P10-T12`, plus `CTXB-P8-T2`, `CTXB-P9-T6`, and `CTXB-P9-T7`.
 - SpecSpace UI currently has the primary SpecGraph canvas, Sidebar navigator, rich Spec Inspector, hover previews, SpecPM lifecycle badges, and unified SpecNode visual signals.
 - New parity context: see `SPECS/SPECSPACE_PARITY_ROADMAP.md`.
+
+## Read-only Ontology Viewer integration — SS-ONT-001
+
+Operator-selected slice: catalog-first reuse of the pinned Ontology library in
+`/ontology`, with normalized IR compatibility. Local build, focused tests, FSD,
+source verification and desktop/mobile checks PASS; see SS-ONT-001 validation.
+No new worktree; primary checkout on codex/ontology-viewer-integration is active
+through focused PR review. Build evidence is on TB5. Next integration should use
+the selected workspace's published projection, then address editing separately.

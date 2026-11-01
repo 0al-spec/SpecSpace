@@ -1,0 +1,16 @@
+.ontology-explorer { min-width: 0; width: 100%; color: #263b34; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+.ontology-explorer .workspace { min-height: 660px; grid-template-columns: 236px minmax(0, 1fr) 270px; }
+.ontology-explorer .canvas { height: 660px; }
+.ontology-explorer .sidebar { max-height: 660px; overflow: auto; }
+.ontology-explorer .search-results { max-height: 220px; flex-shrink: 0; }
+.ontology-explorer .explorer-authority { font-size: 11px; line-height: 1.5; color: #60756a; margin-top: 18px; }
+.ontology-explorer .inspector { max-height: 660px; }
+@media (max-width: 1100px) {
+  .ontology-explorer .workspace { grid-template-columns: 215px minmax(0, 1fr); }
+  .ontology-explorer .inspector { grid-column: 1 / -1; max-height: none; }
+}
+@media (max-width: 620px) {
+  .ontology-explorer .workspace { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 460px auto; }
+  .ontology-explorer .canvas { height: 460px; min-height: 460px; }
+  .ontology-explorer .sidebar { max-height: none; }
+}

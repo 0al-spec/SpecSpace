@@ -1,0 +1,2429 @@
+{
+  "classes" : [
+    {
+      "aliases" : [
+
+      ],
+      "central" : false,
+      "description" : "Declared kind of occurrence or contribution; omission and action interpretation require separate explicit grounds.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "extends" : "sg:ValueObject",
+      "fields" : [
+        {
+          "id" : "actionKey",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.events.core",
+            "pointer" : "/spec/classes/ActionKind/fields/actionKey",
+            "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "version" : "0.2.0"
+          },
+          "type" : "string"
+        }
+      ],
+      "fqid" : "eventcore:ActionKind",
+      "id" : "ActionKind",
+      "implements" : [
+
+      ],
+      "kind" : "ValueObject",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/classes/ActionKind",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/classes/ActionKind"
+    },
+    {
+      "aliases" : [
+
+      ],
+      "central" : false,
+      "description" : "Proposed link between cause/effect Interpretations, each bound to its RecordedEvent; endpoint records derive from the views. Time order and review do not prove physical causation.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "extends" : "sg:DomainEntity",
+      "fields" : [
+        {
+          "id" : "profileRef",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.events.core",
+            "pointer" : "/spec/classes/CausalHypothesis/fields/profileRef",
+            "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "version" : "0.2.0"
+          },
+          "type" : "string"
+        }
+      ],
+      "fqid" : "eventcore:CausalHypothesis",
+      "id" : "CausalHypothesis",
+      "implements" : [
+
+      ],
+      "kind" : "DomainEntity",
+      "lifecycle" : "eventcore:ProposalReview",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/classes/CausalHypothesis",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/classes/CausalHypothesis"
+    },
+    {
+      "aliases" : [
+
+      ],
+      "central" : false,
+      "description" : "Authored exact Added/Removed difference owned by one RecordedEvent; before/after/projection derive exclusively from that record, with no independent snapshot references. Exact set validation belongs to the explicitly selected instance profile.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "extends" : "sg:ValueObject",
+      "fqid" : "eventcore:Delta",
+      "id" : "Delta",
+      "implements" : [
+
+      ],
+      "kind" : "ValueObject",
+      "layer" : "mechanics",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/classes/Delta",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/classes/Delta"
+    },
+    {
+      "aliases" : [
+
+      ],
+      "central" : false,
+      "description" : "Declared direct capture by an observer with an artifact identity and time; authenticity and factual accuracy are not inferred.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "extends" : "sg:ValueObject",
+      "fields" : [
+        {
+          "id" : "artifactDigest",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.events.core",
+            "pointer" : "/spec/classes/DirectObservationOrigin/fields/artifactDigest",
+            "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "version" : "0.2.0"
+          },
+          "type" : "string"
+        },
+        {
+          "id" : "artifactRef",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.events.core",
+            "pointer" : "/spec/classes/DirectObservationOrigin/fields/artifactRef",
+            "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "version" : "0.2.0"
+          },
+          "type" : "string"
+        },
+        {
+          "id" : "clockKey",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.events.core",
+            "pointer" : "/spec/classes/DirectObservationOrigin/fields/clockKey",
+            "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "version" : "0.2.0"
+          },
+          "type" : "string"
+        },
+        {
+          "id" : "observedAt",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.events.core",
+            "pointer" : "/spec/classes/DirectObservationOrigin/fields/observedAt",
+            "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "version" : "0.2.0"
+          },
+          "type" : "integer"
+        },
+        {
+          "id" : "observerKey",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.events.core",
+            "pointer" : "/spec/classes/DirectObservationOrigin/fields/observerKey",
+            "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "version" : "0.2.0"
+          },
+          "type" : "string"
+        },
+        {
+          "id" : "originKey",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.events.core",
+            "pointer" : "/spec/classes/DirectObservationOrigin/fields/originKey",
+            "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "version" : "0.2.0"
+          },
+          "type" : "string"
+        }
+      ],
+      "fqid" : "eventcore:DirectObservationOrigin",
+      "id" : "DirectObservationOrigin",
+      "implements" : [
+
+      ],
+      "kind" : "ValueObject",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/classes/DirectObservationOrigin",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/classes/DirectObservationOrigin"
+    },
+    {
+      "aliases" : [
+
+      ],
+      "central" : false,
+      "description" : "Any scoped entity, including an abstract community, machine, AI or natural phenomenon; actor is a role, not a human-only type.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "extends" : "sg:DomainEntity",
+      "fields" : [
+        {
+          "id" : "label",
+          "required" : false,
+          "source" : {
+            "id" : "org.0al.events.core",
+            "pointer" : "/spec/classes/Entity/fields/label",
+            "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "version" : "0.2.0"
+          },
+          "type" : "string"
+        }
+      ],
+      "fqid" : "eventcore:Entity",
+      "id" : "Entity",
+      "implements" : [
+
+      ],
+      "kind" : "DomainEntity",
+      "layer" : "mechanics",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/classes/Entity",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/classes/Entity"
+    },
+    {
+      "aliases" : [
+
+      ],
+      "central" : false,
+      "description" : "Scope grouping records and interpretations without asserting that all reports describe one true incident.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "extends" : "sg:DomainEntity",
+      "fields" : [
+        {
+          "id" : "scopeKey",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.events.core",
+            "pointer" : "/spec/classes/Episode/fields/scopeKey",
+            "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "version" : "0.2.0"
+          },
+          "type" : "string"
+        }
+      ],
+      "fqid" : "eventcore:Episode",
+      "id" : "Episode",
+      "implements" : [
+
+      ],
+      "kind" : "DomainEntity",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/classes/Episode",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/classes/Episode"
+    },
+    {
+      "aliases" : [
+
+      ],
+      "central" : false,
+      "description" : "Source-backed occurrence description that may lack interval, state or other data needed for a checked record.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "extends" : "sg:DomainEntity",
+      "fields" : [
+        {
+          "id" : "candidateKey",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.events.core",
+            "pointer" : "/spec/classes/EventCandidate/fields/candidateKey",
+            "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "version" : "0.2.0"
+          },
+          "type" : "string"
+        },
+        {
+          "id" : "description",
+          "required" : false,
+          "source" : {
+            "id" : "org.0al.events.core",
+            "pointer" : "/spec/classes/EventCandidate/fields/description",
+            "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "version" : "0.2.0"
+          },
+          "type" : "string"
+        }
+      ],
+      "fqid" : "eventcore:EventCandidate",
+      "id" : "EventCandidate",
+      "implements" : [
+
+      ],
+      "kind" : "DomainEntity",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/classes/EventCandidate",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/classes/EventCandidate"
+    },
+    {
+      "aliases" : [
+
+      ],
+      "central" : false,
+      "description" : "One immutable local registry revision containing recorded events; recordKey is unique within this registry revision, not globally.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "extends" : "sg:DomainEntity",
+      "fields" : [
+        {
+          "id" : "registryKey",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.events.core",
+            "pointer" : "/spec/classes/EventRegistry/fields/registryKey",
+            "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "version" : "0.2.0"
+          },
+          "type" : "string"
+        },
+        {
+          "id" : "revisionKey",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.events.core",
+            "pointer" : "/spec/classes/EventRegistry/fields/revisionKey",
+            "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "version" : "0.2.0"
+          },
+          "type" : "string"
+        }
+      ],
+      "fqid" : "eventcore:EventRegistry",
+      "id" : "EventRegistry",
+      "implements" : [
+
+      ],
+      "kind" : "DomainEntity",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/classes/EventRegistry",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/classes/EventRegistry"
+    },
+    {
+      "aliases" : [
+
+      ],
+      "central" : false,
+      "description" : "Scoped proposition with independent polarity support; the selected profile checks key/polarity sets, while semantic argument interpretation remains external.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "extends" : "sg:ValueObject",
+      "fields" : [
+        {
+          "id" : "polarity",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.events.core",
+            "pointer" : "/spec/classes/Fact/fields/polarity",
+            "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "version" : "0.2.0"
+          },
+          "type" : "string"
+        },
+        {
+          "id" : "propositionKey",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.events.core",
+            "pointer" : "/spec/classes/Fact/fields/propositionKey",
+            "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "version" : "0.2.0"
+          },
+          "type" : "string"
+        }
+      ],
+      "fqid" : "eventcore:Fact",
+      "id" : "Fact",
+      "implements" : [
+
+      ],
+      "kind" : "ValueObject",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/classes/Fact",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/classes/Fact"
+    },
+    {
+      "aliases" : [
+
+      ],
+      "central" : false,
+      "description" : "Role reading of a registered RecordedEvent; it supplies no replacement event states and establishes no legal responsibility.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "extends" : "sg:DomainEntity",
+      "fields" : [
+        {
+          "id" : "interpretationKey",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.events.core",
+            "pointer" : "/spec/classes/Interpretation/fields/interpretationKey",
+            "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "version" : "0.2.0"
+          },
+          "type" : "string"
+        }
+      ],
+      "fqid" : "eventcore:Interpretation",
+      "id" : "Interpretation",
+      "implements" : [
+
+      ],
+      "kind" : "DomainEntity",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/classes/Interpretation",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/classes/Interpretation"
+    },
+    {
+      "aliases" : [
+
+      ],
+      "central" : false,
+      "description" : "Source/role proposal with unresolved observations or bindings; review does not turn it into a checked Interpretation.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "extends" : "sg:DomainEntity",
+      "fields" : [
+        {
+          "id" : "candidateKey",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.events.core",
+            "pointer" : "/spec/classes/InterpretationCandidate/fields/candidateKey",
+            "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "version" : "0.2.0"
+          },
+          "type" : "string"
+        }
+      ],
+      "fqid" : "eventcore:InterpretationCandidate",
+      "id" : "InterpretationCandidate",
+      "implements" : [
+
+      ],
+      "kind" : "DomainEntity",
+      "lifecycle" : "eventcore:ProposalReview",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/classes/InterpretationCandidate",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/classes/InterpretationCandidate"
+    },
+    {
+      "aliases" : [
+
+      ],
+      "central" : false,
+      "description" : "Deliberately operator-supplied complete state, explicitly uncited. Admission requires the named operator's scoped supply-operator-state capability and confirmation.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "extends" : "sg:ValueObject",
+      "fields" : [
+        {
+          "id" : "operatorKey",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.events.core",
+            "pointer" : "/spec/classes/OperatorSnapshotOrigin/fields/operatorKey",
+            "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "version" : "0.2.0"
+          },
+          "type" : "string"
+        },
+        {
+          "id" : "originKey",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.events.core",
+            "pointer" : "/spec/classes/OperatorSnapshotOrigin/fields/originKey",
+            "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "version" : "0.2.0"
+          },
+          "type" : "string"
+        },
+        {
+          "id" : "rationale",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.events.core",
+            "pointer" : "/spec/classes/OperatorSnapshotOrigin/fields/rationale",
+            "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "version" : "0.2.0"
+          },
+          "type" : "string"
+        }
+      ],
+      "fqid" : "eventcore:OperatorSnapshotOrigin",
+      "id" : "OperatorSnapshotOrigin",
+      "implements" : [
+
+      ],
+      "kind" : "ValueObject",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/classes/OperatorSnapshotOrigin",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/classes/OperatorSnapshotOrigin"
+    },
+    {
+      "aliases" : [
+
+      ],
+      "central" : true,
+      "description" : "Immutable scoped event with direct supplied comparable before/after StateSnapshots; descriptions with missing data remain candidates.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "extends" : "sg:Event",
+      "fields" : [
+        {
+          "id" : "clockKey",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.events.core",
+            "pointer" : "/spec/classes/RecordedEvent/fields/clockKey",
+            "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "version" : "0.2.0"
+          },
+          "type" : "string"
+        },
+        {
+          "id" : "intervalFinish",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.events.core",
+            "pointer" : "/spec/classes/RecordedEvent/fields/intervalFinish",
+            "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "version" : "0.2.0"
+          },
+          "type" : "integer"
+        },
+        {
+          "id" : "intervalStart",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.events.core",
+            "pointer" : "/spec/classes/RecordedEvent/fields/intervalStart",
+            "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "version" : "0.2.0"
+          },
+          "type" : "integer"
+        },
+        {
+          "id" : "recordKey",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.events.core",
+            "pointer" : "/spec/classes/RecordedEvent/fields/recordKey",
+            "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "version" : "0.2.0"
+          },
+          "type" : "string"
+        }
+      ],
+      "fqid" : "eventcore:RecordedEvent",
+      "id" : "RecordedEvent",
+      "implements" : [
+
+      ],
+      "kind" : "Event",
+      "layer" : "mechanics",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/classes/RecordedEvent",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/classes/RecordedEvent"
+    },
+    {
+      "aliases" : [
+
+      ],
+      "central" : false,
+      "description" : "Record rejection of a proposal while preserving its source and history.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "extends" : "sg:Command",
+      "fqid" : "eventcore:RejectProposal",
+      "id" : "RejectProposal",
+      "implements" : [
+
+      ],
+      "kind" : "Command",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/classes/RejectProposal",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/classes/RejectProposal"
+    },
+    {
+      "aliases" : [
+
+      ],
+      "central" : false,
+      "description" : "Contextual relation occurrence whose participant roles and origin can be recorded independently of its continuation.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "extends" : "sg:DomainEntity",
+      "fields" : [
+        {
+          "id" : "relationType",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.events.core",
+            "pointer" : "/spec/classes/RelationInstance/fields/relationType",
+            "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "version" : "0.2.0"
+          },
+          "type" : "string"
+        }
+      ],
+      "fqid" : "eventcore:RelationInstance",
+      "id" : "RelationInstance",
+      "implements" : [
+
+      ],
+      "kind" : "DomainEntity",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/classes/RelationInstance",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/classes/RelationInstance"
+    },
+    {
+      "aliases" : [
+
+      ],
+      "central" : false,
+      "description" : "Record review of an interpretation candidate or causal hypothesis without promotion, factual truth or established physical causation.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "extends" : "sg:Command",
+      "fqid" : "eventcore:ReviewProposal",
+      "id" : "ReviewProposal",
+      "implements" : [
+
+      ],
+      "kind" : "Command",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/classes/ReviewProposal",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/classes/ReviewProposal"
+    },
+    {
+      "aliases" : [
+
+      ],
+      "central" : false,
+      "description" : "Role occupied by an Entity in a particular interpretation or relation; actor, target and instrument are contextual roles.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "extends" : "sg:ValueObject",
+      "fields" : [
+        {
+          "id" : "roleName",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.events.core",
+            "pointer" : "/spec/classes/RoleBinding/fields/roleName",
+            "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "version" : "0.2.0"
+          },
+          "type" : "string"
+        }
+      ],
+      "fqid" : "eventcore:RoleBinding",
+      "id" : "RoleBinding",
+      "implements" : [
+
+      ],
+      "kind" : "ValueObject",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/classes/RoleBinding",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/classes/RoleBinding"
+    },
+    {
+      "aliases" : [
+
+      ],
+      "central" : false,
+      "description" : "Source/revision/digest/quote provenance for an assertion; speaker is source-scoped and may remain unknown.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "extends" : "sg:DomainEntity",
+      "fields" : [
+        {
+          "id" : "endOffset",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.events.core",
+            "pointer" : "/spec/classes/SourceAssertion/fields/endOffset",
+            "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "version" : "0.2.0"
+          },
+          "type" : "integer"
+        },
+        {
+          "id" : "quote",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.events.core",
+            "pointer" : "/spec/classes/SourceAssertion/fields/quote",
+            "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "version" : "0.2.0"
+          },
+          "type" : "string"
+        },
+        {
+          "id" : "revisionKey",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.events.core",
+            "pointer" : "/spec/classes/SourceAssertion/fields/revisionKey",
+            "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "version" : "0.2.0"
+          },
+          "type" : "string"
+        },
+        {
+          "id" : "sourceDigest",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.events.core",
+            "pointer" : "/spec/classes/SourceAssertion/fields/sourceDigest",
+            "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "version" : "0.2.0"
+          },
+          "type" : "string"
+        },
+        {
+          "id" : "sourceRef",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.events.core",
+            "pointer" : "/spec/classes/SourceAssertion/fields/sourceRef",
+            "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "version" : "0.2.0"
+          },
+          "type" : "string"
+        },
+        {
+          "id" : "speakerKey",
+          "required" : false,
+          "source" : {
+            "id" : "org.0al.events.core",
+            "pointer" : "/spec/classes/SourceAssertion/fields/speakerKey",
+            "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "version" : "0.2.0"
+          },
+          "type" : "string"
+        },
+        {
+          "id" : "startOffset",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.events.core",
+            "pointer" : "/spec/classes/SourceAssertion/fields/startOffset",
+            "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "version" : "0.2.0"
+          },
+          "type" : "integer"
+        }
+      ],
+      "fqid" : "eventcore:SourceAssertion",
+      "id" : "SourceAssertion",
+      "implements" : [
+
+      ],
+      "kind" : "DomainEntity",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/classes/SourceAssertion",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/classes/SourceAssertion"
+    },
+    {
+      "aliases" : [
+
+      ],
+      "central" : false,
+      "description" : "Declared source extraction for a complete snapshot. Citations alone do not confirm origin or factual truth; the pinned provenance profile requires external authority confirmation.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "extends" : "sg:ValueObject",
+      "fields" : [
+        {
+          "id" : "extractionMethod",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.events.core",
+            "pointer" : "/spec/classes/SourceSnapshotOrigin/fields/extractionMethod",
+            "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "version" : "0.2.0"
+          },
+          "type" : "string"
+        },
+        {
+          "id" : "originKey",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.events.core",
+            "pointer" : "/spec/classes/SourceSnapshotOrigin/fields/originKey",
+            "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "version" : "0.2.0"
+          },
+          "type" : "string"
+        }
+      ],
+      "fqid" : "eventcore:SourceSnapshotOrigin",
+      "id" : "SourceSnapshotOrigin",
+      "implements" : [
+
+      ],
+      "kind" : "ValueObject",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/classes/SourceSnapshotOrigin",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/classes/SourceSnapshotOrigin"
+    },
+    {
+      "aliases" : [
+
+      ],
+      "central" : false,
+      "description" : "Candidate-only observation availability; known references one StateSnapshot, partial may supply individual facts, and unknown supplies no state. Availability is checked by the selected instance profile.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "extends" : "sg:DomainEntity",
+      "fields" : [
+        {
+          "id" : "availability",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.events.core",
+            "pointer" : "/spec/classes/StateObservation/fields/availability",
+            "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "version" : "0.2.0"
+          },
+          "type" : "string"
+        }
+      ],
+      "fqid" : "eventcore:StateObservation",
+      "id" : "StateObservation",
+      "implements" : [
+
+      ],
+      "kind" : "DomainEntity",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/classes/StateObservation",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/classes/StateObservation"
+    },
+    {
+      "aliases" : [
+
+      ],
+      "central" : false,
+      "description" : "A declared complete finite fact set in its schema/scope/projection with exactly one typed origin and explicit external confirmation under the provenance profile. Completeness is the declaration made by this type, not a second flag; unavailable or partial observations are not StateSnapshot values.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "extends" : "sg:ValueObject",
+      "fields" : [
+        {
+          "id" : "projectionKey",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.events.core",
+            "pointer" : "/spec/classes/StateSnapshot/fields/projectionKey",
+            "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "version" : "0.2.0"
+          },
+          "type" : "string"
+        },
+        {
+          "id" : "schemaKey",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.events.core",
+            "pointer" : "/spec/classes/StateSnapshot/fields/schemaKey",
+            "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "version" : "0.2.0"
+          },
+          "type" : "string"
+        },
+        {
+          "id" : "scopeKey",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.events.core",
+            "pointer" : "/spec/classes/StateSnapshot/fields/scopeKey",
+            "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+            "version" : "0.2.0"
+          },
+          "type" : "string"
+        }
+      ],
+      "fqid" : "eventcore:StateSnapshot",
+      "id" : "StateSnapshot",
+      "implements" : [
+
+      ],
+      "kind" : "ValueObject",
+      "layer" : "mechanics",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/classes/StateSnapshot",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/classes/StateSnapshot"
+    },
+    {
+      "aliases" : [
+
+      ],
+      "central" : false,
+      "description" : "Proposed attribution of one motive to the actor's action or omission in one existing interpretation or source-only interpretation candidate. It may retain an unresolved actor; review does not establish motivation or physical causation.",
+      "extends" : "sg:DomainEntity",
+      "fields" : [
+        {
+          "id" : "contributionKind",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.motivation.core",
+            "pointer" : "/spec/classes/MotivationHypothesis/fields/contributionKind",
+            "sourceByteDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+            "sourceDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+            "version" : "0.1.0"
+          },
+          "type" : "string"
+        },
+        {
+          "id" : "hypothesisKey",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.motivation.core",
+            "pointer" : "/spec/classes/MotivationHypothesis/fields/hypothesisKey",
+            "sourceByteDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+            "sourceDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+            "version" : "0.1.0"
+          },
+          "type" : "string"
+        }
+      ],
+      "fqid" : "motivcore:MotivationHypothesis",
+      "id" : "MotivationHypothesis",
+      "implements" : [
+
+      ],
+      "kind" : "DomainEntity",
+      "lifecycle" : "MotivationReview",
+      "source" : {
+        "id" : "org.0al.motivation.core",
+        "pointer" : "/spec/classes/MotivationHypothesis",
+        "sourceByteDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "sourceDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "version" : "0.1.0"
+      },
+      "uri" : "ontology://org.0al.motivation.core/0.1.0/classes/MotivationHypothesis"
+    },
+    {
+      "aliases" : [
+
+      ],
+      "central" : true,
+      "description" : "A prompting reason that may move any Entity actor toward action or omission; consciousness, deliberation and intention are not required. Content is separate from its scoped attribution.",
+      "extends" : "sg:DomainEntity",
+      "fields" : [
+        {
+          "id" : "description",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.motivation.core",
+            "pointer" : "/spec/classes/Motive/fields/description",
+            "sourceByteDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+            "sourceDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+            "version" : "0.1.0"
+          },
+          "type" : "string"
+        },
+        {
+          "id" : "label",
+          "required" : false,
+          "source" : {
+            "id" : "org.0al.motivation.core",
+            "pointer" : "/spec/classes/Motive/fields/label",
+            "sourceByteDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+            "sourceDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+            "version" : "0.1.0"
+          },
+          "type" : "string"
+        },
+        {
+          "id" : "motiveKey",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.motivation.core",
+            "pointer" : "/spec/classes/Motive/fields/motiveKey",
+            "sourceByteDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+            "sourceDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+            "version" : "0.1.0"
+          },
+          "type" : "string"
+        }
+      ],
+      "fqid" : "motivcore:Motive",
+      "id" : "Motive",
+      "implements" : [
+
+      ],
+      "kind" : "DomainEntity",
+      "layer" : "mechanics",
+      "source" : {
+        "id" : "org.0al.motivation.core",
+        "pointer" : "/spec/classes/Motive",
+        "sourceByteDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "sourceDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "version" : "0.1.0"
+      },
+      "uri" : "ontology://org.0al.motivation.core/0.1.0/classes/Motive"
+    },
+    {
+      "aliases" : [
+
+      ],
+      "central" : false,
+      "description" : "Explicit uncited support supplied by a named operator Entity; authorship and rationale do not become a source citation or proof of motive.",
+      "extends" : "sg:DomainEntity",
+      "fields" : [
+        {
+          "id" : "rationale",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.motivation.core",
+            "pointer" : "/spec/classes/OperatorMotivationSupport/fields/rationale",
+            "sourceByteDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+            "sourceDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+            "version" : "0.1.0"
+          },
+          "type" : "string"
+        },
+        {
+          "id" : "supportKey",
+          "required" : true,
+          "source" : {
+            "id" : "org.0al.motivation.core",
+            "pointer" : "/spec/classes/OperatorMotivationSupport/fields/supportKey",
+            "sourceByteDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+            "sourceDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+            "version" : "0.1.0"
+          },
+          "type" : "string"
+        }
+      ],
+      "fqid" : "motivcore:OperatorMotivationSupport",
+      "id" : "OperatorMotivationSupport",
+      "implements" : [
+
+      ],
+      "kind" : "DomainEntity",
+      "source" : {
+        "id" : "org.0al.motivation.core",
+        "pointer" : "/spec/classes/OperatorMotivationSupport",
+        "sourceByteDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "sourceDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "version" : "0.1.0"
+      },
+      "uri" : "ontology://org.0al.motivation.core/0.1.0/classes/OperatorMotivationSupport"
+    },
+    {
+      "aliases" : [
+
+      ],
+      "central" : false,
+      "description" : "Reject the attribution proposal while retaining its sources and support; rejection does not prove absence of the motive.",
+      "extends" : "sg:Command",
+      "fqid" : "motivcore:RejectMotivation",
+      "id" : "RejectMotivation",
+      "implements" : [
+
+      ],
+      "kind" : "Command",
+      "source" : {
+        "id" : "org.0al.motivation.core",
+        "pointer" : "/spec/classes/RejectMotivation",
+        "sourceByteDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "sourceDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "version" : "0.1.0"
+      },
+      "uri" : "ontology://org.0al.motivation.core/0.1.0/classes/RejectMotivation"
+    },
+    {
+      "aliases" : [
+
+      ],
+      "central" : false,
+      "description" : "Record review of the attribution proposal without confirming its truth, performing an action or promoting source-only physical observations.",
+      "extends" : "sg:Command",
+      "fqid" : "motivcore:ReviewMotivation",
+      "id" : "ReviewMotivation",
+      "implements" : [
+
+      ],
+      "kind" : "Command",
+      "source" : {
+        "id" : "org.0al.motivation.core",
+        "pointer" : "/spec/classes/ReviewMotivation",
+        "sourceByteDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "sourceDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "version" : "0.1.0"
+      },
+      "uri" : "ontology://org.0al.motivation.core/0.1.0/classes/ReviewMotivation"
+    }
+  ],
+  "id" : "org.0al.motivation.core",
+  "imports" : [
+    {
+      "id" : "org.0al.events.core",
+      "namespace" : "eventcore",
+      "version" : "0.2.0"
+    },
+    {
+      "id" : "specgraph.foundation",
+      "namespace" : "sg",
+      "version" : "0.1.0"
+    }
+  ],
+  "modelApplicability" : {
+    "appliesTo" : {
+      "contexts" : [
+        "actor_scoped_explanation",
+        "draft_vocabulary_review",
+        "source_only_candidates"
+      ],
+      "domains" : [
+        "general_event_modeling"
+      ]
+    },
+    "assumptions" : [
+      {
+        "id" : "broad_actor",
+        "text" : "Any Entity may occupy an actor role. A prompting reason does not require intention, consciousness or human identity."
+      },
+      {
+        "id" : "consequence_availability",
+        "text" : "Own changes derive from the selected recorded event states; hypothesized downstream effects retain an explicit causal link and the separate effect record Delta. Empty own change does not mean no downstream effects. Narrative motives and partial observations never supply missing physical snapshots."
+      },
+      {
+        "id" : "explicit_consumer_boundary",
+        "text" : "Package/object-shape validation does not enforce selected-view role edges, causal traversal, cross-node scope, contribution enums, temporal coherence or semantic relevance. Manual policies remain declarations."
+      }
+    ],
+    "excludes" : {
+      "contexts" : [
+        "automatic_liability_assignment",
+        "automatic_motive_truth",
+        "implicit_instance_profile_extension"
+      ]
+    },
+    "invalidationTriggers" : [
+      {
+        "id" : "consumer_contract_changed",
+        "text" : "Re-review this vocabulary and its dependency pin before adopting an executable motivation consumer profile."
+      }
+    ]
+  },
+  "namespace" : "motivcore",
+  "policies" : [
+    {
+      "appliesTo" : [
+        "eventcore:CausalHypothesis"
+      ],
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "enforceability" : "manual",
+      "extends" : "sg:Policy",
+      "fqid" : "eventcore:BoundedCausalHypothesis",
+      "id" : "BoundedCausalHypothesis",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/policies/BoundedCausalHypothesis",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "text" : "Cause/effect Interpretations derive their endpoint records through interpretsRecord; both records must belong to the same EventRegistry revision and have distinct recordKeys, the same clockKey, valid intervals and cause start no later than effect start. Overlap is allowed. Proposal review does not prove causation; graph/temporal checks belong to the selected instance profile and no responsibility is transferred."
+    },
+    {
+      "appliesTo" : [
+        "eventcore:EventCandidate",
+        "eventcore:Interpretation",
+        "eventcore:InterpretationCandidate"
+      ],
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "enforceability" : "manual",
+      "extends" : "sg:Policy",
+      "fqid" : "eventcore:CandidateAuthorityBoundary",
+      "id" : "CandidateAuthorityBoundary",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/policies/CandidateAuthorityBoundary",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "text" : "Candidate review is not event registration, factual truth, human attribution or responsibility. Package validation and generated schemas establish structure only; the selected instance profile checks references, state alternatives and explicit origin/enrichment admission; normative responsibility remains external."
+    },
+    {
+      "appliesTo" : [
+        "eventcore:EventCandidate",
+        "eventcore:InterpretationCandidate",
+        "eventcore:RecordedEvent"
+      ],
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "enforceability" : "manual",
+      "extends" : "sg:Policy",
+      "fqid" : "eventcore:ExplicitEnrichmentAdmission",
+      "id" : "ExplicitEnrichmentAdmission",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/policies/ExplicitEnrichmentAdmission",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "text" : "Candidate-to-record enrichment requires separate scoped authority admission after snapshot origin confirmation. Interpretation resolution must use an explicitly enriched record. Missing physical states may remain source-only indefinitely, without a record or Delta. Never auto-upgrade old reports or infer a complete empty state from silence."
+    },
+    {
+      "appliesTo" : [
+        "eventcore:Delta",
+        "eventcore:EventCandidate",
+        "eventcore:RecordedEvent",
+        "eventcore:StateObservation",
+        "eventcore:StateSnapshot"
+      ],
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "enforceability" : "manual",
+      "extends" : "sg:Policy",
+      "fqid" : "eventcore:KnownStatesForExactDelta",
+      "id" : "KnownStatesForExactDelta",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/policies/KnownStatesForExactDelta",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "text" : "RecordedEvent directly requires complete StateSnapshots with matching schema/scope/projection, without availability or complete flags on the record path. Delta derives both states through deltaOfRecord and must equal their exact difference. Unknown or partial candidate observations cannot create a record or Delta by substituting empty states or operator review states. Equal explicitly supplied and provenance-confirmed empty snapshots allow an exact empty Delta."
+    },
+    {
+      "appliesTo" : [
+        "eventcore:EventRegistry",
+        "eventcore:Interpretation",
+        "eventcore:RecordedEvent"
+      ],
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "enforceability" : "manual",
+      "extends" : "sg:Policy",
+      "fqid" : "eventcore:PreserveRecordedObservations",
+      "id" : "PreserveRecordedObservations",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/policies/PreserveRecordedObservations",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "text" : "A record belongs to exactly one EventRegistry revision, where recordKey is unique; the registry identity is registryKey plus revisionKey. Reinterpreting roles never replaces supplied snapshots. Enrichment preserves known snapshots and all partial facts, and creates a linked new record; this declaration is not an implemented registry service."
+    },
+    {
+      "appliesTo" : [
+        "eventcore:InterpretationCandidate",
+        "eventcore:SourceAssertion"
+      ],
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "enforceability" : "manual",
+      "extends" : "sg:Policy",
+      "fqid" : "eventcore:ScopedSourceAttribution",
+      "id" : "ScopedSourceAttribution",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/policies/ScopedSourceAttribution",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "text" : "Preserve source/revision/digest/quote/speaker identity and episode scope. I in a letter refers to the source author, not automatically the narrator; absent speaker remains unknown. Structural citations do not prove semantic relevance."
+    },
+    {
+      "appliesTo" : [
+        "eventcore:DirectObservationOrigin",
+        "eventcore:OperatorSnapshotOrigin",
+        "eventcore:SourceSnapshotOrigin",
+        "eventcore:StateSnapshot"
+      ],
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "enforceability" : "manual",
+      "extends" : "sg:Policy",
+      "fqid" : "eventcore:SnapshotOriginAdmission",
+      "id" : "SnapshotOriginAdmission",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/policies/SnapshotOriginAdmission",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "text" : "The eventcore-provenance-v1 profile requires exactly one typed origin per snapshot and an explicit scoped authority confirmation bound to exact graph bytes. The authority input is selected by the trusted caller, never self-issued by graph review. Source presence, origin confirmation and factual truth are distinct; no cryptographic identity authentication is implemented."
+    },
+    {
+      "appliesTo" : [
+        "motivcore:MotivationHypothesis",
+        "motivcore:Motive"
+      ],
+      "enforceability" : "manual",
+      "extends" : "sg:Policy",
+      "fqid" : "motivcore:ActorScopedMotivation",
+      "id" : "ActorScopedMotivation",
+      "source" : {
+        "id" : "org.0al.motivation.core",
+        "pointer" : "/spec/policies/ActorScopedMotivation",
+        "sourceByteDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "sourceDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "version" : "0.1.0"
+      },
+      "text" : "A Motive is a broad prompting reason applicable to any Entity actor, including communities, AI, machines and natural phenomena; intention and consciousness are optional interpretations, never admission requirements. A hypothesis has one view. A selected actor RoleBinding must be reached by interpretationBindsRole or candidateBindsRole from that selected hypothesisView and named actor; exclusive ownership is not required. Actor Entity and episode derive from existing links. An unresolved actor remains unresolved, and evidence or motives are never transferred to another participant or episode by label similarity."
+    },
+    {
+      "appliesTo" : [
+        "motivcore:MotivationHypothesis"
+      ],
+      "enforceability" : "manual",
+      "extends" : "sg:Policy",
+      "fqid" : "motivcore:IndependentMotivationSupport",
+      "id" : "IndependentMotivationSupport",
+      "source" : {
+        "id" : "org.0al.motivation.core",
+        "pointer" : "/spec/policies/IndependentMotivationSupport",
+        "sourceByteDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "sourceDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "version" : "0.1.0"
+      },
+      "text" : "Positive and negative declared support are independent collections. When both collections are empty the attribution is unknown or unsupported; positive only means supported, negative only means opposed, and both means contested. These are support-presence descriptions, not factual truth. Competing positive motives may coexist. Missing hypotheses do not imply that no motive exists; removing support does not invent its opposite. Do not store a duplicate truth-state field."
+    },
+    {
+      "appliesTo" : [
+        "motivcore:MotivationHypothesis"
+      ],
+      "enforceability" : "manual",
+      "extends" : "sg:Policy",
+      "fqid" : "motivcore:PromptingReasonBoundary",
+      "id" : "PromptingReasonBoundary",
+      "source" : {
+        "id" : "org.0al.motivation.core",
+        "pointer" : "/spec/policies/PromptingReasonBoundary",
+        "sourceByteDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "sourceDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "version" : "0.1.0"
+      },
+      "text" : "Prompting Entity/Fact/view anchors are optional contextual declarations, not proof that they motivated the actor. A prompting occurrence cannot be its own target recorded event. A claimed ordered causal chain needs explicit scope alignment, valid comparable clocks and cause start no later than contribution start; unknown temporal data remains unresolved. Motive attribution and event-to-event CausalHypothesis are distinct interpretations, neither automatically establishes the other or changes supplied states."
+    },
+    {
+      "appliesTo" : [
+        "motivcore:MotivationHypothesis"
+      ],
+      "enforceability" : "manual",
+      "extends" : "sg:Policy",
+      "fqid" : "motivcore:ReviewIsNotMotiveTruth",
+      "id" : "ReviewIsNotMotiveTruth",
+      "source" : {
+        "id" : "org.0al.motivation.core",
+        "pointer" : "/spec/policies/ReviewIsNotMotiveTruth",
+        "sourceByteDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "sourceDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "version" : "0.1.0"
+      },
+      "text" : "MotivationReview records proposal workflow only. Reviewed does not establish the motive, make a cited assertion true or authorize physical enrichment; rejected does not erase sources or produce negative support. Existing eventcore-v1 and eventcore-provenance-v1 profiles do not admit motivcore nodes or relations. A future consumer needs an explicitly reviewed contract before claiming these policies are enforced at runtime."
+    },
+    {
+      "appliesTo" : [
+        "motivcore:MotivationHypothesis",
+        "motivcore:Motive"
+      ],
+      "enforceability" : "manual",
+      "extends" : "sg:Policy",
+      "fqid" : "motivcore:SeparateContributionAndConsequence",
+      "id" : "SeparateContributionAndConsequence",
+      "source" : {
+        "id" : "org.0al.motivation.core",
+        "pointer" : "/spec/policies/SeparateContributionAndConsequence",
+        "sourceByteDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "sourceDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "version" : "0.1.0"
+      },
+      "text" : "contributionKind is action or omission by explicit interpretation. A motive does not prove performance, an omission's duty/deadline/capability/exception grounds, deliberation, intention, fault, responsibility or sanction. The selected view's record-owned optional exact Delta describes own change only; an empty local difference does not assert absence of downstream consequences. Hypothesized downstream consequences follow an explicit CausalHypothesis whose hypothesisCauseView is exactly the selected hypothesisView, then hypothesisEffectView and its own RecordedEvent and optional exact Delta. Preserve hypothesis identity and workflow state without promoting causal attribution to fact or merging Deltas. For the pilot use a separate omission record plus CausalHypothesis to the effect record; an owner reading of the movement record is a different motive scope. An InterpretationCandidate may remain source-only without states, record or Delta. Unknown changes are not an empty diff; a desired outcome is not an actual consequence, and this draft adds no goal class or outcome inference."
+    },
+    {
+      "appliesTo" : [
+        "motivcore:MotivationHypothesis",
+        "motivcore:OperatorMotivationSupport"
+      ],
+      "enforceability" : "manual",
+      "extends" : "sg:Policy",
+      "fqid" : "motivcore:SourceAndOperatorMotivation",
+      "id" : "SourceAndOperatorMotivation",
+      "source" : {
+        "id" : "org.0al.motivation.core",
+        "pointer" : "/spec/policies/SourceAndOperatorMotivation",
+        "sourceByteDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "sourceDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "version" : "0.1.0"
+      },
+      "text" : "Preserve exact source/revision/digest/quote/speaker identity. A speaker reporting a reason need not be the actor, and I in a letter is not automatically the narrator. Cited and uncited operator support remain distinct; relevance, authenticity and inferred psychological or physical meaning require explicit separate review. An unsupported model proposal may remain proposed without fabricating operator authorship or citations."
+    }
+  ],
+  "protocols" : [
+
+  ],
+  "relations" : [
+    {
+      "cardinality" : {
+        "max" : 1,
+        "min" : 0
+      },
+      "description" : "Candidate after observation may be absent, unknown or partial without inventing a snapshot.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "domain" : "eventcore:EventCandidate",
+      "fqid" : "eventcore:candidateAfterObservation",
+      "id" : "eventcore:candidateAfterObservation",
+      "range" : "eventcore:StateObservation",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/relations/candidateAfterObservation",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/relations/candidateAfterObservation"
+    },
+    {
+      "cardinality" : {
+        "max" : 1,
+        "min" : 0
+      },
+      "description" : "Candidate before observation may be absent, unknown or partial without inventing a snapshot.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "domain" : "eventcore:EventCandidate",
+      "fqid" : "eventcore:candidateBeforeObservation",
+      "id" : "eventcore:candidateBeforeObservation",
+      "range" : "eventcore:StateObservation",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/relations/candidateBeforeObservation",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/relations/candidateBeforeObservation"
+    },
+    {
+      "cardinality" : {
+        "max" : "*",
+        "min" : 0
+      },
+      "description" : "Candidate role assignments remain proposals even when reviewed.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "domain" : "eventcore:InterpretationCandidate",
+      "fqid" : "eventcore:candidateBindsRole",
+      "id" : "eventcore:candidateBindsRole",
+      "range" : "eventcore:RoleBinding",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/relations/candidateBindsRole",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/relations/candidateBindsRole"
+    },
+    {
+      "cardinality" : {
+        "max" : "*",
+        "min" : 0
+      },
+      "description" : "Preserve exact source/speaker provenance when available; uncited assertions require explicit review labeling.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "domain" : "eventcore:InterpretationCandidate",
+      "fqid" : "eventcore:candidateCitesAssertion",
+      "id" : "eventcore:candidateCitesAssertion",
+      "range" : "eventcore:SourceAssertion",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/relations/candidateCitesAssertion",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/relations/candidateCitesAssertion"
+    },
+    {
+      "cardinality" : {
+        "max" : "*",
+        "min" : 0
+      },
+      "description" : "Explicit enrichment provenance to a new record after required observations are supplied; the original candidate remains unchanged.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "domain" : "eventcore:EventCandidate",
+      "fqid" : "eventcore:candidateEnrichedByRecord",
+      "id" : "eventcore:candidateEnrichedByRecord",
+      "range" : "eventcore:RecordedEvent",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/relations/candidateEnrichedByRecord",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/relations/candidateEnrichedByRecord"
+    },
+    {
+      "cardinality" : {
+        "max" : 1,
+        "min" : 1
+      },
+      "description" : "Candidate descriptions retain their episode scope.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "domain" : "eventcore:EventCandidate",
+      "fqid" : "eventcore:candidateInEpisode",
+      "id" : "eventcore:candidateInEpisode",
+      "range" : "eventcore:Episode",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/relations/candidateInEpisode",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/relations/candidateInEpisode"
+    },
+    {
+      "cardinality" : {
+        "max" : "*",
+        "min" : 0
+      },
+      "description" : "Explicit provenance to a separately checked interpretation; candidate review alone never creates this link or establishes its validity.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "domain" : "eventcore:InterpretationCandidate",
+      "fqid" : "eventcore:candidateResolvedAsInterpretation",
+      "id" : "eventcore:candidateResolvedAsInterpretation",
+      "range" : "eventcore:Interpretation",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/relations/candidateResolvedAsInterpretation",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/relations/candidateResolvedAsInterpretation"
+    },
+    {
+      "cardinality" : {
+        "max" : "*",
+        "min" : 0
+      },
+      "description" : "Facts present only after; exact set difference requires a separate checker.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "domain" : "eventcore:Delta",
+      "fqid" : "eventcore:deltaAddsFact",
+      "id" : "eventcore:deltaAddsFact",
+      "range" : "eventcore:Fact",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/relations/deltaAddsFact",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/relations/deltaAddsFact"
+    },
+    {
+      "cardinality" : {
+        "max" : 1,
+        "min" : 1
+      },
+      "description" : "The sole owning record determines both compared snapshots and their projection. The selected instance profile validates exact Added/Removed against those states, not arbitrary independent endpoints.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "domain" : "eventcore:Delta",
+      "fqid" : "eventcore:deltaOfRecord",
+      "id" : "eventcore:deltaOfRecord",
+      "range" : "eventcore:RecordedEvent",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/relations/deltaOfRecord",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/relations/deltaOfRecord"
+    },
+    {
+      "cardinality" : {
+        "max" : "*",
+        "min" : 0
+      },
+      "description" : "Facts present only before; removal does not create opposite support.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "domain" : "eventcore:Delta",
+      "fqid" : "eventcore:deltaRemovesFact",
+      "id" : "eventcore:deltaRemovesFact",
+      "range" : "eventcore:Fact",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/relations/deltaRemovesFact",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/relations/deltaRemovesFact"
+    },
+    {
+      "cardinality" : {
+        "max" : 1,
+        "min" : 1
+      },
+      "description" : "A source-level role candidate can describe an event candidate before a checked record exists.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "domain" : "eventcore:InterpretationCandidate",
+      "fqid" : "eventcore:describesCandidateEvent",
+      "id" : "eventcore:describesCandidateEvent",
+      "range" : "eventcore:EventCandidate",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/relations/describesCandidateEvent",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/relations/describesCandidateEvent"
+    },
+    {
+      "cardinality" : {
+        "max" : 1,
+        "min" : 1
+      },
+      "description" : "Cause interpretation binds participant roles to a record via interpretsRecord; its registered event is derived from that link.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "domain" : "eventcore:CausalHypothesis",
+      "fqid" : "eventcore:hypothesisCauseView",
+      "id" : "eventcore:hypothesisCauseView",
+      "range" : "eventcore:Interpretation",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/relations/hypothesisCauseView",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/relations/hypothesisCauseView"
+    },
+    {
+      "cardinality" : {
+        "max" : "*",
+        "min" : 0
+      },
+      "description" : "Hypothesis grounds retain their source; citations alone do not establish causation.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "domain" : "eventcore:CausalHypothesis",
+      "fqid" : "eventcore:hypothesisCitesAssertion",
+      "id" : "eventcore:hypothesisCitesAssertion",
+      "range" : "eventcore:SourceAssertion",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/relations/hypothesisCitesAssertion",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/relations/hypothesisCitesAssertion"
+    },
+    {
+      "cardinality" : {
+        "max" : 1,
+        "min" : 1
+      },
+      "description" : "Effect interpretation supplies its own bound roles and derived record. Both endpoint records must belong to the same registry revision and remain distinct under the selected profile.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "domain" : "eventcore:CausalHypothesis",
+      "fqid" : "eventcore:hypothesisEffectView",
+      "id" : "eventcore:hypothesisEffectView",
+      "range" : "eventcore:Interpretation",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/relations/hypothesisEffectView",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/relations/hypothesisEffectView"
+    },
+    {
+      "cardinality" : {
+        "max" : "*",
+        "min" : 0
+      },
+      "description" : "Role assignments are owned by an interpretation and do not replace event observations.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "domain" : "eventcore:Interpretation",
+      "fqid" : "eventcore:interpretationBindsRole",
+      "id" : "eventcore:interpretationBindsRole",
+      "range" : "eventcore:RoleBinding",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/relations/interpretationBindsRole",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/relations/interpretationBindsRole"
+    },
+    {
+      "cardinality" : {
+        "max" : 1,
+        "min" : 1
+      },
+      "description" : "Every checked interpretation refers to one immutable registered record.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "domain" : "eventcore:Interpretation",
+      "fqid" : "eventcore:interpretsRecord",
+      "id" : "eventcore:interpretsRecord",
+      "range" : "eventcore:RecordedEvent",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/relations/interpretsRecord",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/relations/interpretsRecord"
+    },
+    {
+      "cardinality" : {
+        "max" : 1,
+        "min" : 0
+      },
+      "description" : "A candidate known observation references one StateSnapshot; partial or unknown observations do not. Availability is checked by the selected instance profile and never mediates a RecordedEvent's states.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "domain" : "eventcore:StateObservation",
+      "fqid" : "eventcore:observationSnapshot",
+      "id" : "eventcore:observationSnapshot",
+      "range" : "eventcore:StateSnapshot",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/relations/observationSnapshot",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/relations/observationSnapshot"
+    },
+    {
+      "cardinality" : {
+        "max" : "*",
+        "min" : 0
+      },
+      "description" : "Partial candidate evidence can retain individual facts without declaring a complete snapshot or permitting exact Delta.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "domain" : "eventcore:StateObservation",
+      "fqid" : "eventcore:observationSuppliesFact",
+      "id" : "eventcore:observationSuppliesFact",
+      "range" : "eventcore:Fact",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/relations/observationSuppliesFact",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/relations/observationSuppliesFact"
+    },
+    {
+      "cardinality" : {
+        "max" : "*",
+        "min" : 1
+      },
+      "description" : "Exact extraction citations. Their presence and source offsets do not prove semantic completeness, authenticity or truth.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "domain" : "eventcore:SourceSnapshotOrigin",
+      "fqid" : "eventcore:originCitesAssertion",
+      "id" : "eventcore:originCitesAssertion",
+      "range" : "eventcore:SourceAssertion",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/relations/originCitesAssertion",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/relations/originCitesAssertion"
+    },
+    {
+      "cardinality" : {
+        "max" : 1,
+        "min" : 1
+      },
+      "description" : "A recorded event requires one supplied complete after snapshot directly, comparable to its before snapshot.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "domain" : "eventcore:RecordedEvent",
+      "fqid" : "eventcore:recordAfterSnapshot",
+      "id" : "eventcore:recordAfterSnapshot",
+      "range" : "eventcore:StateSnapshot",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/relations/recordAfterSnapshot",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/relations/recordAfterSnapshot"
+    },
+    {
+      "cardinality" : {
+        "max" : 1,
+        "min" : 1
+      },
+      "description" : "A recorded event requires one supplied complete before snapshot directly; candidate availability is not an alternative range.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "domain" : "eventcore:RecordedEvent",
+      "fqid" : "eventcore:recordBeforeSnapshot",
+      "id" : "eventcore:recordBeforeSnapshot",
+      "range" : "eventcore:StateSnapshot",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/relations/recordBeforeSnapshot",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/relations/recordBeforeSnapshot"
+    },
+    {
+      "cardinality" : {
+        "max" : "*",
+        "min" : 0
+      },
+      "description" : "Supplied source assertions support a record without proving narrative truth.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "domain" : "eventcore:RecordedEvent",
+      "fqid" : "eventcore:recordCitesAssertion",
+      "id" : "eventcore:recordCitesAssertion",
+      "range" : "eventcore:SourceAssertion",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/relations/recordCitesAssertion",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/relations/recordCitesAssertion"
+    },
+    {
+      "cardinality" : {
+        "max" : 1,
+        "min" : 1
+      },
+      "description" : "A record belongs to one explicit episode.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "domain" : "eventcore:RecordedEvent",
+      "fqid" : "eventcore:recordInEpisode",
+      "id" : "eventcore:recordInEpisode",
+      "range" : "eventcore:Episode",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/relations/recordInEpisode",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/relations/recordInEpisode"
+    },
+    {
+      "cardinality" : {
+        "max" : 1,
+        "min" : 1
+      },
+      "description" : "A record belongs to one immutable registry revision; its recordKey must be unique in that scope. The selected pinned instance profile enforces membership and uniqueness.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "domain" : "eventcore:RecordedEvent",
+      "fqid" : "eventcore:recordInRegistry",
+      "id" : "eventcore:recordInRegistry",
+      "range" : "eventcore:EventRegistry",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/relations/recordInRegistry",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/relations/recordInRegistry"
+    },
+    {
+      "cardinality" : {
+        "max" : 1,
+        "min" : 1
+      },
+      "description" : "A record declares its kind without determining actor or human contribution.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "domain" : "eventcore:RecordedEvent",
+      "fqid" : "eventcore:recordOfActionKind",
+      "id" : "eventcore:recordOfActionKind",
+      "range" : "eventcore:ActionKind",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/relations/recordOfActionKind",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/relations/recordOfActionKind"
+    },
+    {
+      "cardinality" : {
+        "max" : "*",
+        "min" : 0
+      },
+      "description" : "A relation can retain multiple contextual participant roles.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "domain" : "eventcore:RelationInstance",
+      "fqid" : "eventcore:relationBindsRole",
+      "id" : "eventcore:relationBindsRole",
+      "range" : "eventcore:RoleBinding",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/relations/relationBindsRole",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/relations/relationBindsRole"
+    },
+    {
+      "cardinality" : {
+        "max" : 1,
+        "min" : 0
+      },
+      "description" : "An optional supplied origin record does not prescribe the relation's persistence or termination.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "domain" : "eventcore:RelationInstance",
+      "fqid" : "eventcore:relationOriginRecord",
+      "id" : "eventcore:relationOriginRecord",
+      "range" : "eventcore:RecordedEvent",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/relations/relationOriginRecord",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/relations/relationOriginRecord"
+    },
+    {
+      "cardinality" : {
+        "max" : 1,
+        "min" : 1
+      },
+      "description" : "A resolved role binds any Entity; missing participants remain unresolved candidates.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "domain" : "eventcore:RoleBinding",
+      "fqid" : "eventcore:roleBoundEntity",
+      "id" : "eventcore:roleBoundEntity",
+      "range" : "eventcore:Entity",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/relations/roleBoundEntity",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/relations/roleBoundEntity"
+    },
+    {
+      "cardinality" : {
+        "max" : "*",
+        "min" : 0
+      },
+      "description" : "Supplied finite fact membership; absence of an observation is not an empty membership list.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "domain" : "eventcore:StateSnapshot",
+      "fqid" : "eventcore:snapshotContainsFact",
+      "id" : "eventcore:snapshotContainsFact",
+      "range" : "eventcore:Fact",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/relations/snapshotContainsFact",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/relations/snapshotContainsFact"
+    },
+    {
+      "cardinality" : {
+        "max" : 1,
+        "min" : 0
+      },
+      "description" : "Direct observation alternative; absence is not an observation of an empty state.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "domain" : "eventcore:StateSnapshot",
+      "fqid" : "eventcore:snapshotDirectOrigin",
+      "id" : "eventcore:snapshotDirectOrigin",
+      "range" : "eventcore:DirectObservationOrigin",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/relations/snapshotDirectOrigin",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/relations/snapshotDirectOrigin"
+    },
+    {
+      "cardinality" : {
+        "max" : 1,
+        "min" : 0
+      },
+      "description" : "Explicit operator-supplied alternative, distinct from source citations and direct capture.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "domain" : "eventcore:StateSnapshot",
+      "fqid" : "eventcore:snapshotOperatorOrigin",
+      "id" : "eventcore:snapshotOperatorOrigin",
+      "range" : "eventcore:OperatorSnapshotOrigin",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/relations/snapshotOperatorOrigin",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/relations/snapshotOperatorOrigin"
+    },
+    {
+      "cardinality" : {
+        "max" : 1,
+        "min" : 0
+      },
+      "description" : "One of exactly three disjoint snapshot origin alternatives under eventcore-provenance-v1.",
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "domain" : "eventcore:StateSnapshot",
+      "fqid" : "eventcore:snapshotSourceOrigin",
+      "id" : "eventcore:snapshotSourceOrigin",
+      "range" : "eventcore:SourceSnapshotOrigin",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/relations/snapshotSourceOrigin",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "uri" : "ontology://org.0al.events.core/0.2.0/relations/snapshotSourceOrigin"
+    },
+    {
+      "cardinality" : {
+        "max" : 1,
+        "min" : 0
+      },
+      "description" : "If resolved, hypothesisActorRole must be the target of interpretationBindsRole or candidateBindsRole from the selected hypothesisView and have roleName actor; derive Entity through roleBoundEntity. Other views may reference the same role. Absence preserves an unknown actor.",
+      "domain" : "motivcore:MotivationHypothesis",
+      "fqid" : "motivcore:hypothesisActorRole",
+      "id" : "hypothesisActorRole",
+      "range" : "eventcore:RoleBinding",
+      "source" : {
+        "id" : "org.0al.motivation.core",
+        "pointer" : "/spec/relations/hypothesisActorRole",
+        "sourceByteDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "sourceDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "version" : "0.1.0"
+      },
+      "uri" : "ontology://org.0al.motivation.core/0.1.0/relations/hypothesisActorRole"
+    },
+    {
+      "cardinality" : {
+        "max" : 1,
+        "min" : 1
+      },
+      "description" : "A hypothesis attributes exactly one prompting-reason content; multiple hypotheses may explain the same contribution without being mutually exclusive.",
+      "domain" : "motivcore:MotivationHypothesis",
+      "fqid" : "motivcore:hypothesisMotive",
+      "id" : "hypothesisMotive",
+      "range" : "motivcore:Motive",
+      "source" : {
+        "id" : "org.0al.motivation.core",
+        "pointer" : "/spec/relations/hypothesisMotive",
+        "sourceByteDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "sourceDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "version" : "0.1.0"
+      },
+      "uri" : "ontology://org.0al.motivation.core/0.1.0/relations/hypothesisMotive"
+    },
+    {
+      "cardinality" : {
+        "max" : "*",
+        "min" : 0
+      },
+      "description" : "Explicit opposition to this specific attribution. It coexists with positive support; missing evidence and rejected workflow status do not create negative support.",
+      "domain" : "motivcore:MotivationHypothesis",
+      "fqid" : "motivcore:hypothesisNegativeSupport",
+      "id" : "hypothesisNegativeSupport",
+      "range" : {
+        "oneOf" : [
+          "eventcore:SourceAssertion",
+          "motivcore:OperatorMotivationSupport"
+        ]
+      },
+      "source" : {
+        "id" : "org.0al.motivation.core",
+        "pointer" : "/spec/relations/hypothesisNegativeSupport",
+        "sourceByteDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "sourceDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "version" : "0.1.0"
+      },
+      "uri" : "ontology://org.0al.motivation.core/0.1.0/relations/hypothesisNegativeSupport"
+    },
+    {
+      "cardinality" : {
+        "max" : "*",
+        "min" : 0
+      },
+      "description" : "Support for this specific actor/view/motive attribution. Quotes and their speakers remain source-scoped; relevance and meaning are not inferred by generated object schemas.",
+      "domain" : "motivcore:MotivationHypothesis",
+      "fqid" : "motivcore:hypothesisPositiveSupport",
+      "id" : "hypothesisPositiveSupport",
+      "range" : {
+        "oneOf" : [
+          "eventcore:SourceAssertion",
+          "motivcore:OperatorMotivationSupport"
+        ]
+      },
+      "source" : {
+        "id" : "org.0al.motivation.core",
+        "pointer" : "/spec/relations/hypothesisPositiveSupport",
+        "sourceByteDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "sourceDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "version" : "0.1.0"
+      },
+      "uri" : "ontology://org.0al.motivation.core/0.1.0/relations/hypothesisPositiveSupport"
+    },
+    {
+      "cardinality" : {
+        "max" : "*",
+        "min" : 0
+      },
+      "description" : "Optional contextual entity involved in the prompting reason, such as an instruction sender or external influence. This is distinct from the motivated actor and establishes no causal force or mental state.",
+      "domain" : "motivcore:MotivationHypothesis",
+      "fqid" : "motivcore:hypothesisPromptingEntity",
+      "id" : "hypothesisPromptingEntity",
+      "range" : "eventcore:Entity",
+      "source" : {
+        "id" : "org.0al.motivation.core",
+        "pointer" : "/spec/relations/hypothesisPromptingEntity",
+        "sourceByteDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "sourceDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "version" : "0.1.0"
+      },
+      "uri" : "ontology://org.0al.motivation.core/0.1.0/relations/hypothesisPromptingEntity"
+    },
+    {
+      "cardinality" : {
+        "max" : "*",
+        "min" : 0
+      },
+      "description" : "Optional contextual proposition/polarity support about the prompting circumstances; a declared Fact is not a complete physical StateSnapshot.",
+      "domain" : "motivcore:MotivationHypothesis",
+      "fqid" : "motivcore:hypothesisPromptingFact",
+      "id" : "hypothesisPromptingFact",
+      "range" : "eventcore:Fact",
+      "source" : {
+        "id" : "org.0al.motivation.core",
+        "pointer" : "/spec/relations/hypothesisPromptingFact",
+        "sourceByteDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "sourceDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "version" : "0.1.0"
+      },
+      "uri" : "ontology://org.0al.motivation.core/0.1.0/relations/hypothesisPromptingFact"
+    },
+    {
+      "cardinality" : {
+        "max" : "*",
+        "min" : 0
+      },
+      "description" : "Optional interpretation of a reported prompting occurrence. Temporal/cross-episode alignment needs separate review; this link is not an automatically verified CausalHypothesis.",
+      "domain" : "motivcore:MotivationHypothesis",
+      "fqid" : "motivcore:hypothesisPromptingView",
+      "id" : "hypothesisPromptingView",
+      "range" : {
+        "oneOf" : [
+          "eventcore:Interpretation",
+          "eventcore:InterpretationCandidate"
+        ]
+      },
+      "source" : {
+        "id" : "org.0al.motivation.core",
+        "pointer" : "/spec/relations/hypothesisPromptingView",
+        "sourceByteDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "sourceDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "version" : "0.1.0"
+      },
+      "uri" : "ontology://org.0al.motivation.core/0.1.0/relations/hypothesisPromptingView"
+    },
+    {
+      "cardinality" : {
+        "max" : 1,
+        "min" : 1
+      },
+      "description" : "The sole scope anchor. Episode, action/event identity and known observations derive through this view, not duplicate actor/event fields.",
+      "domain" : "motivcore:MotivationHypothesis",
+      "fqid" : "motivcore:hypothesisView",
+      "id" : "hypothesisView",
+      "range" : {
+        "oneOf" : [
+          "eventcore:Interpretation",
+          "eventcore:InterpretationCandidate"
+        ]
+      },
+      "source" : {
+        "id" : "org.0al.motivation.core",
+        "pointer" : "/spec/relations/hypothesisView",
+        "sourceByteDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "sourceDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "version" : "0.1.0"
+      },
+      "uri" : "ontology://org.0al.motivation.core/0.1.0/relations/hypothesisView"
+    },
+    {
+      "cardinality" : {
+        "max" : 1,
+        "min" : 1
+      },
+      "description" : "Declared support author, independently of the hypothesis actor or quoted speaker; no human-only identity or authentication is inferred.",
+      "domain" : "motivcore:OperatorMotivationSupport",
+      "fqid" : "motivcore:operatorSupportAuthor",
+      "id" : "operatorSupportAuthor",
+      "range" : "eventcore:Entity",
+      "source" : {
+        "id" : "org.0al.motivation.core",
+        "pointer" : "/spec/relations/operatorSupportAuthor",
+        "sourceByteDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "sourceDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "version" : "0.1.0"
+      },
+      "uri" : "ontology://org.0al.motivation.core/0.1.0/relations/operatorSupportAuthor"
+    }
+  ],
+  "schemaVersion" : "ontology.diagram-projection/v1",
+  "sourceByteDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+  "sourceDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+  "sources" : [
+    {
+      "alias" : "motivcore",
+      "id" : "org.0al.motivation.core",
+      "namespace" : "motivcore",
+      "sourceByteDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+      "sourceDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+      "version" : "0.1.0"
+    },
+    {
+      "alias" : "eventcore",
+      "id" : "org.0al.events.core",
+      "namespace" : "eventcore",
+      "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+      "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+      "version" : "0.2.0"
+    }
+  ],
+  "stateMachines" : [
+    {
+      "diagramOrigin" : "org.0al.events.core@0.2.0",
+      "fqid" : "eventcore:ProposalReview",
+      "id" : "ProposalReview",
+      "source" : {
+        "id" : "org.0al.events.core",
+        "pointer" : "/spec/stateMachines/ProposalReview",
+        "sourceByteDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "sourceDigest" : "sha256:92a3245fc9acd15748fd1fa3cfb8e4fdc8fda429a5fd6cffd7a97bc13f2f359e",
+        "version" : "0.2.0"
+      },
+      "states" : [
+        "proposed",
+        "rejected",
+        "reviewed"
+      ],
+      "transitions" : [
+        {
+          "command" : "eventcore:RejectProposal",
+          "from" : "proposed",
+          "to" : "rejected"
+        },
+        {
+          "command" : "eventcore:ReviewProposal",
+          "from" : "proposed",
+          "to" : "reviewed"
+        }
+      ]
+    },
+    {
+      "fqid" : "motivcore:MotivationReview",
+      "id" : "MotivationReview",
+      "source" : {
+        "id" : "org.0al.motivation.core",
+        "pointer" : "/spec/stateMachines/MotivationReview",
+        "sourceByteDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "sourceDigest" : "sha256:3061eca33ddc2296c2c292695d98daf6697e92fb582da544bc1d5107721ae955",
+        "version" : "0.1.0"
+      },
+      "states" : [
+        "proposed",
+        "rejected",
+        "reviewed"
+      ],
+      "transitions" : [
+        {
+          "command" : "motivcore:RejectMotivation",
+          "from" : "proposed",
+          "to" : "rejected"
+        },
+        {
+          "command" : "motivcore:ReviewMotivation",
+          "from" : "proposed",
+          "to" : "reviewed"
+        }
+      ]
+    }
+  ],
+  "version" : "0.1.0",
+  "view" : "full"
+}

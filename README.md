@@ -537,3 +537,11 @@ Quick orientation:
 2. Update `build_graph_snapshot` in `viewer/server.py` to handle the new kind.
 3. Add fixture files under `real_examples/` or `tests/fixtures/`.
 4. Add regression tests in `tests/`.
+
+### Ontology Viewer
+
+Open `/ontology` to explore a local `ontologyviz` diagram projection with the
+shared Ontology canvas, source inspector and stable Hide/Dim/package filters.
+Existing normalized IR and ZIP packages remain supported. Files stay in browser
+memory. See [the read-only Viewer guide](graphspace/ONTOLOGY_VIEWER.md) for the
+input contracts, development fixture, source pin and update procedure.
