@@ -1,0 +1,62 @@
+name: Polyglot quality
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: |
+            quality/package-lock.json
+            graphspace/package-lock.json
+            viewer/app/package-lock.json
+      - name: Install locked quality tools
+        run: |
+          python -m venv quality/.venv
+          quality/.venv/bin/python -m pip install --require-hashes -r quality/requirements.txt
+          npm ci --prefix quality
+          npm ci --prefix graphspace
+          npm ci --prefix viewer/app
+          quality/.venv/bin/python quality/install_binaries.py --destination quality/.bin
+          {
+            echo "$GITHUB_WORKSPACE/quality/.venv/bin"
+            echo "$GITHUB_WORKSPACE/quality/.bin"
+          } >> "$GITHUB_PATH"
+      - name: Test quality failure boundaries
+        run: quality/.venv/bin/python -m pytest -q tests/test_quality_ratchet.py
+      - name: Check full source against reviewed debt
+        run: quality/.venv/bin/python quality/run.py --output quality/reports/ci
+      - name: Publish quality summary
+        if: always()
+        run: |
+          if [ -f quality/reports/ci/summary.md ]; then
+            cat quality/reports/ci/summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: polyglot-quality
+          path: |
+            quality/reports/ci/report.json
+            quality/reports/ci/summary.md
+          if-no-files-found: error

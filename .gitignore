@@ -10,3 +10,9 @@ graphspace/test-results/
 graphspace/playwright-report/
 deps/*
 !deps/.gitkeep
+
+# Reproducible quality environments and machine-local reports
+/quality/node_modules
+/quality/.venv
+/quality/reports/
+/quality/.bin/

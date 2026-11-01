@@ -16,6 +16,8 @@ SPEC_DIR ?= $(CLAUDE_SPEC_DIR)
 SPECGRAPH_DIR ?= $(CLAUDE_SPECGRAPH_DIR)
 HYPERPROMPT_BINARY ?= $(CLAUDE_HYPERPROMPT_BINARY)
 AGENT ?= 1
+QUALITY_PYTHON ?= quality/.venv/bin/python
+QUALITY_REPORT_DIR ?= quality/reports/local
 
 .PHONY: help serve api ui legacy-ui dev legacy-dev start stop specspace-start specspace-stop specspace-restart specspace-status ui-e2e-raw-idea-entry ui-e2e-product-demo ui-e2e-product-demo-hosted ui-e2e-product-demo-live test lint canonicalize canon quickstart
 
@@ -40,6 +42,8 @@ help:
 	@echo "  make ui-e2e-product-demo-live Run headed product demo E2E and pause at the final route"
 	@echo "  make test"
 	@echo "  make lint"
+	@echo "  make quality QUALITY_REPORT_DIR=quality/reports/fresh-run"
+	@echo "  make quality-audit QUALITY_REPORT_DIR=quality/reports/fresh-audit"
 
 serve:
 	@if [ -z "$(DIALOG_DIR)" ]; then \
@@ -165,6 +169,13 @@ test:
 
 lint:
 	@$(PYTHON) -m py_compile $$(find viewer tests scripts -name '*.py' | sort)
+
+.PHONY: quality quality-audit
+quality:
+	@PATH="$(CURDIR)/quality/.venv/bin:$(CURDIR)/quality/.bin:$(PATH)" $(QUALITY_PYTHON) quality/run.py --output "$(QUALITY_REPORT_DIR)"
+
+quality-audit:
+	@$(QUALITY_PYTHON) quality/audit_dependencies.py --output "$(QUALITY_REPORT_DIR)"
 
 quickstart:
 	@if [ -z "$(DIALOG_DIR)" ]; then \

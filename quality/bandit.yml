@@ -1,0 +1,3 @@
+assert_used:
+  # Pytest assertion rewriting is intentional; production assertions remain checked.
+  skips: ["*/tests/*", "test_*.py"]
