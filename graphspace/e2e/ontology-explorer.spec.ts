@@ -9,7 +9,7 @@ for (const mobile of [false, true]) {
     await page.setViewportSize(mobile ? { width: 390, height: 844 } : { width: 1600, height: 1000 });
     const mutations: string[] = [];
     page.on('request', request => { if (!['GET', 'HEAD'].includes(request.method())) mutations.push(request.url()); });
-    await page.goto('/ontology');
+    await page.goto('/ontology?source=local');
     await page.getByLabel('Open ontology artifact').setInputFiles(fixture);
     await expect(page.getByText('PACKAGE · READ ONLY')).toBeVisible();
     const canvas = page.getByLabel('Ontology graph', { exact: true });
@@ -80,3 +80,48 @@ for (const mobile of [false, true]) {
     expect(mutations).toEqual([]);
   });
 }
+
+
+for (const mobile of [false, true]) {
+  test(`published workspace autoload ${mobile ? 'mobile' : 'desktop'}`, async ({ page }, info) => {
+    await page.setViewportSize(mobile ? { width: 390, height: 844 } : { width: 1600, height: 1000 });
+    const graph = JSON.parse(readFileSync(fixture, 'utf8'));
+    const requests: string[] = [];
+    await page.route('**/api/v1/artifacts**', async route => {
+      const url = new URL(route.request().url()); requests.push(url.pathname + url.search);
+      expect(url.searchParams.get('workspace')).toBe('product-one');
+      const base = { api_version: 'v1', schema_version: 1, read_only: true, source: { workspace_id: 'product-one' } };
+      await route.fulfill({ json: url.pathname.endsWith('/content') ?
+        { ...base, artifact_kind: 'specspace_artifact_content', path: 'runs/product-one/ontology.graph.json', content_kind: 'json', sha256: 'a'.repeat(64), data: graph } :
+        { ...base, artifact_kind: 'specspace_artifact_catalog', artifacts: [{ path: 'runs/product-one/ontology.graph.json', sha256: 'a'.repeat(64) }] } });
+    });
+    await page.goto('/ontology?workspace=product-one');
+    await expect(page.getByText('Published diagram projection', { exact: false })).toBeVisible();
+    await expect(page.getByText('PACKAGE · READ ONLY')).toBeVisible();
+    await page.getByLabel('Search graph', { exact: true }).fill('motivcore:Motive');
+    await page.getByRole('button', { name: 'motivcore:Motive class', exact: true }).click();
+    await expect(page.getByLabel('Inspector')).toContainText('/spec/classes/Motive');
+    await expect(page.locator('.react-flow__viewport')).toHaveAttribute('style', /scale\(1\)/);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: info.outputPath('published-ontology.png'), fullPage: true });
+    expect(new Set(requests).size).toBe(2);
+    expect(requests.filter(url => url.includes('/content?'))).toHaveLength(1);
+  });
+}
+
+test('missing published data stays scoped and allows a local file', async ({ page }) => {
+  await page.route('**/api/v1/artifacts**', route => route.fulfill({ json: { api_version: 'v1', schema_version: 1, artifact_kind: 'specspace_artifact_catalog', read_only: true, source: { workspace_id: 'product-one' }, artifacts: [] } }));
+  await page.goto('/ontology?workspace=product-one');
+  await expect(page.getByText('No ontology graph is published', { exact: false })).toBeVisible();
+  await page.getByLabel('Open ontology artifact').setInputFiles(fixture);
+  await expect(page.getByText('Local file selected.', { exact: false })).toBeVisible();
+  await expect(page.getByText('PACKAGE · READ ONLY')).toBeVisible();
+});
+
+test('invalid published workspace identity never defaults to bootstrap', async ({ page }) => {
+  let reads = 0;
+  await page.route('**/api/v1/**', route => { reads++; return route.abort(); });
+  await page.goto('/ontology?workspace=../foreign');
+  await expect(page.getByRole('alert')).toContainText('Invalid workspace');
+  expect(reads).toBe(0);
+});

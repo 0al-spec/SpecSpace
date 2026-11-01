@@ -2440,3 +2440,7 @@ Intent: move SpecSpace beyond a static SpecGraph browser toward parity with the 
 - Upstream: Ontology 613b0ac, merged Viewer and README.
 - Validation: [local report](INPROGRESS/SS-ONT-001_Validation_Report.md).
 - Next: review this integration, then consume the selected workspace artifact.
+
+## SS-ONT-002 — Workspace ontology autoload
+- Local implementation/validation PASS; stacked above #435; review pending.
+- [Contract](INPROGRESS/SS-ONT-002_Workspace_Autoload.md), [checks](INPROGRESS/SS-ONT-002_Validation_Report.md).

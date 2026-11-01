@@ -1,7 +1,10 @@
+import { publishedWorkspace } from '../model/published-ontology';
+import { usePublishedOntology } from '../model/use-published-ontology';
+import { PublishedOntologyStatus } from './PublishedOntologyStatus';
 import { OntologyExplorer } from "@/widgets/ontology-explorer";
 import type { Projection } from "@/entities/ontology-diagram";
 import { selectDiagramArtifact } from "../model/diagram-artifact";
-import { useMemo, useRef, useState, type ChangeEvent, type DragEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from "react";
 import {
   Background,
   Controls,
@@ -86,9 +89,32 @@ export function OntologyViewerPage() {
   const [diagram, setDiagram] = useState<{ projection: Projection; sequence: number } | null>(null);
   const [loadError, setLoadError] = useState('');
   const [loading, setLoading] = useState(false);
+  const workspace = useMemo(() => {
+    try { return { id: publishedWorkspace(window.location.search), error: '' }; }
+    catch (error) { return { id: null, error: error instanceof Error ? error.message : 'Invalid workspace' }; }
+  }, []);
+  const [automatic, setAutomatic] = useState(() => new URLSearchParams(window.location.search).get('source') !== 'local');
+  const [origin, setOrigin] = useState<'local' | 'published'>('local');
+  const [publishedPath, setPublishedPath] = useState<string>();
+  const [publishedRefresh, setPublishedRefresh] = useState(0);
+  const published = usePublishedOntology(workspace.id, automatic, publishedPath, publishedRefresh);
+  useEffect(() => {
+    if (!automatic || published.kind !== 'loaded') return;
+    const sequence = ++loadSequence.current;
+    const files = [published.file];
+    const selected = selectDiagramArtifact(files);
+    if (selected.kind === 'diagram') setDiagram({ projection: selected.projection, sequence });
+    else {
+      const result = loadLocalOntologyArtifact(files);
+      if (result.kind === 'loaded') { setDiagram(null); setImportState({ kind: 'loaded', result }); }
+    }
+    setOrigin('published'); setLoadError(''); setLoading(false);
+  }, [published, automatic]);
+
 
   const loadFiles = async (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
+    setAutomatic(false);
     const sequence = ++loadSequence.current;
     setLoadError('');
     setLoading(true);
@@ -100,12 +126,14 @@ export function OntologyViewerPage() {
       if (selected.kind === 'diagram') {
         if (expanded.diagnostics.some(item => item.severity === 'error')) throw new Error('Archive could not be read completely.');
         setDiagram({ projection: selected.projection, sequence });
+        setOrigin('local');
         return;
       }
       const result = loadLocalOntologyArtifact(expanded.files);
       const diagnostics = [...expanded.diagnostics, ...result.diagnostics];
       if (result.kind === 'loaded') {
         setDiagram(null);
+        setOrigin('local');
         setImportState({ kind: 'loaded', result: { ...result, diagnostics } });
       } else {
         setLoadError(diagnostics.map(item => item.message).join(' '));
@@ -150,14 +178,19 @@ export function OntologyViewerPage() {
   const selectedNode = loadedProjection?.nodes.find((node) => node.id === selectedNodeId);
   const selectedEdge = loadedProjection?.edges.find((edge) => edge.id === selectedEdgeId);
 
+  const publishedStatus = <PublishedOntologyStatus workspace={workspace.id || '(invalid)'}
+    state={workspace.error ? { kind: 'error', message: workspace.error } : !automatic ? { kind: 'local' } : published}
+    onChoose={setPublishedPath} onRetry={() => { ++loadSequence.current; setAutomatic(true); setPublishedRefresh(value => value + 1); }} />;
+
   if (diagram) return (
     <main className={styles.diagramPage} aria-label="Ontology viewer" onDragOver={handleDragOver} onDrop={handleDrop}>
       <header className={styles.header}>
-        <div><h1 className={styles.title}>Ontology</h1><p>Read-only declaration explorer · local browser state</p></div>
+        <div><h1 className={styles.title}>Ontology</h1><p>Read-only declaration explorer · {origin === 'published' ? 'published workspace artifact' : 'local browser state'}</p></div>
         <button type="button" onClick={() => inputRef.current?.click()}>Open another artifact</button>
         <a className={styles.link} href="/">SpecGraph</a>
         <input ref={inputRef} className={styles.fileInput} type="file" accept=".json,.zip,.yaml,.yml" multiple aria-label="Open ontology artifact" onChange={handleInputChange} />
       </header>
+      {publishedStatus}
       {loading && <p role="status">Reading ontology artifact…</p>}
       {loadError && <p role="alert" className={styles.loadError}>Could not open artifact. {loadError} The previous view is retained.</p>}
       <OntologyExplorer key={diagram.sequence} projection={diagram.projection} />
@@ -178,6 +211,7 @@ export function OntologyViewerPage() {
       </header>
 
       <div>
+        {publishedStatus}
         {loading && <p role="status">Reading ontology artifact…</p>}
         {loadError && <p role="alert" className={styles.loadError}>Could not open artifact. {loadError}</p>}
       </div>

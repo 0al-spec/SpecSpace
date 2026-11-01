@@ -20,6 +20,7 @@ import styles from "./OntologySemanticReviewPanel.module.css";
 
 type Props = {
   state: UseOntologyWorkbenchState;
+  workspaceId?: string;
 };
 
 function errorDetail(
@@ -53,10 +54,11 @@ function sourceLabel(data: OntologyWorkbench): string {
   return typeof provider === "string" && provider.length > 0 ? provider : "source";
 }
 
-export function OntologyWorkbenchPanel({ state }: Props) {
+export function OntologyWorkbenchPanel({ state, workspaceId = "specgraph-bootstrap" }: Props) {
   if (state.kind === "idle" || state.kind === "loading") {
     return (
       <section className={styles.panel} aria-label="Ontology workbench">
+        <a href={`/ontology?workspace=${encodeURIComponent(workspaceId)}`}>Explore published ontology graph</a>
         <Status label="Loading ontology workbench" detail="Reading /api/v1/ontology-workbench" />
       </section>
     );
@@ -65,6 +67,7 @@ export function OntologyWorkbenchPanel({ state }: Props) {
   if (state.kind !== "ok") {
     return (
       <section className={styles.panel} aria-label="Ontology workbench">
+        <a href={`/ontology?workspace=${encodeURIComponent(workspaceId)}`}>Explore published ontology graph</a>
         <Status label="Ontology workbench unavailable" detail={errorDetail(state)} />
       </section>
     );
@@ -74,6 +77,7 @@ export function OntologyWorkbenchPanel({ state }: Props) {
 
   return (
     <section className={styles.panel} aria-label="Ontology workbench">
+        <a href={`/ontology?workspace=${encodeURIComponent(workspaceId)}`}>Explore published ontology graph</a>
       <div className={styles.summary}>
         <Metric label="Terms" value={data.summary.termCount} />
         <Metric label="Relations" value={data.summary.relationCount} />

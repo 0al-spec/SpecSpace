@@ -715,6 +715,7 @@ def decode_artifact_content(
         "path": path,
         "source": source,
         "size_bytes": len(text.encode("utf-8")),
+        "sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
     }
     try:
         data = json.loads(text)
@@ -733,6 +734,8 @@ def decode_artifact_content(
     return payload
 
 
+ONTOLOGY_DIAGRAM_ARTIFACT = "ontology.graph.json"
+
 WORKSPACE_RAW_PREVIEW_RUN_ARTIFACTS: tuple[str, ...] = tuple(
     filename
     for filename in idea_to_spec_workspace.WORKSPACE_RUN_ARTIFACTS
@@ -745,7 +748,7 @@ WORKSPACE_RAW_PREVIEW_RUN_ARTIFACTS: tuple[str, ...] = tuple(
         idea_to_spec_workspace.REAL_IDEA_ANSWER_CONTINUATION_REPORT_ARTIFACT,
         idea_to_spec_workspace.PLATFORM_REAL_IDEA_ENTRY_INTAKE_EXECUTION_REPORT_ARTIFACT,
     }
-)
+) + (ONTOLOGY_DIAGRAM_ARTIFACT,)
 
 PRE_CANDIDATE_WORKSPACE_ARTIFACTS: frozenset[str] = frozenset(
     {
