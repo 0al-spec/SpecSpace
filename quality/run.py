@@ -348,13 +348,15 @@ class Collector:
         elif tool == "gitleaks":
             # Only tracked/in-scope source, never ignored operator data or caches.
             staging = self.output / "secret-scan-input"
-            staging.mkdir()
-            for name in files:
-                target = staging / name
-                target.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copyfile(ROOT / name, target)
-            report = self.output / "gitleaks-redacted.json"
+            created = False
             try:
+                staging.mkdir()
+                created = True
+                for name in files:
+                    target = staging / name
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copyfile(ROOT / name, target)
+                report = self.output / "gitleaks-redacted.json"
                 self.run(
                     [
                         "gitleaks",
@@ -368,7 +370,8 @@ class Collector:
                 )
             finally:
                 # Never retain a second copy of source/possible secrets in reports.
-                shutil.rmtree(staging)
+                if created:
+                    shutil.rmtree(staging)
             for row in json.loads(report.read_text()):
                 name = Path(row["File"])
                 if name.is_absolute():

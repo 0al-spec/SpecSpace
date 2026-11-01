@@ -24,7 +24,7 @@ jobs:
         run: |
           python -m venv quality/.venv
           quality/.venv/bin/python -m pip install --require-hashes -r quality/requirements.txt
-      - name: Audit all three npm locks and Python lock
+      - name: Audit npm locks and Python runtime and quality requirements
         run: quality/.venv/bin/python quality/audit_dependencies.py --output quality/reports/dependencies
       - uses: actions/upload-artifact@v7
         if: always()

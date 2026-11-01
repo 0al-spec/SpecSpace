@@ -42,7 +42,7 @@ quality/.venv/bin/python quality/badges.py --revision "$(git rev-parse HEAD)" --
 | GitHub Actions             | actionlint, including shell checks                                                    |
 | Dockerfiles                | Hadolint                                                                              |
 | Source secrets             | Gitleaks, fully redacted reports                                                      |
-| Locked dependencies        | npm audit for all three npm locks; pip-audit for the Python lock                      |
+| Locked dependencies        | npm audit for all three npm locks; pip-audit for runtime and the Python quality lock  |
 
 Tool versions and transitive dependencies are pinned in `package-lock.json` and
 the hashed `requirements.txt`. `binaries.json` pins native downloads and their
@@ -140,8 +140,8 @@ incomplete/failed audit. All raw structured audit reports are retained. Audits n
 network access and advisory results change over time, so they have a separate
 weekly/manual workflow, outside the reproducible static baseline and PR gate.
 Existing advisories are not hidden by `continue-on-error`. No automatic dependency
-upgrades or `audit fix` run. Python includes the locked application/dev/tool
-environment; npm includes application runtime and development tooling.
+upgrades or `audit fix` run. Python audits runtime requirements independently from
+the locked application/dev/tool environment; npm includes runtime and development tooling.
 
 ## Extending the profile
 

@@ -148,3 +148,55 @@ def test_changed_profile_cannot_reuse_baseline(tmp_path):
         assert runner.main() == 1
     report = json.loads((tmp_path / "out/report.json").read_text())
     assert report["errors"][0]["tool"] == "baseline"
+
+
+def test_gitleaks_copy_failure_removes_partial_input(tmp_path):
+    source = tmp_path / "source"
+    output = tmp_path / "output"
+    source.mkdir()
+    output.mkdir()
+    (source / "one.py").write_text("sample")
+    (source / "two.py").write_text("sample")
+    original = runner.shutil.copyfile
+
+    def copy(source_path, target):
+        if source_path.name == "two.py":
+            raise PermissionError("synthetic")
+        return original(source_path, target)
+
+    collector = runner.Collector(output)
+    with (
+        patch.object(runner, "ROOT", source),
+        patch.object(runner.shutil, "copyfile", side_effect=copy),
+    ):
+        collector.execute("gitleaks", ["one.py", "two.py"])
+    assert collector.errors
+    assert not (output / "secret-scan-input").exists()
+
+
+def test_dependency_audit_checks_runtime_and_quality_separately(tmp_path):
+    module_spec = importlib.util.spec_from_file_location(
+        "dependency_audit", ROOT / "quality/audit_dependencies.py"
+    )
+    assert module_spec and module_spec.loader
+    module = importlib.util.module_from_spec(module_spec)
+    module_spec.loader.exec_module(module)
+    calls = []
+
+    def fake_audit(command, cwd, output):
+        calls.append(command)
+        return 0
+
+    with (
+        patch.object(
+            module.sys, "argv", ["audit_dependencies.py", "--output", str(tmp_path / "report")]
+        ),
+        patch.object(module, "audit", side_effect=fake_audit),
+    ):
+        assert module.main() == 0
+    python_requirements = [
+        command[command.index("--requirement") + 1]
+        for command in calls
+        if "--requirement" in command
+    ]
+    assert set(python_requirements) == {"requirements.txt", "quality/requirements.txt"}

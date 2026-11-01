@@ -65,6 +65,28 @@ def test_missing_or_invalid_versions_fail_instead_of_guessing(tmp_path):
         badges.build(tmp_path, REVISION)
 
 
+def test_python_patch_version_tracks_docker_tag(tmp_path):
+    source(tmp_path)
+    (tmp_path / "Dockerfile").write_text("FROM python:3.12.9-slim\n")
+    assert (
+        json.loads(badges.build(tmp_path, REVISION)["manifest.json"])["versions"]["python"]
+        == "3.12.9"
+    )
+    (tmp_path / "Dockerfile").write_text("FROM python:3.12.10-slim\n")
+    assert (
+        json.loads(badges.build(tmp_path, REVISION)["manifest.json"])["versions"]["python"]
+        == "3.12.10"
+    )
+
+
+def test_dispatch_and_push_do_not_share_concurrency_group():
+    import yaml
+
+    workflow = yaml.safe_load((ROOT / ".github/workflows/quality.yml").read_text())
+    group = workflow["concurrency"]["group"]
+    assert "github.event_name" in group and "github.ref" in group
+
+
 def test_svg_escapes_text_and_accessible_description():
     svg = badges.svg('A"<&', "<script>&", REVISION)
     assert "<script>" not in svg

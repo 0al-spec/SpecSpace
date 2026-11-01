@@ -32,7 +32,9 @@ def build(root: Path, revision: str) -> dict[str, str]:
     if not re.fullmatch(r"[0-9a-f]{40}", revision):
         raise ValueError("A full source Git SHA is required")
     python = re.search(
-        r"^FROM python:([0-9]+\.[0-9]+)(?:[-.@]|$)", (root / "Dockerfile").read_text(), re.M
+        r"^FROM python:([0-9]+\.[0-9]+(?:\.[0-9]+)?)(?:[-@]|$)",
+        (root / "Dockerfile").read_text(),
+        re.M,
     )
     if python is None:
         raise ValueError("Cannot determine the Python runtime from Dockerfile")

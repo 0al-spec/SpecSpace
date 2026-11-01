@@ -46,6 +46,22 @@ def main():
             for name in ("graphspace", "viewer/app", "quality")
         ],
         (
+            "python-runtime",
+            ROOT,
+            [
+                sys.executable,
+                "-m",
+                "pip_audit",
+                "--requirement",
+                "requirements.txt",
+                "--disable-pip",
+                "--no-deps",
+                "--strict",
+                "--progress-spinner=off",
+                "--format=json",
+            ],
+        ),
+        (
             "python",
             ROOT,
             [
