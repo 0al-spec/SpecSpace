@@ -180,7 +180,7 @@ export function OntologyViewerPage() {
 
   const publishedStatus = <PublishedOntologyStatus workspace={workspace.id || '(invalid)'}
     state={workspace.error ? { kind: 'error', message: workspace.error } : !automatic ? { kind: 'local' } : published}
-    onChoose={setPublishedPath} onRetry={() => { ++loadSequence.current; setAutomatic(true); setPublishedRefresh(value => value + 1); }} />;
+    onChoose={setPublishedPath} onRetry={() => { ++loadSequence.current; setPublishedPath(undefined); setAutomatic(true); setPublishedRefresh(value => value + 1); }} />;
 
   if (diagram) return (
     <main className={styles.diagramPage} aria-label="Ontology viewer" onDragOver={handleDragOver} onDrop={handleDrop}>

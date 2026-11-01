@@ -34,6 +34,25 @@ describe('published ontology selection', () => {
     expect((await load(fn, row().path)).kind).toBe('loaded');
     await expect(load(fn, 'not-published.json')).rejects.toThrow('no longer published');
   });
+  it('ignores import fixtures and compatibility reports mislabeled as ontology IR', async () => {
+    const ir = JSON.parse(readFileSync(new URL('./ontology-graph-contract/fixtures/ontology_normalized_ir.specgraph-core.min.json', import.meta.url), 'utf8'));
+    const path = 'generated/ontology.normalized.json';
+    const fn = fetcher([
+      { path: 'tests/fixtures/ontology_import/import-fixture.yaml', group: 'ontology_ir' },
+      { path: 'tests/fixtures/ontology_import/compatibility-report.yaml', group: 'ontology_ir' },
+      { path, group: 'ontology_ir' },
+    ], { path, data: ir });
+    const result = await load(fn);
+    expect(result.kind === 'loaded' && result.candidate.path).toBe(path);
+    expect(fn).toHaveBeenCalledTimes(2);
+    expect(await load(fetcher([{ path: 'tests/fixtures/ontology_import/import-fixture.yaml', group: 'ontology_ir' }]))).toEqual({ kind: 'missing' });
+  });
+  it('accepts explicitly indexed normalized IR with a nonstandard filename', async () => {
+    const ir = JSON.parse(readFileSync(new URL('./ontology-graph-contract/fixtures/ontology_normalized_ir.specgraph-core.min.json', import.meta.url), 'utf8'));
+    const path = 'packages/core/generated.json';
+    const result = await load(fetcher([{ path, referenced_by_package_index: true }], { path, data: ir }));
+    expect(result.kind === 'loaded' && result.candidate.path).toBe(path);
+  });
   it('reports absence and rejects traversal or duplicate entries', async () => {
     expect(await load(fetcher([]))).toEqual({ kind: 'missing' });
     await expect(load(fetcher([row('../ontology.graph.json')]))).rejects.toThrow('Unsafe');

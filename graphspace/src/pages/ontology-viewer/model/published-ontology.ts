@@ -45,7 +45,7 @@ export async function loadPublishedOntology(workspace: string, signal: AbortSign
     if (typeof path !== 'string' || !safePath(path)) throw new Error('Unsafe published artifact path');
     if (paths.has(path)) throw new Error('Duplicate published artifact path'); paths.add(path);
     const format = path.endsWith('/ontology.graph.json') || path === 'ontology.graph.json' ? 'diagram' :
-      row.group === 'ontology_ir' || row.referenced_by_package_index === true ? 'legacy' : null;
+      path === 'ontology.normalized.json' || path.endsWith('/ontology.normalized.json') || row.referenced_by_package_index === true ? 'legacy' : null;
     if (!format) continue;
     const sha256 = typeof row.sha256 === 'string' ? row.sha256 : null;
     if (sha256 !== null && !/^[a-f0-9]{64}$/.test(sha256)) throw new Error('Invalid published digest');

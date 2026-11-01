@@ -125,3 +125,25 @@ test('invalid published workspace identity never defaults to bootstrap', async (
   await expect(page.getByRole('alert')).toContainText('Invalid workspace');
   expect(reads).toBe(0);
 });
+
+test('reload after a failed choice restores published package selection', async ({ page }) => {
+  const broken = 'runs/broken/ontology.graph.json';
+  const valid = 'runs/valid/ontology.graph.json';
+  const graph = JSON.parse(readFileSync(fixture, 'utf8'));
+  await page.route('**/api/v1/artifacts**', async route => {
+    const url = new URL(route.request().url());
+    const base = { api_version: 'v1', schema_version: 1, read_only: true, source: { workspace_id: 'product-one' } };
+    const selected = url.searchParams.get('path');
+    await route.fulfill({ json: url.pathname.endsWith('/content') ?
+      { ...base, artifact_kind: 'specspace_artifact_content', path: selected, content_kind: 'json', data: selected === broken ? { schemaVersion: 'broken' } : graph } :
+      { ...base, artifact_kind: 'specspace_artifact_catalog', artifacts: [{ path: broken }, { path: valid }] } });
+  });
+  await page.goto('/ontology?workspace=product-one');
+  await page.getByLabel('Choose published ontology').selectOption(broken);
+  await expect(page.getByRole('alert')).toContainText('Unsupported');
+  await page.getByRole('button', { name: 'Reload published ontology' }).click();
+  await expect(page.getByLabel('Choose published ontology')).toBeVisible();
+  await page.getByLabel('Choose published ontology').selectOption(valid);
+  await expect(page.getByText('Published diagram projection', { exact: false })).toBeVisible();
+  await expect(page.getByText('PACKAGE · READ ONLY')).toBeVisible();
+});

@@ -1617,6 +1617,7 @@ class ProductWorkspaceFileProvider:
     workspace_id: str
     artifact_run_dir_ref: str | None = None
     pre_candidate_only: bool = False
+    workspace_runs_verified: bool = False
 
     kind = "file-product-workspace"
 
@@ -1726,6 +1727,10 @@ class ProductWorkspaceFileProvider:
         artifact_map: dict[str, Path] = {}
         for filename in WORKSPACE_RAW_PREVIEW_RUN_ARTIFACTS:
             if filename not in allowed_filenames:
+                continue
+            # Empty candidate evidence does not establish workspace ownership.
+            # Only expose diagrams after resolving a binding-scoped run root.
+            if filename == ONTOLOGY_DIAGRAM_ARTIFACT and not self.workspace_runs_verified:
                 continue
             path = self.delegate.runs_dir / filename
             if path.exists() and path.is_file():
@@ -3976,6 +3981,7 @@ def provider_from_server(server: Any, workspace_id: str | None = None) -> SpecSp
     if normalized_workspace_id is not None and normalized_workspace_id != BOOTSTRAP_WORKSPACE_ID:
         artifact_run_dir_ref = None
         pre_candidate_only = False
+        workspace_runs_verified = False
         binding = product_workspace_binding.discover_binding(
             server,
             workspace_id=normalized_workspace_id,
@@ -3986,8 +3992,17 @@ def provider_from_server(server: Any, workspace_id: str | None = None) -> SpecSp
                 workspace_id=normalized_workspace_id,
             )
             if bound_runs_dir is not None:
+                # The resolver preserves legacy fallback to global runs on an
+                # incomplete binding. That fallback cannot establish diagram scope.
+                workspace_runs_verified = (
+                    binding.get("trusted") is True
+                    and isinstance(runs_dir, Path)
+                    and bound_runs_dir.resolve() != runs_dir.resolve()
+                    and bound_runs_dir.resolve().is_relative_to(runs_dir.resolve())
+                    and bound_runs_dir.resolve() == (runs_dir / normalized_workspace_id).resolve()
+                )
                 runs_dir = bound_runs_dir
-            artifact_run_dir_ref = f"runs/{normalized_workspace_id}"
+                artifact_run_dir_ref = f"runs/{normalized_workspace_id}"
         else:
             # Before initialization, expose only scoped pre-candidate artifacts
             # for an active creation request. Candidate fallback remains disabled.
@@ -4020,6 +4035,7 @@ def provider_from_server(server: Any, workspace_id: str | None = None) -> SpecSp
             workspace_id=normalized_workspace_id,
             artifact_run_dir_ref=artifact_run_dir_ref,
             pre_candidate_only=pre_candidate_only,
+            workspace_runs_verified=workspace_runs_verified,
         )
     return file_provider
 
