@@ -17,14 +17,16 @@ or establish provider-side revocation. No request used the exposed token, and no
 account/session controls were changed. No live access was demonstrated.
 
 Token values, token fingerprints, payload identifiers, emails and session IDs
-must stay out of public review evidence. Ownership confirmation is pending.
+must stay out of public review evidence. On 2026-11-01, the repository maintainer
+confirmed in conversation that the exports came from their own ChatGPT account.
+This is owner-provided attribution, not token-signature or revocation evidence.
 
-## Outstanding checks
+## Security review checklist
 
 | Item                                | Current state                             | Evidence needed                                                                                                           |
 | ----------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | Current default-branch containment  | Open; redaction is only in an unmerged PR | Default-branch cleanup commit and scan result                                                                             |
-| Owner attribution                   | Unknown; decoded claims are hints         | Confirmation from the export/account owner, recorded without personal values                                              |
+| Owner attribution                   | Confirmed by maintainer, 2026-11-01       | Owner-provided confirmation recorded above without personal values                                                        |
 | Associated sessions and credentials | Not assessed with the provider            | Owner-authorized assessment and a non-secret record of applicable session termination/revocation or provider confirmation |
 | Adjacent export metadata            | Not established by a zero Gitleaks result | Review of nearby authorization/session fields, with no sensitive values published                                         |
 | History, forks, caches and copies   | Not inventoried or removed                | Explicit owner decision on residual privacy/access risk and any required cleanup                                          |
