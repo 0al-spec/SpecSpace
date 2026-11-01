@@ -3978,10 +3978,10 @@ def provider_from_server(server: Any, workspace_id: str | None = None) -> SpecSp
     runs_dir = getattr(server, "runs_dir", None)
     if runs_dir is None:
         runs_dir = specgraph_surfaces.runs_dir_from_context(spec_dir, specgraph_dir)
+    artifact_run_dir_ref = None
+    pre_candidate_only = False
+    workspace_runs_verified = False
     if normalized_workspace_id is not None and normalized_workspace_id != BOOTSTRAP_WORKSPACE_ID:
-        artifact_run_dir_ref = None
-        pre_candidate_only = False
-        workspace_runs_verified = False
         binding = product_workspace_binding.discover_binding(
             server,
             workspace_id=normalized_workspace_id,

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { loadPublishedOntology, publishedWorkspace } from './published-ontology';
 import { readFileSync } from 'node:fs';
+import legacyIR from './ontology-graph-contract/fixtures/ontology_normalized_ir.specgraph-core.min.json';
 const graph = JSON.parse(readFileSync(new URL('../../../widgets/ontology-explorer/model/motivation-full.fixture.json', import.meta.url), 'utf8'));
 const row = (path = 'runs/product-one/ontology.graph.json') => ({ path, sha256: 'a'.repeat(64) });
 const envelope = (kind: string, rest: object) => ({ api_version: 'v1', schema_version: 1, artifact_kind: kind, read_only: true, source: { workspace_id: 'product-one' }, ...rest });
@@ -22,9 +23,8 @@ describe('published ontology selection', () => {
     await expect(load(fetcher(rows, { data: { ...graph, schemaVersion: 'ontology.diagram-projection/v999' } }))).rejects.toThrow('Unsupported');
   });
   it('loads existing published normalized IR without pretending it is a diagram', async () => {
-    const ir = JSON.parse(readFileSync(new URL('./ontology-graph-contract/fixtures/ontology_normalized_ir.specgraph-core.min.json', import.meta.url), 'utf8'));
     const path = 'ontology.normalized.json';
-    const fn = fetcher([{ path, group: 'ontology_ir' }], { path, data: ir });
+    const fn = fetcher([{ path, group: 'ontology_ir' }], { path, data: legacyIR });
     const result = await load(fn);
     expect(result.kind === 'loaded' && result.candidate.format).toBe('legacy');
   });
@@ -35,22 +35,20 @@ describe('published ontology selection', () => {
     await expect(load(fn, 'not-published.json')).rejects.toThrow('no longer published');
   });
   it('ignores import fixtures and compatibility reports mislabeled as ontology IR', async () => {
-    const ir = JSON.parse(readFileSync(new URL('./ontology-graph-contract/fixtures/ontology_normalized_ir.specgraph-core.min.json', import.meta.url), 'utf8'));
     const path = 'generated/ontology.normalized.json';
     const fn = fetcher([
       { path: 'tests/fixtures/ontology_import/import-fixture.yaml', group: 'ontology_ir' },
       { path: 'tests/fixtures/ontology_import/compatibility-report.yaml', group: 'ontology_ir' },
       { path, group: 'ontology_ir' },
-    ], { path, data: ir });
+    ], { path, data: legacyIR });
     const result = await load(fn);
     expect(result.kind === 'loaded' && result.candidate.path).toBe(path);
     expect(fn).toHaveBeenCalledTimes(2);
     expect(await load(fetcher([{ path: 'tests/fixtures/ontology_import/import-fixture.yaml', group: 'ontology_ir' }]))).toEqual({ kind: 'missing' });
   });
   it('accepts explicitly indexed normalized IR with a nonstandard filename', async () => {
-    const ir = JSON.parse(readFileSync(new URL('./ontology-graph-contract/fixtures/ontology_normalized_ir.specgraph-core.min.json', import.meta.url), 'utf8'));
     const path = 'packages/core/generated.json';
-    const result = await load(fetcher([{ path, referenced_by_package_index: true }], { path, data: ir }));
+    const result = await load(fetcher([{ path, referenced_by_package_index: true }], { path, data: legacyIR }));
     expect(result.kind === 'loaded' && result.candidate.path).toBe(path);
   });
   it('reports absence and rejects traversal or duplicate entries', async () => {
