@@ -4,6 +4,29 @@ The profile covers the languages used in this repository. It reports legacy debt
 and rejects new violations without mass-reformatting existing application code.
 Application builds, FSD checks, unit tests and browser tests remain in the main CI.
 
+## README badges
+
+Native GitHub workflow badges track `main`: application CI, polyglot quality and
+the separate dependency audit. Passing static checks means no new debt beyond the
+baseline; it is not a security or coverage score.
+
+Stack badges use exact React, TypeScript, Vite and React Flow versions from
+`graphspace/package-lock.json`, plus the Python runtime tag in `Dockerfile`.
+Every PR generates a preview artifact. After a successful quality run on a `main`
+push, CI publishes all SVGs and `manifest.json` in one commit to the dedicated
+`quality-badges` branch. The manifest and each SVG carry the source commit SHA.
+No source files or README versions are rewritten by the bot. PRs cannot publish;
+publication uses a separate job with write permission and never forces a ref.
+Superseded main revisions are skipped. GitHub image caches may delay display.
+
+The image URLs become available after the first successful `main` publication;
+before this PR is merged, review the `stack-badges` workflow artifact instead.
+No successful hosted dependency audit is implied until that workflow has run.
+
+```bash
+quality/.venv/bin/python quality/badges.py --revision "$(git rev-parse HEAD)" --output quality/reports/badges-preview
+```
+
 ## Tools
 
 | Source                     | Checks                                                                                |
@@ -43,7 +66,7 @@ npm ci --prefix graphspace
 npm ci --prefix viewer/app
 quality/.venv/bin/python quality/install_binaries.py --destination quality/.bin
 export PATH="$PWD/quality/.venv/bin:$PWD/quality/.bin:$PATH"
-quality/.venv/bin/python -m pytest -q tests/test_quality_ratchet.py
+quality/.venv/bin/python -m pytest -q tests/test_quality_ratchet.py tests/test_quality_badges.py
 quality/.venv/bin/python quality/run.py --output quality/reports/local-1
 ```
 

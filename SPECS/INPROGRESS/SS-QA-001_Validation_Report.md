@@ -40,3 +40,14 @@ in the quality implementation/configs. Scope initialization and typed JSON test
 fixtures removed additional diagnostics. This is still the initial profile;
 ongoing CI cannot refresh the baseline. The first #437 head passed hosted CI;
 the updated stack requires new checks on its new head.
+
+README badges: native main-branch workflow status plus five stack SVGs generated
+from the Dockerfile/runtime tag and exact npm lock versions. The full badge set
+is revision-bound and published atomically to a dedicated metadata branch only
+after a successful quality run on a main push. PR jobs generate preview artifacts
+without publishing. Twenty ratchet/badge tests passed, including stale revision,
+forbidden PR publication, initial branch creation, API failures, version changes
+and non-forced ref updates. Five SVGs rendered and were inspected in Chromium.
+All 15 analyzers completed with zero errors and no new findings; README formatter
+normalization reduced bootstrap debt to 7,758. No live badge publication was made
+from the developer machine; initial hosted publication remains a post-merge check.
