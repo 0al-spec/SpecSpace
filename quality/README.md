@@ -124,6 +124,9 @@ copy and never uploads raw source as a quality artifact. It scans current files,
 not Git history. The bootstrap removed archived authentication JWT strings from
 five imported HTML files; their `exp` fields were in the past. This does not prove
 revocation or remove historical copies. No Git history was rewritten.
+Ownership and associated-session checks remain open in
+[SS-SEC-001](../SPECS/INPROGRESS/SS-SEC-001_Archived_Auth_Exposure.md).
+A clean source scan or merge of the redaction does not close that review.
 
 ## Dependency audits
 

@@ -31,6 +31,13 @@ findings. Historical Git objects were not rewritten; signatures and live session
 were not checked. Quality artifacts exclude raw source and Gitleaks uses full
 redaction. The secret scan temporary copy is removed even if the tool fails.
 
+**Security review remains open:** [SS-SEC-001](SS-SEC-001_Archived_Auth_Exposure.md)
+tracks owner attribution, associated sessions, adjacent export metadata and the
+disposition of historical copies. On 2026-11-01, the scoped default-branch check
+confirmed one distinct JWT-shaped string repeated in five files; unverified
+expiry claims do not establish revocation or current access. No live credential
+probe or session changes were performed. Redaction/merge/green CI cannot close it.
+
 No hosted CI result, independent review, merge or deployment is asserted by this
 local report. Existing primary checkout reused; no extra Git worktree created.
 
