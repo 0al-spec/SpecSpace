@@ -1,0 +1,8 @@
+export default {
+  extends: ["stylelint-config-standard"],
+  rules: {
+    "selector-class-pattern": null,
+    "custom-property-pattern": null,
+    "selector-pseudo-class-no-unknown": [true, { ignorePseudoClasses: ["global", "local"] }],
+  },
+};

@@ -1,0 +1,7 @@
+{
+  "include": ["../viewer", "../scripts", "../tests", "../quality"],
+  "exclude": ["../viewer/app", "../tests/fixtures", "node_modules", ".venv"],
+  "pythonVersion": "3.12",
+  "typeCheckingMode": "standard",
+  "reportMissingTypeStubs": false
+}

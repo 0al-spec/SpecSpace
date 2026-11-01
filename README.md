@@ -1,17 +1,31 @@
 # ContextBuilder
 
+[![CI](https://github.com/0al-spec/SpecSpace/actions/workflows/ci.yml/badge.svg?branch=main&event=push)](https://github.com/0al-spec/SpecSpace/actions/workflows/ci.yml)
+[![Polyglot quality](https://github.com/0al-spec/SpecSpace/actions/workflows/quality.yml/badge.svg?branch=main&event=push)](https://github.com/0al-spec/SpecSpace/actions/workflows/quality.yml)
+[![Dependency audit](https://github.com/0al-spec/SpecSpace/actions/workflows/dependency-audit.yml/badge.svg?branch=main)](https://github.com/0al-spec/SpecSpace/actions/workflows/dependency-audit.yml)
+
+[![Python runtime](https://raw.githubusercontent.com/0al-spec/SpecSpace/quality-badges/python.svg)](Dockerfile)
+[![React](https://raw.githubusercontent.com/0al-spec/SpecSpace/quality-badges/react.svg)](graphspace/package-lock.json)
+[![TypeScript](https://raw.githubusercontent.com/0al-spec/SpecSpace/quality-badges/typescript.svg)](graphspace/package-lock.json)
+[![Vite](https://raw.githubusercontent.com/0al-spec/SpecSpace/quality-badges/vite.svg)](graphspace/package-lock.json)
+[![React Flow](https://raw.githubusercontent.com/0al-spec/SpecSpace/quality-badges/react-flow.svg)](graphspace/package-lock.json)
+
+Workflow badges report `main`. Stack badges are generated together from the
+validated commit's Dockerfile and lockfile after successful quality CI on `main`.
+See [quality checks and badge provenance](quality/README.md).
+
 ContextBuilder is a local graph viewer and context compiler for conversation JSON files. It reads a directory of dialog JSON files, builds a lineage graph of roots, branches, and merges, lets you select a thought direction, and compiles that selection into a Hyperprompt-backed Markdown context artifact ready for an external LLM or agent.
 
 > **Engineering docs:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — system design, module breakdown, data flow · [docs/PROBLEMS.md](docs/PROBLEMS.md) — known issues and shortcomings
 
 ## Scope Boundaries
 
-| Concern | Owner |
-|---------|-------|
-| Extracting conversations from browser HTML | `ChatGPTDialogs` |
-| Graph structure, validation, selection, export, compile orchestration | **ContextBuilder** (this repo) |
-| Running LLMs, executing prompts, agent workflows | External — ContextBuilder hands off a compiled Markdown artifact |
-| Browser capture, cloud sync, semantic retrieval | Out of scope for v1 |
+| Concern                                                               | Owner                                                            |
+| --------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| Extracting conversations from browser HTML                            | `ChatGPTDialogs`                                                 |
+| Graph structure, validation, selection, export, compile orchestration | **ContextBuilder** (this repo)                                   |
+| Running LLMs, executing prompts, agent workflows                      | External — ContextBuilder hands off a compiled Markdown artifact |
+| Browser capture, cloud sync, semantic retrieval                       | Out of scope for v1                                              |
 
 ContextBuilder does not execute models. Its output is a deterministic Markdown file you hand to an external agent.
 
@@ -288,7 +302,11 @@ Canonical conversations created or normalized by ContextBuilder:
   "conversation_id": "conv-branding-branch",
   "title": "Branding Branch",
   "messages": [
-    { "message_id": "msg-branch-1", "role": "user", "content": "Continue from the protocol naming checkpoint." }
+    {
+      "message_id": "msg-branch-1",
+      "role": "user",
+      "content": "Continue from the protocol naming checkpoint."
+    }
   ],
   "lineage": {
     "parents": [
@@ -309,12 +327,24 @@ Canonical conversations created or normalized by ContextBuilder:
   "conversation_id": "conv-contextbuilder-merge",
   "title": "Context Compiler Merge",
   "messages": [
-    { "message_id": "msg-merge-1", "role": "user", "content": "Combine graph selection with Hyperprompt compilation." }
+    {
+      "message_id": "msg-merge-1",
+      "role": "user",
+      "content": "Combine graph selection with Hyperprompt compilation."
+    }
   ],
   "lineage": {
     "parents": [
-      { "conversation_id": "conv-trust-social-root", "message_id": "msg-root-2", "link_type": "merge" },
-      { "conversation_id": "conv-branding-branch", "message_id": "msg-branch-2", "link_type": "merge" }
+      {
+        "conversation_id": "conv-trust-social-root",
+        "message_id": "msg-root-2",
+        "link_type": "merge"
+      },
+      {
+        "conversation_id": "conv-branding-branch",
+        "message_id": "msg-branch-2",
+        "link_type": "merge"
+      }
     ]
   }
 }
@@ -355,30 +385,30 @@ ContextBuilder validates individual payloads and whole-workspace lineage before 
 
 ### Read APIs
 
-| Endpoint | Description |
-|----------|-------------|
-| `GET /api/files` | Workspace listing with per-file validation metadata and graph snapshot |
-| `GET /api/graph` | Full graph snapshot, summary counts, and integrity split (blocking / non-blocking) |
-| `GET /api/file?name=...` | One file payload with its validation result |
-| `GET /api/conversation?conversation_id=...` | One graph node with edges, integrity, and compile target metadata |
-| `GET /api/checkpoint?conversation_id=...&message_id=...` | One checkpoint anchor with child edges and compile target metadata |
-| `GET /api/capabilities` | Feature flags: `spec_graph` (true when `--spec-dir` is set) |
-| `GET /api/spec-graph` | SpecGraph snapshot: nodes, edges, roots, gap metrics (requires `--spec-dir`) |
-| `GET /api/spec-node?id=...` | Full YAML payload for one spec node (requires `--spec-dir`) |
-| `GET /api/spec-watch` | SSE stream — fires a `change` event when YAML spec files change on disk |
+| Endpoint                                                 | Description                                                                        |
+| -------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `GET /api/files`                                         | Workspace listing with per-file validation metadata and graph snapshot             |
+| `GET /api/graph`                                         | Full graph snapshot, summary counts, and integrity split (blocking / non-blocking) |
+| `GET /api/file?name=...`                                 | One file payload with its validation result                                        |
+| `GET /api/conversation?conversation_id=...`              | One graph node with edges, integrity, and compile target metadata                  |
+| `GET /api/checkpoint?conversation_id=...&message_id=...` | One checkpoint anchor with child edges and compile target metadata                 |
+| `GET /api/capabilities`                                  | Feature flags: `spec_graph` (true when `--spec-dir` is set)                        |
+| `GET /api/spec-graph`                                    | SpecGraph snapshot: nodes, edges, roots, gap metrics (requires `--spec-dir`)       |
+| `GET /api/spec-node?id=...`                              | Full YAML payload for one spec node (requires `--spec-dir`)                        |
+| `GET /api/spec-watch`                                    | SSE stream — fires a `change` event when YAML spec files change on disk            |
 
 ### Write APIs
 
-| Endpoint | Body | Description |
-|----------|------|-------------|
-| `POST /api/file` | `{ name, data, overwrite? }` | Validate and save a conversation file |
-| `DELETE /api/file?name=...` | — | Delete a conversation file |
+| Endpoint                    | Body                         | Description                           |
+| --------------------------- | ---------------------------- | ------------------------------------- |
+| `POST /api/file`            | `{ name, data, overwrite? }` | Validate and save a conversation file |
+| `DELETE /api/file?name=...` | —                            | Delete a conversation file            |
 
 ### Compile APIs
 
-| Endpoint | Body | Description |
-|----------|------|-------------|
-| `POST /api/export` | `{ conversation_id, message_id? }` | Export lineage nodes to disk and generate `root.hc` |
+| Endpoint            | Body                               | Description                                              |
+| ------------------- | ---------------------------------- | -------------------------------------------------------- |
+| `POST /api/export`  | `{ conversation_id, message_id? }` | Export lineage nodes to disk and generate `root.hc`      |
 | `POST /api/compile` | `{ conversation_id, message_id? }` | Export lineage nodes and invoke the Hyperprompt compiler |
 
 **Export response fields:**
@@ -439,18 +469,18 @@ Each graph edge includes:
 
 Returned by `GET /api/conversation` and `GET /api/checkpoint`:
 
-| Field | Description |
-|-------|-------------|
-| `scope` | `conversation` or `checkpoint` |
-| `target_conversation_id` | Selected conversation |
-| `target_message_id` | Selected message anchor (checkpoint scope only) |
-| `lineage_conversation_ids` | Deterministic ancestor ordering ending at target |
-| `lineage_edge_ids` | Parent edges included in the ancestry |
-| `lineage_paths` | Root-to-target paths, preserving merge provenance |
-| `root_conversation_ids` | True graph roots reachable from the target; empty when `is_lineage_complete` is `false` |
-| `merge_parent_conversation_ids` | Merge parents visible in ancestry |
-| `unresolved_parent_edge_ids` | Broken parent edges making lineage incomplete |
-| `is_lineage_complete` | `false` when any ancestor edge is unresolved |
+| Field                           | Description                                                                             |
+| ------------------------------- | --------------------------------------------------------------------------------------- |
+| `scope`                         | `conversation` or `checkpoint`                                                          |
+| `target_conversation_id`        | Selected conversation                                                                   |
+| `target_message_id`             | Selected message anchor (checkpoint scope only)                                         |
+| `lineage_conversation_ids`      | Deterministic ancestor ordering ending at target                                        |
+| `lineage_edge_ids`              | Parent edges included in the ancestry                                                   |
+| `lineage_paths`                 | Root-to-target paths, preserving merge provenance                                       |
+| `root_conversation_ids`         | True graph roots reachable from the target; empty when `is_lineage_complete` is `false` |
+| `merge_parent_conversation_ids` | Merge parents visible in ancestry                                                       |
+| `unresolved_parent_edge_ids`    | Broken parent edges making lineage incomplete                                           |
+| `is_lineage_complete`           | `false` when any ancestor edge is unresolved                                            |
 
 ---
 
@@ -481,20 +511,20 @@ ContextBuilder/
 
 ## Makefile Targets
 
-| Target | Purpose |
-|--------|---------|
-| `make quickstart` | Canonicalize + start API + start UI in one shot |
-| `make serve DIALOG_DIR=...` | Start the combined API + static file server (port 8000) |
-| `make dev DIALOG_DIR=...` | Start API on :8001 and React dev server on :5173 |
-| `make api` | Start API only (uses `$CANONICAL_DIR` default) |
-| `make ui` | Start React dev server only |
-| `make specspace-restart` | Restart SpecSpace API + SpecSpace dev UI in detached `screen` sessions |
-| `make specspace-status` | Show SpecSpace dev `screen` sessions and port listeners |
-| `make canonicalize DIALOG_DIR=... OUTPUT_DIR=...` | Batch-normalize imported JSON to canonical form |
-| `make canon` | Canonicalize with default input/output paths |
-| `make test` | Run all Python tests |
-| `make lint` | Syntax-check Python source files |
-| `make stop` | Kill servers running on ports 8001 and 5173 |
+| Target                                            | Purpose                                                                |
+| ------------------------------------------------- | ---------------------------------------------------------------------- |
+| `make quickstart`                                 | Canonicalize + start API + start UI in one shot                        |
+| `make serve DIALOG_DIR=...`                       | Start the combined API + static file server (port 8000)                |
+| `make dev DIALOG_DIR=...`                         | Start API on :8001 and React dev server on :5173                       |
+| `make api`                                        | Start API only (uses `$CANONICAL_DIR` default)                         |
+| `make ui`                                         | Start React dev server only                                            |
+| `make specspace-restart`                          | Restart SpecSpace API + SpecSpace dev UI in detached `screen` sessions |
+| `make specspace-status`                           | Show SpecSpace dev `screen` sessions and port listeners                |
+| `make canonicalize DIALOG_DIR=... OUTPUT_DIR=...` | Batch-normalize imported JSON to canonical form                        |
+| `make canon`                                      | Canonicalize with default input/output paths                           |
+| `make test`                                       | Run all Python tests                                                   |
+| `make lint`                                       | Syntax-check Python source files                                       |
+| `make stop`                                       | Kill servers running on ports 8001 and 5173                            |
 
 ---
 
