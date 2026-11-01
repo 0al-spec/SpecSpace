@@ -4,6 +4,8 @@ import importlib.util
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("quality_runner", ROOT / "quality/run.py")
 assert spec and spec.loader
@@ -13,6 +15,27 @@ spec.loader.exec_module(runner)
 
 def finding(key):
     return {"fingerprint": key}
+
+
+@pytest.mark.parametrize("extension", ["cjs", "jsx", "mts", "cts"])
+def test_web_extensions_are_linted_and_formatted(tmp_path, extension):
+    name = f"sample.{extension}"
+    text = (
+        "const result=<div>{eval(input)}</div>\n"
+        if extension == "jsx"
+        else "const result=eval(input)\n"
+    )
+    (tmp_path / name).write_text(text)
+    with patch.object(runner, "ROOT", tmp_path):
+        for tool in ("eslint", "prettier"):
+            output = tmp_path / tool
+            output.mkdir()
+            collector = runner.Collector(output)
+            collector.execute(tool, [name])
+            assert not collector.errors, collector.errors
+            assert collector.findings, f"{tool} skipped {name}"
+            if tool == "eslint":
+                assert any("eval" in item["rule"] for item in collector.findings)
 
 
 def test_new_duplicate_does_not_hide_under_an_existing_fingerprint():

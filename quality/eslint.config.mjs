@@ -9,6 +9,10 @@ import refresh from "eslint-plugin-react-refresh";
 import security from "eslint-plugin-security";
 import sonar from "eslint-plugin-sonarjs";
 export default ts.config(
+  {
+    files: ["**/*.{js,mjs,cjs,jsx,ts,tsx,mts,cts}"],
+    languageOptions: { parserOptions: { ecmaFeatures: { jsx: true } } },
+  },
   js.configs.recommended,
   ...ts.configs.recommended,
   ...ts.configs.recommendedTypeChecked.map((config) => ({

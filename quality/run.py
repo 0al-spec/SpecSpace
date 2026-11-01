@@ -137,7 +137,11 @@ class Collector:
 
     def collect(self, tool: str, files: list[str]):
         py = [p for p in files if p.endswith(".py")]
-        web = [p for p in files if p.endswith((".ts", ".tsx", ".js", ".mjs"))]
+        web = [
+            p
+            for p in files
+            if p.endswith((".ts", ".tsx", ".mts", ".cts", ".js", ".mjs", ".cjs", ".jsx"))
+        ]
         data = [
             p
             for p in files
@@ -248,6 +252,10 @@ class Collector:
                 ".tsx",
                 ".js",
                 ".mjs",
+                ".cjs",
+                ".jsx",
+                ".mts",
+                ".cts",
                 ".css",
                 ".json",
                 ".md",

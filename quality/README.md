@@ -80,6 +80,9 @@ with `--tools ruff bandit`; they never certify the whole profile.
 Config files under this directory can also be selected in editor integrations.
 The pinned ESLint flat config is `quality/eslint.config.mjs`; it uses the actual
 application TypeScript projects, so both app dependency trees must be installed.
+ESLint and Prettier include `.js`, `.mjs`, `.cjs`, `.jsx`, `.ts`, `.tsx`, `.mts`
+and `.cts` source files. Typed ESLint rules remain scoped to the configured app
+TypeScript projects.
 
 ## Debt contract
 
