@@ -1784,7 +1784,7 @@ export function ViewerPage({
           ) : null}
 
           {activeUtilityPanel === "ontology-workbench" ? (
-            <OntologyWorkbenchPanel state={ontologyWorkbenchState} />
+            <OntologyWorkbenchPanel state={ontologyWorkbenchState} workspaceId={workspace.id} />
           ) : null}
 
           {activeUtilityPanel === "practical-ontology" ? (

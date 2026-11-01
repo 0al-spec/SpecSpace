@@ -1,7 +1,7 @@
 # Ontology Viewer in SpecSpace
 
 Open `/ontology` and select or drop a local `ontology.graph.json` exported by
-`ontologyviz --format json`. Files stay in browser memory; this route performs
+`ontologyviz --format json`. Files opened manually stay in browser memory; this route performs
 no upload, YAML save, canonical mutation or publication. Existing normalized IR
 packages and ZIP imports continue through the legacy viewer. Select one format
 at a time; competing projections are rejected explicitly. A failed load preserves
@@ -44,3 +44,23 @@ Next slice: expose this component over the selected workspace's published
 projection/artifact contract. YAML editing and agent actions need their own
 SpecSpace-owned lifecycle and permissions; this read-only integration does not
 forward the standalone local writer to hosted browsers.
+
+## Published workspace data
+
+`/ontology?workspace=team-decision-log` automatically reads that selected provider's
+artifact catalog and content API. The workbench links here with its workspace ID.
+Without a workspace parameter it selects `specgraph-bootstrap`; invalid IDs never
+fall back to bootstrap. `?source=local` disables the initial automatic request.
+Manual selection cancels automatic loading; Reload published ontology retries.
+
+One optional `ontology.graph.json` in the selected runs root is preferred. If no
+diagram is published, the existing normalized IR is shown in the explicitly
+labeled legacy view. Multiple candidates require a selection. A declared broken
+diagram never silently falls back to another artifact. The current SpecGraph
+producer does not yet emit this diagram in its bundle; its existing IR works now.
+
+The UI validates path/workspace/envelope and compares catalog/content digests when
+the catalog supplies one. No digest is invented for older file catalogs. Missing,
+HTTP-error, malformed and future-schema states remain visible alongside manual
+loading. Content SHA-256 is an additive field of the existing content API; it
+binds the bytes read by the provider and does not prove approval or source truth.
