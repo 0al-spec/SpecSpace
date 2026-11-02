@@ -4,6 +4,11 @@
 [![Polyglot quality](https://github.com/0al-spec/SpecSpace/actions/workflows/quality.yml/badge.svg?branch=main&event=push)](https://github.com/0al-spec/SpecSpace/actions/workflows/quality.yml)
 [![Dependency audit](https://github.com/0al-spec/SpecSpace/actions/workflows/dependency-audit.yml/badge.svg?branch=main)](https://github.com/0al-spec/SpecSpace/actions/workflows/dependency-audit.yml)
 
+[![Ruff findings](https://raw.githubusercontent.com/0al-spec/SpecSpace/quality-metrics-badges/ruff.svg)](quality/README.md#readme-badges)
+[![Python type findings](https://raw.githubusercontent.com/0al-spec/SpecSpace/quality-metrics-badges/basedpyright.svg)](quality/README.md#readme-badges)
+[![ESLint findings](https://raw.githubusercontent.com/0al-spec/SpecSpace/quality-metrics-badges/eslint.svg)](quality/README.md#readme-badges)
+[![Bandit findings](https://raw.githubusercontent.com/0al-spec/SpecSpace/quality-metrics-badges/bandit.svg)](quality/README.md#readme-badges)
+
 [![Python runtime](https://raw.githubusercontent.com/0al-spec/SpecSpace/quality-badges/python.svg)](Dockerfile)
 [![React](https://raw.githubusercontent.com/0al-spec/SpecSpace/quality-badges/react.svg)](graphspace/package-lock.json)
 [![TypeScript](https://raw.githubusercontent.com/0al-spec/SpecSpace/quality-badges/typescript.svg)](graphspace/package-lock.json)
@@ -13,6 +18,7 @@
 Workflow badges report `main`. Stack badges are generated together from the
 validated commit's Dockerfile and lockfile after successful quality CI on `main`.
 See [quality checks and badge provenance](quality/README.md).
+Finding counts include accepted baseline debt; they are not coverage or security scores.
 
 SpecSpace is a local graph viewer and context compiler for conversation JSON files. It reads a directory of dialog JSON files, builds a lineage graph of roots, branches, and merges, lets you select a thought direction, and compiles that selection into a Hyperprompt-backed Markdown context artifact ready for an external LLM or agent.
 
