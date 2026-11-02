@@ -94,7 +94,7 @@ def main() -> None:
     if args.publish:
         if os.environ.get("GITHUB_RUN_ID") != args.run_id:
             raise ValueError("Report run ID must match the current workflow run")
-        setattr(badges, "BRANCH", "quality-metrics-badges")
+        badges.__dict__["BRANCH"] = "quality-metrics-badges"
         badges.publish(files, args.revision)
 
 
