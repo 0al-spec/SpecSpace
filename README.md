@@ -1,4 +1,4 @@
-# ContextBuilder
+# SpecSpace
 
 [![CI](https://github.com/0al-spec/SpecSpace/actions/workflows/ci.yml/badge.svg?branch=main&event=push)](https://github.com/0al-spec/SpecSpace/actions/workflows/ci.yml)
 [![Polyglot quality](https://github.com/0al-spec/SpecSpace/actions/workflows/quality.yml/badge.svg?branch=main&event=push)](https://github.com/0al-spec/SpecSpace/actions/workflows/quality.yml)
@@ -14,7 +14,7 @@ Workflow badges report `main`. Stack badges are generated together from the
 validated commit's Dockerfile and lockfile after successful quality CI on `main`.
 See [quality checks and badge provenance](quality/README.md).
 
-ContextBuilder is a local graph viewer and context compiler for conversation JSON files. It reads a directory of dialog JSON files, builds a lineage graph of roots, branches, and merges, lets you select a thought direction, and compiles that selection into a Hyperprompt-backed Markdown context artifact ready for an external LLM or agent.
+SpecSpace is a local graph viewer and context compiler for conversation JSON files. It reads a directory of dialog JSON files, builds a lineage graph of roots, branches, and merges, lets you select a thought direction, and compiles that selection into a Hyperprompt-backed Markdown context artifact ready for an external LLM or agent.
 
 > **Engineering docs:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — system design, module breakdown, data flow · [docs/PROBLEMS.md](docs/PROBLEMS.md) — known issues and shortcomings
 
@@ -23,11 +23,11 @@ ContextBuilder is a local graph viewer and context compiler for conversation JSO
 | Concern                                                               | Owner                                                            |
 | --------------------------------------------------------------------- | ---------------------------------------------------------------- |
 | Extracting conversations from browser HTML                            | `ChatGPTDialogs`                                                 |
-| Graph structure, validation, selection, export, compile orchestration | **ContextBuilder** (this repo)                                   |
-| Running LLMs, executing prompts, agent workflows                      | External — ContextBuilder hands off a compiled Markdown artifact |
+| Graph structure, validation, selection, export, compile orchestration | **SpecSpace** (this repo)                                        |
+| Running LLMs, executing prompts, agent workflows                      | External — SpecSpace hands off a compiled Markdown artifact      |
 | Browser capture, cloud sync, semantic retrieval                       | Out of scope for v1                                              |
 
-ContextBuilder does not execute models. Its output is a deterministic Markdown file you hand to an external agent.
+SpecSpace does not execute models. Its output is a deterministic Markdown file you hand to an external agent.
 
 ---
 
@@ -65,7 +65,7 @@ make dev DIALOG_DIR=/path/to/dialogs
 # API on :8001, GraphSpace SpecSpace UI on :5173 → http://localhost:5173/
 ```
 
-The deprecated ContextBuilder conversation UI is still available for legacy
+The deprecated conversation UI is still available for legacy
 debugging through `make legacy-dev` or `make legacy-ui`, but product workspace
 work should use the GraphSpace SpecSpace UI.
 
@@ -77,7 +77,7 @@ work should use the GraphSpace SpecSpace UI.
 JSON conversations on disk
         │
         ▼
-  ContextBuilder API          GET /api/graph
+  SpecSpace API               GET /api/graph
   (graph index +              GET /api/conversation
    validation)                GET /api/checkpoint
         │
@@ -93,8 +93,8 @@ JSON conversations on disk
   compiled.md                 ← hand to external agent
 ```
 
-1. **Graph index** — ContextBuilder reads all JSON files in the dialog directory, validates and normalizes them, and builds an in-memory lineage graph.
-2. **Export** — You select a conversation or checkpoint as the compile target. ContextBuilder writes each ancestor conversation as a deterministic Markdown file under `export/{target}/nodes/` and generates `export/{target}/root.hc` with exactly one depth-0 root node. Provenance, conversation labels, and node includes are emitted as children under that root in lineage order.
+1. **Graph index** — SpecSpace reads all JSON files in the dialog directory, validates and normalizes them, and builds an in-memory lineage graph.
+2. **Export** — You select a conversation or checkpoint as the compile target. SpecSpace writes each ancestor conversation as a deterministic Markdown file under `export/{target}/nodes/` and generates `export/{target}/root.hc` with exactly one depth-0 root node. Provenance, conversation labels, and node includes are emitted as children under that root in lineage order.
 3. **Compile** — Hyperprompt reads `root.hc`, resolves the included node files, and writes `export/{target}/compiled.md`. That file is the final context artifact.
 
 ### Export Directory Layout
@@ -123,7 +123,7 @@ The export directory is deterministically regenerated on each export. Prior cont
 
 ## Hyperprompt Dependency
 
-ContextBuilder calls the [Hyperprompt](https://github.com/0AL/Hyperprompt) compiler to produce the final Markdown artifact.
+SpecSpace calls the [Hyperprompt](https://github.com/0AL/Hyperprompt) compiler to produce the final Markdown artifact.
 
 ### Build Hyperprompt
 
@@ -135,7 +135,7 @@ swift build -c release
 #   .build/arm64-apple-macosx/release/hyperprompt
 ```
 
-### Pass the Binary to ContextBuilder
+### Pass the Binary to SpecSpace
 
 ```bash
 python3 viewer/server.py \
@@ -143,7 +143,7 @@ python3 viewer/server.py \
   --hyperprompt-binary /path/to/Hyperprompt/.build/release/hyperprompt
 ```
 
-If `--hyperprompt-binary` is not provided (or uses the default value), ContextBuilder resolves Hyperprompt in this order:
+If `--hyperprompt-binary` is not provided (or uses the default value), SpecSpace resolves Hyperprompt in this order:
 
 1. `.build/release/hyperprompt`
 2. `.build/arm64-apple-macosx/release/hyperprompt`
@@ -266,11 +266,11 @@ Files produced by `ChatGPTDialogs` (or any compatible exporter):
 }
 ```
 
-Imported files may omit `conversation_id` and lineage metadata. ContextBuilder normalizes them into canonical roots on first save.
+Imported files may omit `conversation_id` and lineage metadata. SpecSpace normalizes them into canonical roots on first save.
 
 ### Canonical Conversation Format
 
-Canonical conversations created or normalized by ContextBuilder:
+Canonical conversations created or normalized by SpecSpace:
 
 ```json
 {
@@ -324,7 +324,7 @@ Canonical conversations created or normalized by ContextBuilder:
 
 ```json
 {
-  "conversation_id": "conv-contextbuilder-merge",
+  "conversation_id": "conv-specspace-merge",
   "title": "Context Compiler Merge",
   "messages": [
     {
@@ -353,11 +353,11 @@ Canonical conversations created or normalized by ContextBuilder:
 ### Schema Rules
 
 - Imported roots are valid inputs even when `conversation_id` is absent.
-- Canonical files created by ContextBuilder must include `conversation_id`.
+- Canonical files created by SpecSpace must include `conversation_id`.
 - `lineage.parents` is mandatory for canonical files; empty only for canonical roots.
 - Parent references always require `conversation_id`, `message_id`, and `link_type`.
 - `link_type` is `branch` for single-parent conversations and `merge` for multi-parent.
-- ContextBuilder preserves imported provenance (`source_file`, `turn_id`, `source`) in exports.
+- SpecSpace preserves imported provenance (`source_file`, `turn_id`, `source`) in exports.
 
 ### Normalization Rules
 
@@ -370,7 +370,7 @@ Canonical conversations created or normalized by ContextBuilder:
 
 ## Integrity Validation
 
-ContextBuilder validates individual payloads and whole-workspace lineage before persisting or graph-indexing any conversation:
+SpecSpace validates individual payloads and whole-workspace lineage before persisting or graph-indexing any conversation:
 
 1. Canonical conversations require a non-empty `conversation_id`, valid messages with stable `message_id` values, and a `lineage.parents` list.
 2. Duplicate `message_id` values within one conversation are rejected.
@@ -487,7 +487,7 @@ Returned by `GET /api/conversation` and `GET /api/checkpoint`:
 ## Repository Layout
 
 ```
-ContextBuilder/
+SpecSpace/
 ├── viewer/
 │   ├── server.py          # HTTP server: routing, graph indexing, export, compile
 │   ├── schema.py          # Schema validation, normalization, and classification
