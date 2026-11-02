@@ -20,12 +20,12 @@ SpecSpace is a local graph viewer and context compiler for conversation JSON fil
 
 ## Scope Boundaries
 
-| Concern                                                               | Owner                                                            |
-| --------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| Extracting conversations from browser HTML                            | `ChatGPTDialogs`                                                 |
-| Graph structure, validation, selection, export, compile orchestration | **SpecSpace** (this repo)                                        |
-| Running LLMs, executing prompts, agent workflows                      | External — SpecSpace hands off a compiled Markdown artifact      |
-| Browser capture, cloud sync, semantic retrieval                       | Out of scope for v1                                              |
+| Concern                                                               | Owner                                                       |
+| --------------------------------------------------------------------- | ----------------------------------------------------------- |
+| Extracting conversations from browser HTML                            | `ChatGPTDialogs`                                            |
+| Graph structure, validation, selection, export, compile orchestration | **SpecSpace** (this repo)                                   |
+| Running LLMs, executing prompts, agent workflows                      | External — SpecSpace hands off a compiled Markdown artifact |
+| Browser capture, cloud sync, semantic retrieval                       | Out of scope for v1                                         |
 
 SpecSpace does not execute models. Its output is a deterministic Markdown file you hand to an external agent.
 
