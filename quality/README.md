@@ -23,6 +23,18 @@ The image URLs become available after the first successful `main` publication;
 before this PR is merged, review the `stack-badges` workflow artifact instead.
 No successful hosted dependency audit is implied until that workflow has run.
 
+The static-analysis badges show the total Ruff, BasedPyright, ESLint and Bandit
+findings from the last successful full quality run on `main`, including existing
+baseline debt. They count tool diagnostics, not defects, coverage, or a security
+score; values from different tools are not directly comparable. Scope, rules and
+tool versions follow the reviewed quality profile below. After the run succeeds,
+CI downloads that same run's report and publishes the SVGs and a manifest to
+`quality-metrics-badges` in one commit. The manifest records the source revision,
+workflow run, profile digest and report digest. A failed or incomplete run does
+not publish new numbers, so badges can describe an older successful revision;
+inspect the manifest and quality workflow for freshness. The images appear after
+the first successful publication. PRs produce a `metric-badges` preview artifact.
+
 ```bash
 quality/.venv/bin/python quality/badges.py --revision "$(git rev-parse HEAD)" --output quality/reports/badges-preview
 ```

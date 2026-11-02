@@ -43,11 +43,16 @@ jobs:
             echo "$GITHUB_WORKSPACE/quality/.bin"
           } >> "$GITHUB_PATH"
       - name: Test quality failure boundaries
-        run: quality/.venv/bin/python -m pytest -q tests/test_quality_ratchet.py tests/test_quality_badges.py
+        run: quality/.venv/bin/python -m pytest -q tests/test_quality_ratchet.py tests/test_quality_badges.py tests/test_quality_metric_badges.py
       - name: Generate revision-bound stack badges
         run: quality/.venv/bin/python quality/badges.py --revision "$GITHUB_SHA" --output "$RUNNER_TEMP/stack-badges"
       - name: Check full source against reviewed debt
         run: quality/.venv/bin/python quality/run.py --output quality/reports/ci
+      - name: Generate measured quality badge preview
+        run: |
+          quality/.venv/bin/python scripts/quality_metric_badges.py \
+            --revision "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" \
+            --report quality/reports/ci/report.json --output "$RUNNER_TEMP/metric-badges"
       - name: Publish quality summary
         if: always()
         run: |
@@ -68,6 +73,12 @@ jobs:
           name: stack-badges
           path: ${{ runner.temp }}/stack-badges
           if-no-files-found: error
+      - uses: actions/upload-artifact@v7
+        if: success()
+        with:
+          name: metric-badges
+          path: ${{ runner.temp }}/metric-badges
+          if-no-files-found: error
 
   publish-badges:
     needs: static-quality
@@ -87,3 +98,16 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python quality/badges.py --revision "$GITHUB_SHA" --output "$RUNNER_TEMP/published-stack-badges" --publish
+      - name: Download this run's quality report
+        uses: actions/download-artifact@v8
+        with:
+          name: polyglot-quality
+          path: ${{ runner.temp }}/polyglot-quality
+      - name: Publish measured static-analysis counts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python scripts/quality_metric_badges.py \
+            --revision "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" \
+            --report "$RUNNER_TEMP/polyglot-quality/report.json" \
+            --output "$RUNNER_TEMP/published-metric-badges" --publish
