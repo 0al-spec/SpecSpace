@@ -42,19 +42,27 @@ GET_ROUTES: dict[str, RouteSpec] = {
     "/api/metric-pack-runs": RouteSpec("handle_metric_pack_runs"),
     "/api/recent-runs": RouteSpec("handle_recent_runs", pass_parsed=True),
     "/api/spec-activity": RouteSpec("handle_spec_activity", pass_parsed=True),
-    "/api/implementation-work-index": RouteSpec("handle_implementation_work_index", pass_parsed=True),
+    "/api/implementation-work-index": RouteSpec(
+        "handle_implementation_work_index", pass_parsed=True
+    ),
     "/api/metric-pricing-provenance": RouteSpec("handle_metric_pricing_provenance"),
     "/api/model-usage-telemetry": RouteSpec("handle_model_usage_telemetry"),
     "/api/metric-signals": RouteSpec("handle_metric_signals"),
     "/api/spec-overlay": RouteSpec("handle_spec_overlay"),
     "/api/specpm/preview": RouteSpec("handle_specpm_preview_get"),
-    "/api/specpm/export-preview": RouteSpec("_handle_specpm_artifact_get", args=("specpm_export_preview.json",)),
-    "/api/specpm/handoff": RouteSpec("_handle_specpm_artifact_get", args=("specpm_handoff_packets.json",)),
+    "/api/specpm/export-preview": RouteSpec(
+        "_handle_specpm_artifact_get", args=("specpm_export_preview.json",)
+    ),
+    "/api/specpm/handoff": RouteSpec(
+        "_handle_specpm_artifact_get", args=("specpm_handoff_packets.json",)
+    ),
     "/api/specpm/materialization": RouteSpec(
         "_handle_specpm_artifact_get",
         args=("specpm_materialization_report.json",),
     ),
-    "/api/specpm/import-preview": RouteSpec("_handle_specpm_artifact_get", args=("specpm_import_preview.json",)),
+    "/api/specpm/import-preview": RouteSpec(
+        "_handle_specpm_artifact_get", args=("specpm_import_preview.json",)
+    ),
     "/api/specpm/import-handoff": RouteSpec(
         "_handle_specpm_artifact_get",
         args=("specpm_import_handoff_packets.json",),
@@ -72,16 +80,25 @@ GET_ROUTES: dict[str, RouteSpec] = {
     "/api/v1/capabilities": RouteSpec("handle_v1_capabilities"),
     "/api/v1/workspaces": RouteSpec("handle_v1_workspaces"),
     "/api/v1/spec-graph": RouteSpec("handle_v1_spec_graph", pass_parsed=True),
-    "/api/v1/product-workspace-decisions": RouteSpec("handle_v1_product_workspace_decisions", pass_parsed=True),
+    "/api/v1/product-workspace-decisions": RouteSpec(
+        "handle_v1_product_workspace_decisions", pass_parsed=True
+    ),
     "/api/v1/spec-markdown": RouteSpec("handle_v1_spec_markdown", pass_parsed=True),
     "/api/v1/runs/recent": RouteSpec("handle_v1_recent_runs", pass_parsed=True),
     "/api/v1/spec-activity": RouteSpec("handle_v1_spec_activity", pass_parsed=True),
-    "/api/v1/implementation-work-index": RouteSpec("handle_v1_implementation_work_index", pass_parsed=True),
-    "/api/v1/proposal-spec-trace-index": RouteSpec("handle_v1_proposal_spec_trace_index", pass_parsed=True),
+    "/api/v1/implementation-work-index": RouteSpec(
+        "handle_v1_implementation_work_index", pass_parsed=True
+    ),
+    "/api/v1/proposal-spec-trace-index": RouteSpec(
+        "handle_v1_proposal_spec_trace_index", pass_parsed=True
+    ),
     "/api/v1/proposals": RouteSpec("handle_v1_proposals", pass_parsed=True),
     "/api/v1/artifacts": RouteSpec("handle_v1_artifacts", pass_parsed=True),
     "/api/v1/artifacts/content": RouteSpec("handle_v1_artifact_content", pass_parsed=True),
-    "/api/v1/idea-to-spec-workspace": RouteSpec("handle_v1_idea_to_spec_workspace", pass_parsed=True),
+    "/api/v1/public-specgraph-ontology": RouteSpec("handle_v1_public_specgraph_ontology"),
+    "/api/v1/idea-to-spec-workspace": RouteSpec(
+        "handle_v1_idea_to_spec_workspace", pass_parsed=True
+    ),
     "/api/v1/idea-to-spec-workspace-state-hygiene": RouteSpec(
         "handle_v1_idea_to_spec_workspace_state_hygiene",
         pass_parsed=True,
@@ -129,7 +146,9 @@ GET_ROUTES: dict[str, RouteSpec] = {
     "/api/v1/ontology-semantic-review-surface": RouteSpec(
         "handle_v1_ontology_semantic_review_surface", pass_parsed=True
     ),
-    "/api/v1/ontology-review-dashboard": RouteSpec("handle_v1_ontology_review_dashboard", pass_parsed=True),
+    "/api/v1/ontology-review-dashboard": RouteSpec(
+        "handle_v1_ontology_review_dashboard", pass_parsed=True
+    ),
     "/api/v1/ontology-owner-decision-review": RouteSpec(
         "handle_v1_ontology_owner_decision_review", pass_parsed=True
     ),
@@ -147,7 +166,9 @@ GET_ROUTES: dict[str, RouteSpec] = {
 
 
 GET_PREFIX_ROUTES: dict[str, RouteSpec] = {
-    "/api/v1/specpm/registry/packages/": RouteSpec("handle_v1_specpm_registry_package", pass_parsed=True),
+    "/api/v1/specpm/registry/packages/": RouteSpec(
+        "handle_v1_specpm_registry_package", pass_parsed=True
+    ),
     "/api/v1/agent-workbench/conversations/": RouteSpec(
         "handle_v1_agent_workbench_conversation",
         pass_parsed=True,
@@ -162,6 +183,7 @@ PUBLIC_GET_PATHS = frozenset(
     {
         "/api/v1/agent-surfaces",
         "/api/v1/artifacts",
+        "/api/v1/public-specgraph-ontology",
         "/api/v1/capabilities",
         "/api/v1/health",
         "/api/v1/idea-to-spec-workspace",

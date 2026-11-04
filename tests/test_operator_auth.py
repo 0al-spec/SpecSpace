@@ -45,7 +45,9 @@ def _authorization(username: str = USERNAME, password: str = PASSWORD) -> str:
     return f"Basic {encoded}"
 
 
-def _start_server(*, auth_enabled: bool = True) -> tuple[ThreadingHTTPServer, threading.Thread, str]:
+def _start_server(
+    *, auth_enabled: bool = True
+) -> tuple[ThreadingHTTPServer, threading.Thread, str]:
     server = ThreadingHTTPServer(("127.0.0.1", 0), AccessControlTestHandler)
     server.operator_auth_enabled = auth_enabled
     server.operator_auth_username = USERNAME if auth_enabled else None
@@ -142,6 +144,29 @@ def test_sensitive_projection_gets_require_operator_access() -> None:
             error = _error(Request(f"{base_url}{path}"))
             assert error.code == HTTPStatus.UNAUTHORIZED
             assert error.payload["reason"] == "operator_authentication_required"
+    finally:
+        _stop_server(server, thread)
+
+
+def test_public_ontology_is_fixed_to_published_bootstrap_source() -> None:
+    server, thread, base_url = _start_server()
+    try:
+        with patch("viewer.specspace_v1_api.specspace_provider.HttpSpecGraphProvider") as factory:
+            provider = factory.return_value
+            provider.read_artifact_content.return_value = (HTTPStatus.OK, {"public": True})
+            with urlopen(
+                f"{base_url}/api/v1/public-specgraph-ontology?workspace=private&path=runs/private.json",
+                timeout=2,
+            ) as response:
+                assert json.load(response) == {"public": True}
+            assert factory.call_args.kwargs["base_url"] == "https://specgraph.tech"
+            provider.read_artifact_content.assert_called_once_with(
+                "ontology/packages/specgraph-core/generated/ontology.normalized.json"
+            )
+        assert (
+            _error(Request(f"{base_url}/api/v1/artifacts/content?path=runs/private.json")).code
+            == 401
+        )
     finally:
         _stop_server(server, thread)
 
@@ -377,9 +402,7 @@ class OperatorAuthContractTests(unittest.TestCase):
             )
             with tempfile.TemporaryDirectory() as tmp:
                 root = Path(tmp)
-                args = parser.parse_args(
-                    ["--dialog-dir", str(root / "dialogs")]
-                )
+                args = parser.parse_args(["--dialog-dir", str(root / "dialogs")])
 
                 with self.assertRaisesRegex(
                     ValueError,
