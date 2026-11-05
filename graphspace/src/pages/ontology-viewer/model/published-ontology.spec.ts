@@ -1,6 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
 import { loadPublishedOntology, publishedWorkspace } from "./published-ontology";
-import graph from "../../../widgets/ontology-explorer/model/motivation-full.fixture.json";
+import { readFileSync } from "node:fs";
+const graph = JSON.parse(
+  // This URL is a fixed repository fixture, not user-supplied input.
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
+  readFileSync(
+    new URL(
+      "../../../widgets/ontology-explorer/model/motivation-full.fixture.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+) as Record<string, unknown>;
 import legacyIR from "./ontology-graph-contract/fixtures/ontology_normalized_ir.specgraph-core.min.json";
 const row = (path = "runs/product-one/ontology.graph.json") => ({
   path,
