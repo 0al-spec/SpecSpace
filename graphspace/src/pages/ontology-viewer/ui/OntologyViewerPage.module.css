@@ -4,9 +4,8 @@
   display: grid;
   grid-template-rows: auto auto 1fr;
   background:
-    linear-gradient(90deg, rgba(25, 26, 28, 0.055) 1px, transparent 1px),
-    linear-gradient(rgba(25, 26, 28, 0.045) 1px, transparent 1px),
-    var(--gs-paper);
+    linear-gradient(90deg, rgb(25 26 28 / 5.5%) 1px, transparent 1px),
+    linear-gradient(rgb(25 26 28 / 4.5%) 1px, transparent 1px), var(--gs-paper);
   background-size: 48px 48px;
 }
 
@@ -145,6 +144,11 @@
   border: 1px solid var(--gs-rule);
   background: var(--gs-panel);
   color: var(--gs-ink);
+}
+
+.ontologyHandle {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .ontologyNodeCentral {
@@ -307,8 +311,29 @@
   }
 }
 
-.diagramPage { min-height: 100dvh; background: var(--gs-paper); min-width: 0; }
-.diagramPage .header { flex-wrap: wrap; }
-.diagramPage .header p { font-size: 12px; margin-top: 8px; }
-.diagramPage .header button { border: 1px solid var(--gs-rule-soft); padding: 10px 14px; }
-.loadError { padding: 16px; color: #9a3024; background: #fff0eb; overflow-wrap: anywhere; }
+.diagramPage {
+  min-height: 100dvh;
+  background: var(--gs-paper);
+  min-width: 0;
+}
+
+.diagramPage .header {
+  flex-wrap: wrap;
+}
+
+.diagramPage .header p {
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+.diagramPage .header button {
+  border: 1px solid var(--gs-rule-soft);
+  padding: 10px 14px;
+}
+
+.loadError {
+  padding: 16px;
+  color: #9a3024;
+  background: #fff0eb;
+  overflow-wrap: anywhere;
+}
