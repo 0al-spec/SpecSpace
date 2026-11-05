@@ -105,11 +105,15 @@ must return `401` without credentials.
 
 ## Guardrails
 
-Enable the optional local pre-push hook:
+Initialize the local pre-push hook:
 
 ```bash
-git config core.hooksPath .githooks
+make init
 ```
+
+See [quality setup](../quality/README.md#setup-and-run) for the pinned local
+dependencies required by the hook. Existing `core.hooksPath=.githooks` setups
+can continue to use the tracked hook.
 
 Git does not enable repository hooks automatically after clone, so CI also
 validates a generated Timeweb manifest candidate in the `Timeweb Docker
@@ -268,17 +272,17 @@ Platform owns the deploy branch watched by Timeweb.
 
 Enable it with repository variables and one secret in `0al-spec/SpecSpace`:
 
-| Name | Kind | Purpose |
-| --- | --- | --- |
-| `PLATFORM_TIMEWEB_PUBLISH_ENABLED` | variable | Set to `true` to trigger Platform's `Timeweb Publish` workflow after `main` CI builds images. |
-| `PLATFORM_TIMEWEB_PUBLISH_TOKEN` | secret | GitHub token allowed to dispatch workflows in `0al-spec/Platform`. |
-| `PLATFORM_TIMEWEB_DEPLOY_BRANCH` | variable, optional | Platform deploy branch. Defaults to `timeweb-deploy`. |
-| `PLATFORM_TIMEWEB_WORKFLOW_REF` | variable, optional | Platform ref containing `timeweb-publish.yml`. Defaults to `main`. |
-| `PLATFORM_TIMEWEB_ARTIFACT_BASE_URL` | variable, optional | SpecGraph static artifact base URL. Defaults to `https://specgraph.tech`. |
-| `PLATFORM_TIMEWEB_SPECPM_REGISTRY_URL` | variable, optional | SpecPM registry URL. Defaults to `https://specpm.dev`. |
-| `PLATFORM_TIMEWEB_HOSTED_MANAGED_EXTERNAL_STATE_ENABLED` | variable, optional | Set to `true` only after the external state service rollout is ready. Defaults to `false`. |
-| `PLATFORM_TIMEWEB_HOSTED_MANAGED_EXECUTOR_URL` | variable, optional | Hosted Platform service origin. Defaults to `https://managed.specgraph.tech`. |
-| `PLATFORM_TIMEWEB_EXTERNAL_STATE_URL` | variable, optional | External state service URL. Defaults to `https://managed.specgraph.tech/specspace-state`. |
+| Name                                                     | Kind               | Purpose                                                                                       |
+| -------------------------------------------------------- | ------------------ | --------------------------------------------------------------------------------------------- |
+| `PLATFORM_TIMEWEB_PUBLISH_ENABLED`                       | variable           | Set to `true` to trigger Platform's `Timeweb Publish` workflow after `main` CI builds images. |
+| `PLATFORM_TIMEWEB_PUBLISH_TOKEN`                         | secret             | GitHub token allowed to dispatch workflows in `0al-spec/Platform`.                            |
+| `PLATFORM_TIMEWEB_DEPLOY_BRANCH`                         | variable, optional | Platform deploy branch. Defaults to `timeweb-deploy`.                                         |
+| `PLATFORM_TIMEWEB_WORKFLOW_REF`                          | variable, optional | Platform ref containing `timeweb-publish.yml`. Defaults to `main`.                            |
+| `PLATFORM_TIMEWEB_ARTIFACT_BASE_URL`                     | variable, optional | SpecGraph static artifact base URL. Defaults to `https://specgraph.tech`.                     |
+| `PLATFORM_TIMEWEB_SPECPM_REGISTRY_URL`                   | variable, optional | SpecPM registry URL. Defaults to `https://specpm.dev`.                                        |
+| `PLATFORM_TIMEWEB_HOSTED_MANAGED_EXTERNAL_STATE_ENABLED` | variable, optional | Set to `true` only after the external state service rollout is ready. Defaults to `false`.    |
+| `PLATFORM_TIMEWEB_HOSTED_MANAGED_EXECUTOR_URL`           | variable, optional | Hosted Platform service origin. Defaults to `https://managed.specgraph.tech`.                 |
+| `PLATFORM_TIMEWEB_EXTERNAL_STATE_URL`                    | variable, optional | External state service URL. Defaults to `https://managed.specgraph.tech/specspace-state`.     |
 
 The token should be a fine-grained GitHub token scoped to `0al-spec/Platform`
 with `Actions: Read and write` permission. It is used only to dispatch

@@ -1,7 +1,30 @@
 #!/usr/bin/env bash
+# SpecSpace quality pre-push v1
 set -euo pipefail
 
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
 
+# The runner analyzes working-tree files, so never claim a different commit was checked.
+head_oid="$(git rev-parse HEAD)"
+while read -r _local_ref local_oid _remote_ref _remote_oid; do
+  [[ "$local_oid" =~ ^0+$ ]] && continue
+  if [[ "$(git rev-parse "$local_oid^{commit}")" != "$head_oid" ]]; then
+    echo "Quality hook requires each pushed commit to match the checked-out HEAD." >&2
+    exit 1
+  fi
+done
+if [[ -n "$(git status --porcelain --untracked-files=normal)" ]]; then
+  echo "Quality hook requires a clean working tree, including untracked files." >&2
+  exit 1
+fi
+
 scripts/check-timeweb-deploy-branch.sh
+if [[ ! -x quality/.venv/bin/python || ! -x quality/node_modules/.bin/eslint || ! -x graphspace/node_modules/.bin/steiger ]]; then
+  echo "Quality dependencies are missing. See quality/README.md for setup." >&2
+  exit 1
+fi
+report_dir="$(mktemp -d "${TMPDIR:-/tmp}/specspace-quality.XXXXXXXX")"
+echo "Running full CI quality profile; report: $report_dir" >&2
+make quality QUALITY_REPORT_DIR="$report_dir"
+npm run lint:fsd --prefix graphspace

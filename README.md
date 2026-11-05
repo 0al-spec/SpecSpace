@@ -39,6 +39,16 @@ SpecSpace does not execute models. Its output is a deterministic Markdown file y
 
 ## Quick Start
 
+Initialize this clone for development:
+
+```bash
+make init
+```
+
+This installs the local pre-push hook while preserving existing hooks. Install the
+[pinned quality dependencies](quality/README.md#setup-and-run) separately before
+pushing; `make init` does not install packages.
+
 Canonicalize imported conversations and start both the API and UI in one shot:
 
 ```bash

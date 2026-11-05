@@ -166,3 +166,24 @@ Keep tools compatible, pinned and independently useful; installing every competi
 linter is not a quality goal. Coverage thresholds, mutation testing, dead-code and
 clone analysis need their own measured scopes and budgets. Add them as separate
 profiles after the static debt and dependency audit reports have actionable owners.
+
+## Local pre-push checks
+
+Run `make init` once per Git repository to install the hooks, and complete the
+quality dependency setup above before pushing. `make init` does not install packages.
+The installer preserves an existing pre-push hook (including Git LFS) and forwards
+its push input and arguments after running SpecSpace checks. It refuses to replace
+an existing backup. Git hooks are local; each clone needs its own installation.
+The dispatcher requires the current checkout to contain the current quality
+hook; older branches need to incorporate it before they can be pushed.
+
+Before each push, the hook requires a clean working tree and verifies that each
+pushed commit is the checked-out `HEAD`. This is necessary because the quality
+runner analyzes working-tree files, not arbitrary Git objects. Push branches one
+at a time from their checkout; deletions are allowed. The hook runs the same full
+static profile and baseline as CI, the existing Timeweb branch check, and GraphSpace
+FSD lint. Reports are written to a unique directory under `TMPDIR` (or `/tmp`) and
+its path is printed. Set `TMPDIR` and the documented build/cache environment for
+local storage policy. Missing dependencies or analyzer failures block the push.
+CI remains authoritative: the hook does not run application tests or builds, and
+it cannot replace CI's clean environment and merge-result checks.
