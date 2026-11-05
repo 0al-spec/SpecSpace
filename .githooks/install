@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Install a dispatcher without losing the existing hook (typically Git LFS).
+cd "$(git rev-parse --show-toplevel)"
+hooks_dir="$(git rev-parse --git-path hooks)"
+mkdir -p "$hooks_dir"
+hook="$hooks_dir/pre-push"
+previous="$hooks_dir/pre-push.specspace-previous"
+if [[ -f "$hook" ]] && grep -Fq '# SpecSpace pre-push dispatcher v1' "$hook"; then
+  echo "SpecSpace pre-push dispatcher is already installed."
+  exit 0
+fi
+if [[ -e "$previous" ]]; then
+  echo "Refusing to overwrite existing hook backup: $previous" >&2
+  exit 1
+fi
+if [[ -e "$hook" ]]; then
+  cp -p "$hook" "$previous"
+fi
+tmp="$(mktemp "$hooks_dir/.pre-push.XXXXXXXX")"
+trap 'rm -f "$tmp"' EXIT
+cat > "$tmp" <<'DISPATCHER'
+#!/usr/bin/env bash
+# SpecSpace pre-push dispatcher v1
+set -euo pipefail
+hooks_dir="$(cd "$(dirname "$0")" && pwd)"
+repo_root="$(git rev-parse --show-toplevel)"
+refs="$(mktemp "${TMPDIR:-/tmp}/specspace-push-refs.XXXXXXXX")"
+trap 'rm -f "$refs"' EXIT
+cat > "$refs"
+hook="$repo_root/.githooks/pre-push"
+if [[ ! -x "$hook" ]] || ! grep -Fq "# SpecSpace quality pre-push v1" "$hook"; then
+  echo "This checkout does not contain the current SpecSpace quality hook; update the branch before pushing." >&2
+  exit 1
+fi
+"$hook" "$@" < "$refs"
+if [[ -x "$hooks_dir/pre-push.specspace-previous" ]]; then
+  "$hooks_dir/pre-push.specspace-previous" "$@" < "$refs"
+fi
+DISPATCHER
+chmod +x "$tmp"
+mv "$tmp" "$hook"
+echo "Installed $hook; existing hook preserved at $previous when present."

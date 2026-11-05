@@ -15,4 +15,4 @@ deps/*
 /quality/node_modules
 /quality/.venv
 /quality/reports/
-/quality/.bin/
+/quality/.bin
