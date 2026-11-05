@@ -1311,6 +1311,17 @@ def handle_v1_public_specgraph_ontology(handler: SpecSpaceV1Handler) -> None:
     json_response(handler, status, payload)
 
 
+def handle_v1_public_specgraph_ontology_graph(handler: SpecSpaceV1Handler) -> None:
+    """Expose only the published SpecGraph bootstrap diagram projection."""
+    provider = specspace_provider.HttpSpecGraphProvider(
+        base_url="https://specgraph.tech", cache=specspace_provider.HttpArtifactCache()
+    )
+    status, payload = provider.read_artifact_content(
+        "ontology/packages/specgraph-core/generated/ontology.graph.json"
+    )
+    json_response(handler, status, payload)
+
+
 def _select_workspace_binding(
     local_binding: dict[str, Any],
     provider_binding: Any,

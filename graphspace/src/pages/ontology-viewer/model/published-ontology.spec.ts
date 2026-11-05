@@ -87,6 +87,58 @@ describe("published ontology selection", () => {
     expect(result.kind).toBe("loaded");
     expect(fetchMock.mock.calls[1][0]).toBe("/api/v1/public-specgraph-ontology");
   });
+  it("loads the published diagram using only its fixed public endpoint", async () => {
+    const path = "ontology/packages/specgraph-core/generated/ontology.graph.json";
+    const source = { provider: "http", artifact_base_url: "https://specgraph.tech" };
+    const fetchMock = vi.fn((url: string) => {
+      const common = { api_version: "v1", schema_version: 1, read_only: true, source };
+      const payload = url.includes("public-specgraph-ontology-graph")
+        ? {
+            ...common,
+            artifact_kind: "specspace_artifact_content",
+            path,
+            content_kind: "json",
+            data: graph,
+          }
+        : { ...common, artifact_kind: "specspace_artifact_catalog", artifacts: [{ path }] };
+      return Promise.resolve(new Response(JSON.stringify(payload), { status: 200 }));
+    });
+    const result = await loadPublishedOntology(
+      "specgraph-bootstrap",
+      new AbortController().signal,
+      undefined,
+      fetchMock as typeof fetch,
+    );
+    expect(result.kind).toBe("loaded");
+    expect(fetchMock.mock.calls[1][0]).toBe("/api/v1/public-specgraph-ontology-graph");
+  });
+  it.each([
+    { provider: "file" },
+    { provider: "http", artifact_base_url: "https://example.invalid" },
+  ])("keeps a non-public diagram with its configured provider %o", async (source) => {
+    const path = "ontology/packages/specgraph-core/generated/ontology.graph.json";
+    const fetchMock = vi.fn((url: string) => {
+      const common = { api_version: "v1", schema_version: 1, read_only: true, source };
+      const payload = url.includes("/content?")
+        ? {
+            ...common,
+            artifact_kind: "specspace_artifact_content",
+            path,
+            content_kind: "json",
+            data: graph,
+          }
+        : { ...common, artifact_kind: "specspace_artifact_catalog", artifacts: [{ path }] };
+      return Promise.resolve(new Response(JSON.stringify(payload), { status: 200 }));
+    });
+    const result = await loadPublishedOntology(
+      "specgraph-bootstrap",
+      new AbortController().signal,
+      undefined,
+      fetchMock as typeof fetch,
+    );
+    expect(result.kind).toBe("loaded");
+    expect(fetchMock.mock.calls[1][0]).toContain("/api/v1/artifacts/content?");
+  });
   it.each([
     { provider: "file" },
     { provider: "http", artifact_base_url: "https://example.invalid" },

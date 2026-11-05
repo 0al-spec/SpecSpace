@@ -96,6 +96,9 @@ GET_ROUTES: dict[str, RouteSpec] = {
     "/api/v1/artifacts": RouteSpec("handle_v1_artifacts", pass_parsed=True),
     "/api/v1/artifacts/content": RouteSpec("handle_v1_artifact_content", pass_parsed=True),
     "/api/v1/public-specgraph-ontology": RouteSpec("handle_v1_public_specgraph_ontology"),
+    "/api/v1/public-specgraph-ontology-graph": RouteSpec(
+        "handle_v1_public_specgraph_ontology_graph"
+    ),
     "/api/v1/idea-to-spec-workspace": RouteSpec(
         "handle_v1_idea_to_spec_workspace", pass_parsed=True
     ),
@@ -184,6 +187,7 @@ PUBLIC_GET_PATHS = frozenset(
         "/api/v1/agent-surfaces",
         "/api/v1/artifacts",
         "/api/v1/public-specgraph-ontology",
+        "/api/v1/public-specgraph-ontology-graph",
         "/api/v1/capabilities",
         "/api/v1/health",
         "/api/v1/idea-to-spec-workspace",

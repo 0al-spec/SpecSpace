@@ -172,6 +172,30 @@ def test_public_ontology_is_fixed_to_published_bootstrap_source() -> None:
         _stop_server(server, thread)
 
 
+def test_public_ontology_graph_is_fixed_and_does_not_expose_workspace_data() -> None:
+    server, thread, base_url = _start_server()
+    try:
+        with patch("viewer.specspace_v1_api.specspace_provider.HttpSpecGraphProvider") as factory:
+            provider = factory.return_value
+            provider.read_artifact_content.return_value = (HTTPStatus.OK, {"public": True})
+            request = Request(
+                f"{base_url}/api/v1/public-specgraph-ontology-graph?workspace=private&path=runs/private.json"
+            )
+            # Request targets the loopback server created by this test.
+            with urlopen(request, timeout=2) as response:  # nosec B310
+                assert json.load(response) == {"public": True}
+            assert factory.call_args.kwargs["base_url"] == "https://specgraph.tech"
+            provider.read_artifact_content.assert_called_once_with(
+                "ontology/packages/specgraph-core/generated/ontology.graph.json"
+            )
+        assert (
+            _error(Request(f"{base_url}/api/v1/artifacts/content?path=runs/private.json")).code
+            == 401
+        )
+    finally:
+        _stop_server(server, thread)
+
+
 def test_private_get_rejects_wrong_credentials_and_accepts_operator() -> None:
     server, thread, base_url = _start_server()
     try:
