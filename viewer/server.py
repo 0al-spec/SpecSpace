@@ -92,7 +92,11 @@ class WorkspaceCache(workspace_cache.WorkspaceCache):
         dialog_dir: Path,
         build_workspace_listing: Callable[[Path], dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
-        builder = build_workspace_listing if build_workspace_listing is not None else _build_workspace_listing
+        builder = (
+            build_workspace_listing
+            if build_workspace_listing is not None
+            else _build_workspace_listing
+        )
         return super().get(dialog_dir, builder)
 
 
@@ -125,7 +129,9 @@ def collect_conversation_api(dialog_dir: Path, conversation_id: str) -> tuple[in
     )
 
 
-def collect_checkpoint_api(dialog_dir: Path, conversation_id: str, message_id: str) -> tuple[int, dict[str, Any]]:
+def collect_checkpoint_api(
+    dialog_dir: Path, conversation_id: str, message_id: str
+) -> tuple[int, dict[str, Any]]:
     """Compatibility wrapper for the extracted checkpoint selection API."""
     return conversation_graph.collect_checkpoint_api(
         dialog_dir,
@@ -140,12 +146,16 @@ def dialog_path_for_name(dialog_dir: Path, name: str) -> Path:
     return workspace_io.dialog_path_for_name(dialog_dir, name)
 
 
-def load_json_file(path: Path) -> tuple[dict[str, Any] | None, tuple[schema.NormalizationError, ...]]:
+def load_json_file(
+    path: Path,
+) -> tuple[dict[str, Any] | None, tuple[schema.NormalizationError, ...]]:
     """Compatibility wrapper for workspace JSON loading."""
     return workspace_io.load_json_file(path)
 
 
-def load_workspace_payloads(dialog_dir: Path, exclude_name: str | None = None) -> list[tuple[str, dict[str, Any]]]:
+def load_workspace_payloads(
+    dialog_dir: Path, exclude_name: str | None = None
+) -> list[tuple[str, dict[str, Any]]]:
     """Compatibility wrapper preserving server.load_json_file monkeypatch hooks."""
     return workspace_io.load_workspace_payloads(
         dialog_dir,
@@ -302,7 +312,9 @@ class ViewerHandler(BaseHTTPRequestHandler):
     handle_exploration_preview_get = specpm_exploration_api.handle_exploration_preview_get
     handle_exploration_proposal_get = specpm_exploration_api.handle_exploration_proposal_get
     handle_exploration_surfaces_get = specpm_exploration_api.handle_exploration_surfaces_get
-    handle_proposal_spec_trace_index_get = specpm_exploration_api.handle_proposal_spec_trace_index_get
+    handle_proposal_spec_trace_index_get = (
+        specpm_exploration_api.handle_proposal_spec_trace_index_get
+    )
     handle_specpm_lifecycle = specpm_exploration_api.handle_specpm_lifecycle
     handle_specpm_preview_build = specpm_exploration_api.handle_specpm_preview_build
     handle_specpm_preview_get = specpm_exploration_api.handle_specpm_preview_get
@@ -314,6 +326,7 @@ class ViewerHandler(BaseHTTPRequestHandler):
     handle_v1_metrics = specspace_v1_api.handle_v1_metrics
     handle_v1_agent_surfaces = specspace_v1_api.handle_v1_agent_surfaces
     handle_v1_artifact_content = specspace_v1_api.handle_v1_artifact_content
+    handle_v1_public_specgraph_ontology = specspace_v1_api.handle_v1_public_specgraph_ontology
     handle_v1_artifacts = specspace_v1_api.handle_v1_artifacts
     handle_v1_ontology_semantic_review_surface = (
         specspace_v1_api.handle_v1_ontology_semantic_review_surface
@@ -322,9 +335,7 @@ class ViewerHandler(BaseHTTPRequestHandler):
     handle_v1_ontology_owner_decision_review = (
         specspace_v1_api.handle_v1_ontology_owner_decision_review
     )
-    handle_v1_ontology_compliance_review = (
-        specspace_v1_api.handle_v1_ontology_compliance_review
-    )
+    handle_v1_ontology_compliance_review = specspace_v1_api.handle_v1_ontology_compliance_review
     handle_v1_ontology_owner_decision_acknowledgements = (
         specspace_v1_api.handle_v1_ontology_owner_decision_acknowledgements
     )
@@ -332,14 +343,14 @@ class ViewerHandler(BaseHTTPRequestHandler):
         specspace_v1_api.handle_v1_ontology_owner_decision_acknowledgement_post
     )
     handle_v1_agent_workbench_conversation = specspace_v1_api.handle_v1_agent_workbench_conversation
-    handle_v1_agent_workbench_conversations = specspace_v1_api.handle_v1_agent_workbench_conversations
+    handle_v1_agent_workbench_conversations = (
+        specspace_v1_api.handle_v1_agent_workbench_conversations
+    )
     handle_v1_idea_to_spec_workspace = specspace_v1_api.handle_v1_idea_to_spec_workspace
     handle_v1_idea_to_spec_workspace_state_hygiene = (
         specspace_v1_api.handle_v1_idea_to_spec_workspace_state_hygiene
     )
-    handle_v1_idea_to_spec_repair_drafts = (
-        specspace_v1_api.handle_v1_idea_to_spec_repair_drafts
-    )
+    handle_v1_idea_to_spec_repair_drafts = specspace_v1_api.handle_v1_idea_to_spec_repair_drafts
     handle_v1_idea_to_spec_repair_draft_post = (
         specspace_v1_api.handle_v1_idea_to_spec_repair_draft_post
     )
@@ -349,12 +360,8 @@ class ViewerHandler(BaseHTTPRequestHandler):
     handle_v1_idea_to_spec_intake_clarification_answer_post = (
         specspace_v1_api.handle_v1_idea_to_spec_intake_clarification_answer_post
     )
-    handle_v1_real_idea_entry_requests = (
-        specspace_v1_api.handle_v1_real_idea_entry_requests
-    )
-    handle_v1_real_idea_entry_request_post = (
-        specspace_v1_api.handle_v1_real_idea_entry_request_post
-    )
+    handle_v1_real_idea_entry_requests = specspace_v1_api.handle_v1_real_idea_entry_requests
+    handle_v1_real_idea_entry_request_post = specspace_v1_api.handle_v1_real_idea_entry_request_post
     handle_v1_real_idea_intake_execution_requests = (
         specspace_v1_api.handle_v1_real_idea_intake_execution_requests
     )
@@ -461,12 +468,11 @@ class ViewerHandler(BaseHTTPRequestHandler):
         if route is None:
             return False
         self._active_route_access = route.access
-        self._operator_request_authenticated = (
-            getattr(self.server, "operator_auth_enabled", False) is True
-            and operator_auth.request_is_operator(
-                cast(operator_auth.OperatorAuthServer, self.server),
-                cast(Mapping[str, str], self.headers),
-            )
+        self._operator_request_authenticated = getattr(
+            self.server, "operator_auth_enabled", False
+        ) is True and operator_auth.request_is_operator(
+            cast(operator_auth.OperatorAuthServer, self.server),
+            cast(Mapping[str, str], self.headers),
         )
         if route.access is RouteAccess.OPERATOR and not operator_auth.authorize_operator_request(
             cast(operator_auth.OperatorAuthHandler, self),

@@ -64,3 +64,8 @@ the catalog supplies one. No digest is invented for older file catalogs. Missing
 HTTP-error, malformed and future-schema states remain visible alongside manual
 loading. Content SHA-256 is an additive field of the existing content API; it
 binds the bytes read by the provider and does not prove approval or source truth.
+
+The published `specgraph-bootstrap` core ontology is public and loads without an
+operator session through a dedicated endpoint restricted to the published
+`specgraph.tech` artifact. The general artifact-content API remains operator-only;
+other workspace artifacts may require authentication.

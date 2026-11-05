@@ -106,14 +106,12 @@ def _managed_execution(
             ).read_idea_to_spec_workspace()
             provider_binding = (
                 provider_workspace_payload.get("workspace_binding")
-                if provider_status == HTTPStatus.OK
-                and isinstance(provider_workspace_payload, dict)
+                if provider_status == HTTPStatus.OK and isinstance(provider_workspace_payload, dict)
                 else None
             )
             provider_payload = (
                 provider_workspace_payload
-                if provider_status == HTTPStatus.OK
-                and isinstance(provider_workspace_payload, dict)
+                if provider_status == HTTPStatus.OK and isinstance(provider_workspace_payload, dict)
                 else None
             )
             workspace_binding = _select_workspace_binding(
@@ -160,9 +158,7 @@ def _apply_real_idea_entry_projection(
     if intake.get("status") not in {None, "missing"}:
         return
     source_refs = [
-        ref
-        for ref in intake.get("source_refs", [])
-        if isinstance(ref, str) and ref.strip()
+        ref for ref in intake.get("source_refs", []) if isinstance(ref, str) and ref.strip()
     ]
     source_refs.append("specspace-state://real_idea_entry_requests.json")
     payload["real_idea_intake"] = {
@@ -170,8 +166,7 @@ def _apply_real_idea_entry_projection(
         "available": True,
         "status": "entry_submitted",
         "next_action": (
-            "Import the submitted raw idea entry through SpecGraph/Platform intake "
-            "handoff."
+            "Import the submitted raw idea entry through SpecGraph/Platform intake handoff."
         ),
         "blockers": [],
         "source_refs": sorted(set(source_refs)),
@@ -354,18 +349,10 @@ def _apply_durable_workspace_binding_initialization(
             "trusted": True,
             "status": "ready",
             "binding_id": binding.get("binding_id"),
-            "binding_revision_sha256": binding.get(
-                "binding_revision_sha256"
-            ),
-            "specspace_state_namespace_ref": routing.get(
-                "specspace_state_namespace_ref"
-            ),
-            "platform_default_run_dir_ref": routing.get(
-                "platform_default_run_dir_ref"
-            ),
-            "product_artifact_manifest_ref": routing.get(
-                "product_artifact_manifest_ref"
-            ),
+            "binding_revision_sha256": binding.get("binding_revision_sha256"),
+            "specspace_state_namespace_ref": routing.get("specspace_state_namespace_ref"),
+            "platform_default_run_dir_ref": routing.get("platform_default_run_dir_ref"),
+            "product_artifact_manifest_ref": routing.get("product_artifact_manifest_ref"),
             "reasons": [],
         },
         "refs": {
@@ -467,10 +454,7 @@ def _managed_operation_ready_count(
         if not isinstance(operation, dict):
             continue
         operation_id = operation.get("operation_id")
-        if (
-            allowed_operation_ids is not None
-            and operation_id not in allowed_operation_ids
-        ):
+        if allowed_operation_ids is not None and operation_id not in allowed_operation_ids:
             continue
         if operation.get("status") == "ready_to_execute":
             count += 1
@@ -487,9 +471,7 @@ def _managed_mode_readiness(
 ) -> dict[str, Any]:
     platform_dir = getattr(server, "platform_dir", None)
     platform_execution_enabled = getattr(server, "platform_execution_enabled", False) is True
-    hosted_execution_enabled = (
-        getattr(server, "hosted_managed_execution_enabled", False) is True
-    )
+    hosted_execution_enabled = getattr(server, "hosted_managed_execution_enabled", False) is True
     platform_dir_configured = isinstance(platform_dir, Path)
     platform_cli_present = (
         platform_dir_configured and (platform_dir / "scripts" / "platform.py").is_file()
@@ -504,13 +486,10 @@ def _managed_mode_readiness(
         "hosted_managed_state_durability",
         "persistent",
     )
-    persistent_hosted_state_ready = (
-        configured_state_durability != "persistent"
-        or (
-            state_provider_external
-            and state_provider_ready
-            and state_provider_health.get("restart_persistent") is True
-        )
+    persistent_hosted_state_ready = configured_state_durability != "persistent" or (
+        state_provider_external
+        and state_provider_ready
+        and state_provider_health.get("restart_persistent") is True
     )
     runs_dir_status = _directory_readiness(getattr(server, "runs_dir", None))
     provider_state = _provider_status(provider)
@@ -526,12 +505,8 @@ def _managed_mode_readiness(
     workspace_binding = workspace_binding or product_workspace_binding.discover_binding(
         server, workspace_id=workspace_id
     )
-    binding_ready = (
-        not product_workspace
-        or (
-            workspace_binding.get("status") == "ready"
-            and workspace_binding.get("trusted") is True
-        )
+    binding_ready = not product_workspace or (
+        workspace_binding.get("status") == "ready" and workspace_binding.get("trusted") is True
     )
     product_artifact_base_configured = bool(artifact_base_url) if product_workspace else None
 
@@ -540,9 +515,7 @@ def _managed_mode_readiness(
     hosted_health: dict[str, Any] = {}
     hosted_allowed_operation_ids: frozenset[str] | None = None
     hosted_service_operation_ids: frozenset[str] | None = None
-    hosted_client_operation_ids = (
-        hosted_managed_execution.configured_operation_allowlist(server)
-    )
+    hosted_client_operation_ids = hosted_managed_execution.configured_operation_allowlist(server)
     hosted_client_allowlist_valid = True
     if hosted_execution_enabled:
         try:
@@ -577,9 +550,7 @@ def _managed_mode_readiness(
                     and hosted_client_operation_ids <= hosted_service_operation_ids
                 )
                 hosted_allowed_operation_ids = (
-                    hosted_client_operation_ids
-                    if hosted_client_allowlist_valid
-                    else frozenset()
+                    hosted_client_operation_ids if hosted_client_allowlist_valid else frozenset()
                 )
             else:
                 hosted_allowed_operation_ids = hosted_service_operation_ids
@@ -619,15 +590,9 @@ def _managed_mode_readiness(
             disabled_reasons.append("hosted_client_operation_allowlist_invalid")
         if not state_provider_ready:
             disabled_reasons.append("specspace_state_provider_unavailable")
-        if (
-            configured_state_durability == "persistent"
-            and not state_provider_external
-        ):
+        if configured_state_durability == "persistent" and not state_provider_external:
             disabled_reasons.append("external_state_provider_required")
-        elif (
-            configured_state_durability == "persistent"
-            and not persistent_hosted_state_ready
-        ):
+        elif configured_state_durability == "persistent" and not persistent_hosted_state_ready:
             disabled_reasons.append("external_state_provider_not_durable")
     if not state_dir_status["configured"]:
         disabled_reasons.append("specspace_state_dir_not_configured")
@@ -693,15 +658,21 @@ def _managed_mode_readiness(
     elif hosted_execution_enabled:
         status = "hosted_managed_misconfigured"
         mode = "hosted_managed"
-        next_safe_action = "Fix hosted executor connectivity or disable the conflicting local executor."
+        next_safe_action = (
+            "Fix hosted executor connectivity or disable the conflicting local executor."
+        )
     elif local_executor_ready:
         status = "backend_managed_ready"
         mode = "backend_managed"
-        next_safe_action = "Use guided Product Workspace actions for allowlisted Platform operations."
+        next_safe_action = (
+            "Use guided Product Workspace actions for allowlisted Platform operations."
+        )
     elif platform_execution_enabled:
         status = "backend_managed_misconfigured"
         mode = "backend_managed"
-        next_safe_action = "Fix backend Platform executor configuration before using managed actions."
+        next_safe_action = (
+            "Fix backend Platform executor configuration before using managed actions."
+        )
     else:
         status = "read_only"
         mode = "read_only"
@@ -740,9 +711,7 @@ def _managed_mode_readiness(
                 else None
             ),
             "hosted_registry_contract_ref": (
-                hosted_health.get("registry_contract_ref")
-                if hosted_service_reachable
-                else None
+                hosted_health.get("registry_contract_ref") if hosted_service_reachable else None
             ),
             "hosted_enabled_operation_ids": (
                 sorted(hosted_allowed_operation_ids)
@@ -768,9 +737,7 @@ def _managed_mode_readiness(
             "counting_basis": "managed_operations_observability.status",
         },
         "state": {
-            "durability": configured_state_durability
-            if hosted_execution_enabled
-            else None,
+            "durability": configured_state_durability if hosted_execution_enabled else None,
             "restart_persistent": (
                 configured_state_durability == "persistent"
                 and state_provider_health.get("restart_persistent") is True
@@ -784,8 +751,7 @@ def _managed_mode_readiness(
             "provider_contract_ref": state_provider_health.get("contract_ref"),
             "provider_adapter": state_provider_health.get("adapter"),
             "external_required": (
-                hosted_execution_enabled
-                and configured_state_durability == "persistent"
+                hosted_execution_enabled and configured_state_durability == "persistent"
             ),
             "specspace_state_dir_configured": state_dir_status["configured"],
             "specspace_state_dir_ready": state_dir_status["ready"],
@@ -1038,7 +1004,9 @@ def _payload_scope_required(payload: dict[str, Any]) -> tuple[str | None, dict[s
 def _compile_options_from_payload(
     payload: dict[str, Any],
 ) -> tuple[spec_compile.CompileOptions | None, str | None, dict[str, Any] | None]:
-    max_depth, error = _payload_int_required_range(payload, "depth", default=6, minimum=1, maximum=6)
+    max_depth, error = _payload_int_required_range(
+        payload, "depth", default=6, minimum=1, maximum=6
+    )
     if error is not None:
         return None, None, error
     assert max_depth is not None
@@ -1079,9 +1047,7 @@ def handle_v1_health(handler: SpecSpaceV1Handler) -> None:
         handler.server,
         _provider(handler),
     )
-    auth_enabled = (
-        getattr(handler.server, "operator_auth_enabled", False) is True
-    )
+    auth_enabled = getattr(handler.server, "operator_auth_enabled", False) is True
     payload["operator_access_control"] = {
         "available": True,
         "status": "single_operator" if auth_enabled else "disabled",
@@ -1164,7 +1130,9 @@ def handle_v1_operator_session(handler: SpecSpaceV1Handler, parsed: Any) -> None
 
 def handle_v1_capabilities(handler: SpecSpaceV1Handler) -> None:
     provider = _provider(handler)
-    json_response(handler, HTTPStatus.OK, specspace_provider.versioned_capabilities(handler, provider))
+    json_response(
+        handler, HTTPStatus.OK, specspace_provider.versioned_capabilities(handler, provider)
+    )
 
 
 def handle_v1_workspaces(handler: SpecSpaceV1Handler) -> None:
@@ -1180,10 +1148,14 @@ def handle_v1_product_workspace_decisions(handler: SpecSpaceV1Handler, parsed: A
     raw_workspace_id = query_value(query_params(parsed), "workspace_id", None)
     workspace_id = specspace_provider.normalize_workspace_id(raw_workspace_id)
     if workspace_id is None:
-        json_response(handler, HTTPStatus.BAD_REQUEST, {
-            "error": "workspace_id is required for canonical Decisions.",
-            "reason": "workspace_id_required",
-        })
+        json_response(
+            handler,
+            HTTPStatus.BAD_REQUEST,
+            {
+                "error": "workspace_id is required for canonical Decisions.",
+                "reason": "workspace_id_required",
+            },
+        )
         return
     status, payload = _provider(handler, workspace_id).read_product_workspace_decisions()
     json_response(handler, status, payload)
@@ -1191,7 +1163,7 @@ def handle_v1_product_workspace_decisions(handler: SpecSpaceV1Handler, parsed: A
 
 def handle_v1_spec_node(handler: SpecSpaceV1Handler, parsed: Any) -> None:
     prefix = "/api/v1/spec-nodes/"
-    node_id = unquote(parsed.path[len(prefix):]).strip()
+    node_id = unquote(parsed.path[len(prefix) :]).strip()
     if not node_id:
         json_response(handler, HTTPStatus.BAD_REQUEST, {"error": "Missing spec node id in path."})
         return
@@ -1203,7 +1175,9 @@ def handle_v1_spec_markdown(handler: SpecSpaceV1Handler, parsed: Any) -> None:
     params = query_params(parsed)
     root_id = query_value(params, "root", "").strip()
     if not root_id:
-        json_response(handler, HTTPStatus.BAD_REQUEST, {"error": "Missing required query parameter: root"})
+        json_response(
+            handler, HTTPStatus.BAD_REQUEST, {"error": "Missing required query parameter: root"}
+        )
         return
 
     max_depth, error = _query_int_required_range(params, "depth", default=6, minimum=1, maximum=6)
@@ -1258,7 +1232,9 @@ def handle_v1_spec_markdown_compile(handler: SpecSpaceV1Handler, parsed: Any) ->
     root_raw = payload.get("root")
     root_id = root_raw.strip() if isinstance(root_raw, str) else ""
     if not root_id:
-        json_response(handler, HTTPStatus.BAD_REQUEST, {"error": "Missing required request field: root"})
+        json_response(
+            handler, HTTPStatus.BAD_REQUEST, {"error": "Missing required request field: root"}
+        )
         return
 
     options, scope, error = _compile_options_from_payload(payload)
@@ -1324,6 +1300,17 @@ def handle_v1_artifact_content(handler: SpecSpaceV1Handler, parsed: Any) -> None
     json_response(handler, status, payload)
 
 
+def handle_v1_public_specgraph_ontology(handler: SpecSpaceV1Handler) -> None:
+    """Expose only the already-public SpecGraph bootstrap ontology."""
+    provider = specspace_provider.HttpSpecGraphProvider(
+        base_url="https://specgraph.tech", cache=specspace_provider.HttpArtifactCache()
+    )
+    status, payload = provider.read_artifact_content(
+        "ontology/packages/specgraph-core/generated/ontology.normalized.json"
+    )
+    json_response(handler, status, payload)
+
+
 def _select_workspace_binding(
     local_binding: dict[str, Any],
     provider_binding: Any,
@@ -1364,11 +1351,7 @@ def handle_v1_idea_to_spec_workspace(handler: SpecSpaceV1Handler, parsed: Any) -
     )
     if workspace_id is not None and isinstance(payload, dict):
         payload["selected_workspace_id"] = workspace_id
-    if (
-        status == HTTPStatus.OK
-        and not operator_authenticated
-        and isinstance(payload, dict)
-    ):
+    if status == HTTPStatus.OK and not operator_authenticated and isinstance(payload, dict):
         payload["managed_mode_readiness"] = _anonymous_managed_mode_readiness(
             workspace_id=workspace_id,
             workspace_binding=payload.get("workspace_binding"),
@@ -1426,7 +1409,7 @@ def handle_v1_idea_to_spec_workspace(handler: SpecSpaceV1Handler, parsed: Any) -
                 server=handler.server,
                 workspace_id=workspace_id,
                 creation=payload["workspace_creation"],
-                )
+            )
         payload["hosted_managed_execution"] = (
             hosted_managed_execution.refresh_workspace(
                 handler.server,
@@ -1466,9 +1449,9 @@ def handle_v1_idea_to_spec_workspace(handler: SpecSpaceV1Handler, parsed: Any) -
             if isinstance(payload.get("workspace_binding"), dict)
             else None,
         )
-        hosted_enabled_operation_ids = _record(
-            managed_mode_readiness.get("executor")
-        ).get("hosted_enabled_operation_ids")
+        hosted_enabled_operation_ids = _record(managed_mode_readiness.get("executor")).get(
+            "hosted_enabled_operation_ids"
+        )
         allowed_operation_ids = (
             set(hosted_enabled_operation_ids)
             if isinstance(hosted_enabled_operation_ids, list)
@@ -1499,9 +1482,9 @@ def handle_v1_idea_to_spec_workspace_state_hygiene(
     parsed: Any,
 ) -> None:
     workspace_id = _query_workspace_id(parsed)
-    workspace_status, workspace_payload = (
-        _provider(handler, workspace_id).read_idea_to_spec_workspace()
-    )
+    workspace_status, workspace_payload = _provider(
+        handler, workspace_id
+    ).read_idea_to_spec_workspace()
     if workspace_status != HTTPStatus.OK:
         json_response(
             handler,
@@ -1611,9 +1594,9 @@ def handle_v1_idea_to_spec_repair_rerun_requests(
     workspace_payload: dict[str, Any] | None = None
     repair_draft_state: dict[str, Any] | None = None
     if workspace_id is not None:
-        workspace_status, workspace_payload_candidate = (
-            _provider(handler, workspace_id).read_idea_to_spec_workspace()
-        )
+        workspace_status, workspace_payload_candidate = _provider(
+            handler, workspace_id
+        ).read_idea_to_spec_workspace()
         if workspace_status == HTTPStatus.OK:
             workspace_payload = workspace_payload_candidate
             workspace_payload["workspace_binding"] = product_workspace_binding.discover_binding(
@@ -1653,9 +1636,7 @@ def handle_v1_idea_to_spec_repair_draft_post(handler: SpecSpaceV1Handler, parsed
         return
     query_workspace_id = _query_workspace_id(parsed)
     payload_workspace_id = specspace_provider.normalize_workspace_id(
-        payload.get("workspace_id")
-        if isinstance(payload.get("workspace_id"), str)
-        else None
+        payload.get("workspace_id") if isinstance(payload.get("workspace_id"), str) else None
     )
     if query_workspace_id and payload_workspace_id and query_workspace_id != payload_workspace_id:
         json_response(
@@ -1669,9 +1650,9 @@ def handle_v1_idea_to_spec_repair_draft_post(handler: SpecSpaceV1Handler, parsed
         )
         return
     workspace_id = query_workspace_id or payload_workspace_id
-    workspace_status, workspace_payload = (
-        _provider(handler, workspace_id).read_idea_to_spec_workspace()
-    )
+    workspace_status, workspace_payload = _provider(
+        handler, workspace_id
+    ).read_idea_to_spec_workspace()
     if workspace_status != HTTPStatus.OK:
         json_response(
             handler,
@@ -1706,9 +1687,7 @@ def handle_v1_project_local_ontology_review_decision_post(
         return
     query_workspace_id = _query_workspace_id(parsed)
     payload_workspace_id = specspace_provider.normalize_workspace_id(
-        payload.get("workspace_id")
-        if isinstance(payload.get("workspace_id"), str)
-        else None
+        payload.get("workspace_id") if isinstance(payload.get("workspace_id"), str) else None
     )
     if query_workspace_id and payload_workspace_id and query_workspace_id != payload_workspace_id:
         json_response(
@@ -1763,9 +1742,7 @@ def handle_v1_idea_to_spec_intake_clarification_answer_post(
         return
     query_workspace_id = _query_workspace_id(parsed)
     payload_workspace_id = specspace_provider.normalize_workspace_id(
-        payload.get("workspace_id")
-        if isinstance(payload.get("workspace_id"), str)
-        else None
+        payload.get("workspace_id") if isinstance(payload.get("workspace_id"), str) else None
     )
     if query_workspace_id and payload_workspace_id and query_workspace_id != payload_workspace_id:
         json_response(
@@ -1779,9 +1756,9 @@ def handle_v1_idea_to_spec_intake_clarification_answer_post(
         )
         return
     workspace_id = query_workspace_id or payload_workspace_id
-    workspace_status, workspace_payload = (
-        _provider(handler, workspace_id).read_idea_to_spec_workspace()
-    )
+    workspace_status, workspace_payload = _provider(
+        handler, workspace_id
+    ).read_idea_to_spec_workspace()
     if workspace_status != HTTPStatus.OK:
         json_response(
             handler,
@@ -1812,9 +1789,7 @@ def handle_v1_real_idea_entry_request_post(
         return
     query_workspace_id = _query_workspace_id(parsed)
     payload_workspace_id = specspace_provider.normalize_workspace_id(
-        payload.get("workspace_id")
-        if isinstance(payload.get("workspace_id"), str)
-        else None
+        payload.get("workspace_id") if isinstance(payload.get("workspace_id"), str) else None
     )
     if query_workspace_id and payload_workspace_id and query_workspace_id != payload_workspace_id:
         json_response(
@@ -1845,9 +1820,7 @@ def handle_v1_real_idea_intake_execution_request_post(
         return
     query_workspace_id = _query_workspace_id(parsed)
     payload_workspace_id = specspace_provider.normalize_workspace_id(
-        payload.get("workspace_id")
-        if isinstance(payload.get("workspace_id"), str)
-        else None
+        payload.get("workspace_id") if isinstance(payload.get("workspace_id"), str) else None
     )
     if query_workspace_id and payload_workspace_id and query_workspace_id != payload_workspace_id:
         json_response(
@@ -1878,9 +1851,7 @@ def handle_v1_real_idea_answer_continuation_execution_request_post(
         return
     query_workspace_id = _query_workspace_id(parsed)
     payload_workspace_id = specspace_provider.normalize_workspace_id(
-        payload.get("workspace_id")
-        if isinstance(payload.get("workspace_id"), str)
-        else None
+        payload.get("workspace_id") if isinstance(payload.get("workspace_id"), str) else None
     )
     if query_workspace_id and payload_workspace_id and query_workspace_id != payload_workspace_id:
         json_response(
@@ -1911,9 +1882,7 @@ def handle_v1_real_idea_answer_continuation_execute_post(
         return
     query_workspace_id = _query_workspace_id(parsed)
     payload_workspace_id = specspace_provider.normalize_workspace_id(
-        payload.get("workspace_id")
-        if isinstance(payload.get("workspace_id"), str)
-        else None
+        payload.get("workspace_id") if isinstance(payload.get("workspace_id"), str) else None
     )
     if query_workspace_id and payload_workspace_id and query_workspace_id != payload_workspace_id:
         json_response(
@@ -1932,10 +1901,12 @@ def handle_v1_real_idea_answer_continuation_execute_post(
         operation_id="real_idea_answer_continuation_execute",
         payload=payload,
         workspace_id=workspace_id,
-        local_execute=lambda: real_idea_answer_continuation_execution.execute_requested_continuation(
-            handler.server,
-            payload,
-            workspace_id=workspace_id,
+        local_execute=lambda: (
+            real_idea_answer_continuation_execution.execute_requested_continuation(
+                handler.server,
+                payload,
+                workspace_id=workspace_id,
+            )
         ),
     )
     json_response(handler, status, response)
@@ -1950,9 +1921,7 @@ def handle_v1_product_workspace_creation_request_post(
         return
     query_workspace_id = _query_workspace_id(parsed)
     payload_workspace_id = specspace_provider.normalize_product_workspace_id(
-        payload.get("workspace_id")
-        if isinstance(payload.get("workspace_id"), str)
-        else None
+        payload.get("workspace_id") if isinstance(payload.get("workspace_id"), str) else None
     )
     if query_workspace_id and payload_workspace_id and query_workspace_id != payload_workspace_id:
         json_response(
@@ -1983,9 +1952,7 @@ def handle_v1_product_workspace_initialization_execute_post(
         return
     query_workspace_id = _query_workspace_id(parsed)
     payload_workspace_id = specspace_provider.normalize_product_workspace_id(
-        payload.get("workspace_id")
-        if isinstance(payload.get("workspace_id"), str)
-        else None
+        payload.get("workspace_id") if isinstance(payload.get("workspace_id"), str) else None
     )
     if query_workspace_id and payload_workspace_id and query_workspace_id != payload_workspace_id:
         json_response(
@@ -2004,10 +1971,12 @@ def handle_v1_product_workspace_initialization_execute_post(
         operation_id="workspace_initialization_execute",
         payload=payload,
         workspace_id=workspace_id,
-        local_execute=lambda: product_workspace_initialization_execution.execute_requested_initialization(
-            handler.server,
-            payload,
-            workspace_id=workspace_id,
+        local_execute=lambda: (
+            product_workspace_initialization_execution.execute_requested_initialization(
+                handler.server,
+                payload,
+                workspace_id=workspace_id,
+            )
         ),
     )
     json_response(handler, status, response)
@@ -2022,15 +1991,9 @@ def handle_v1_product_workspace_initialization_prepare_post(
         return
     query_workspace_id = _query_workspace_id(parsed)
     payload_workspace_id = specspace_provider.normalize_product_workspace_id(
-        payload.get("workspace_id")
-        if isinstance(payload.get("workspace_id"), str)
-        else None
+        payload.get("workspace_id") if isinstance(payload.get("workspace_id"), str) else None
     )
-    if (
-        query_workspace_id
-        and payload_workspace_id
-        and query_workspace_id != payload_workspace_id
-    ):
+    if query_workspace_id and payload_workspace_id and query_workspace_id != payload_workspace_id:
         json_response(
             handler,
             HTTPStatus.CONFLICT,
@@ -2042,12 +2005,10 @@ def handle_v1_product_workspace_initialization_prepare_post(
         )
         return
     workspace_id = query_workspace_id or payload_workspace_id
-    status, response = (
-        product_workspace_initialization_execution.prepare_initialization_request(
-            handler.server,
-            payload,
-            workspace_id=workspace_id,
-        )
+    status, response = product_workspace_initialization_execution.prepare_initialization_request(
+        handler.server,
+        payload,
+        workspace_id=workspace_id,
     )
     json_response(handler, status, response)
 
@@ -2061,9 +2022,7 @@ def handle_v1_real_idea_intake_execute_post(
         return
     query_workspace_id = _query_workspace_id(parsed)
     payload_workspace_id = specspace_provider.normalize_product_workspace_id(
-        payload.get("workspace_id")
-        if isinstance(payload.get("workspace_id"), str)
-        else None
+        payload.get("workspace_id") if isinstance(payload.get("workspace_id"), str) else None
     )
     if query_workspace_id and payload_workspace_id and query_workspace_id != payload_workspace_id:
         json_response(
@@ -2100,9 +2059,7 @@ def handle_v1_idea_to_spec_repair_rerun_request_post(
         return
     query_workspace_id = _query_workspace_id(parsed)
     payload_workspace_id = specspace_provider.normalize_workspace_id(
-        payload.get("workspace_id")
-        if isinstance(payload.get("workspace_id"), str)
-        else None
+        payload.get("workspace_id") if isinstance(payload.get("workspace_id"), str) else None
     )
     if query_workspace_id and payload_workspace_id and query_workspace_id != payload_workspace_id:
         json_response(
@@ -2116,9 +2073,9 @@ def handle_v1_idea_to_spec_repair_rerun_request_post(
         )
         return
     workspace_id = query_workspace_id or payload_workspace_id
-    workspace_status, workspace_payload = (
-        _provider(handler, workspace_id).read_idea_to_spec_workspace()
-    )
+    workspace_status, workspace_payload = _provider(
+        handler, workspace_id
+    ).read_idea_to_spec_workspace()
     if workspace_status != HTTPStatus.OK:
         json_response(
             handler,
@@ -2170,9 +2127,7 @@ def handle_v1_idea_to_spec_repair_rerun_request_gate_execute_post(
         return
     query_workspace_id = _query_workspace_id(parsed)
     payload_workspace_id = specspace_provider.normalize_workspace_id(
-        payload.get("workspace_id")
-        if isinstance(payload.get("workspace_id"), str)
-        else None
+        payload.get("workspace_id") if isinstance(payload.get("workspace_id"), str) else None
     )
     if query_workspace_id and payload_workspace_id and query_workspace_id != payload_workspace_id:
         json_response(
@@ -2191,10 +2146,12 @@ def handle_v1_idea_to_spec_repair_rerun_request_gate_execute_post(
         operation_id="repair_rerun_request_gate_execute",
         payload=payload,
         workspace_id=workspace_id,
-        local_execute=lambda: idea_to_spec_repair_rerun_request_gate_execution.execute_requested_request_gate(
-            handler.server,
-            payload,
-            workspace_id=workspace_id,
+        local_execute=lambda: (
+            idea_to_spec_repair_rerun_request_gate_execution.execute_requested_request_gate(
+                handler.server,
+                payload,
+                workspace_id=workspace_id,
+            )
         ),
     )
     json_response(handler, status, response)
@@ -2209,9 +2166,7 @@ def handle_v1_idea_to_spec_repair_rerun_execute_post(
         return
     query_workspace_id = _query_workspace_id(parsed)
     payload_workspace_id = specspace_provider.normalize_workspace_id(
-        payload.get("workspace_id")
-        if isinstance(payload.get("workspace_id"), str)
-        else None
+        payload.get("workspace_id") if isinstance(payload.get("workspace_id"), str) else None
     )
     if query_workspace_id and payload_workspace_id and query_workspace_id != payload_workspace_id:
         json_response(
@@ -2248,9 +2203,7 @@ def handle_v1_idea_to_spec_repair_rerun_publish_post(
         return
     query_workspace_id = _query_workspace_id(parsed)
     payload_workspace_id = specspace_provider.normalize_workspace_id(
-        payload.get("workspace_id")
-        if isinstance(payload.get("workspace_id"), str)
-        else None
+        payload.get("workspace_id") if isinstance(payload.get("workspace_id"), str) else None
     )
     if query_workspace_id and payload_workspace_id and query_workspace_id != payload_workspace_id:
         json_response(
@@ -2285,9 +2238,9 @@ def handle_v1_idea_to_spec_candidate_approval_intents(
     workspace_id = _query_workspace_id(parsed)
     workspace_payload: dict[str, Any] | None = None
     if workspace_id is not None:
-        workspace_status, workspace_payload_candidate = (
-            _provider(handler, workspace_id).read_idea_to_spec_workspace()
-        )
+        workspace_status, workspace_payload_candidate = _provider(
+            handler, workspace_id
+        ).read_idea_to_spec_workspace()
         if workspace_status == HTTPStatus.OK:
             workspace_payload = workspace_payload_candidate
             workspace_payload["workspace_binding"] = product_workspace_binding.discover_binding(
@@ -2311,9 +2264,7 @@ def handle_v1_idea_to_spec_candidate_approval_intent_post(
         return
     query_workspace_id = _query_workspace_id(parsed)
     payload_workspace_id = specspace_provider.normalize_workspace_id(
-        payload.get("workspace_id")
-        if isinstance(payload.get("workspace_id"), str)
-        else None
+        payload.get("workspace_id") if isinstance(payload.get("workspace_id"), str) else None
     )
     if query_workspace_id and payload_workspace_id and query_workspace_id != payload_workspace_id:
         json_response(
@@ -2327,9 +2278,9 @@ def handle_v1_idea_to_spec_candidate_approval_intent_post(
         )
         return
     workspace_id = query_workspace_id or payload_workspace_id
-    workspace_status, workspace_payload = (
-        _provider(handler, workspace_id).read_idea_to_spec_workspace()
-    )
+    workspace_status, workspace_payload = _provider(
+        handler, workspace_id
+    ).read_idea_to_spec_workspace()
     if workspace_status != HTTPStatus.OK:
         json_response(
             handler,
@@ -2555,10 +2506,12 @@ def handle_v1_idea_to_spec_read_model_publication_execute_post(
         operation_id="read_model_publication_execute",
         payload=payload,
         workspace_id=workspace_id,
-        local_execute=lambda: idea_to_spec_read_model_publication_execution.execute_read_model_publication(
-            handler.server,
-            payload,
-            workspace_id=workspace_id,
+        local_execute=lambda: (
+            idea_to_spec_read_model_publication_execution.execute_read_model_publication(
+                handler.server,
+                payload,
+                workspace_id=workspace_id,
+            )
         ),
     )
     json_response(handler, status, response)
@@ -2631,9 +2584,11 @@ def handle_v1_specpm_registry(handler: SpecSpaceV1Handler) -> None:
 
 def handle_v1_specpm_registry_package(handler: SpecSpaceV1Handler, parsed: Any) -> None:
     prefix = "/api/v1/specpm/registry/packages/"
-    suffix = parsed.path[len(prefix):]
+    suffix = parsed.path[len(prefix) :]
     if not suffix:
-        json_response(handler, HTTPStatus.BAD_REQUEST, {"error": "Missing SpecPM package id in path."})
+        json_response(
+            handler, HTTPStatus.BAD_REQUEST, {"error": "Missing SpecPM package id in path."}
+        )
         return
 
     version_prefix = "/versions"
@@ -2641,7 +2596,9 @@ def handle_v1_specpm_registry_package(handler: SpecSpaceV1Handler, parsed: Any) 
     if suffix.endswith(version_prefix):
         package_id = unquote(suffix[: -len(version_prefix)]).strip()
         if not package_id:
-            json_response(handler, HTTPStatus.BAD_REQUEST, {"error": "Missing SpecPM package id in path."})
+            json_response(
+                handler, HTTPStatus.BAD_REQUEST, {"error": "Missing SpecPM package id in path."}
+            )
             return
         json_response(
             handler,
@@ -2671,7 +2628,9 @@ def handle_v1_specpm_registry_package(handler: SpecSpaceV1Handler, parsed: Any) 
 
     package_id = unquote(suffix).strip()
     if not package_id:
-        json_response(handler, HTTPStatus.BAD_REQUEST, {"error": "Missing SpecPM package id in path."})
+        json_response(
+            handler, HTTPStatus.BAD_REQUEST, {"error": "Missing SpecPM package id in path."}
+        )
         return
     status, payload = specspace_provider.read_specpm_registry_package(handler.server, package_id)
     json_response(handler, status, payload)
@@ -2689,7 +2648,7 @@ def handle_v1_agent_workbench_conversations(handler: SpecSpaceV1Handler) -> None
 
 def handle_v1_agent_workbench_conversation(handler: SpecSpaceV1Handler, parsed: Any) -> None:
     prefix = "/api/v1/agent-workbench/conversations/"
-    conversation_id = unquote(parsed.path[len(prefix):]).strip()
+    conversation_id = unquote(parsed.path[len(prefix) :]).strip()
     status, payload = agent_workbench.read_agent_conversation(handler.server, conversation_id)
     json_response(handler, status, payload)
 
