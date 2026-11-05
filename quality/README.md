@@ -169,7 +169,8 @@ profiles after the static debt and dependency audit reports have actionable owne
 
 ## Local pre-push checks
 
-After completing the setup above, run `.githooks/install` once per Git repository.
+Run `make init` once per Git repository to install the hooks, and complete the
+quality dependency setup above before pushing. `make init` does not install packages.
 The installer preserves an existing pre-push hook (including Git LFS) and forwards
 its push input and arguments after running SpecSpace checks. It refuses to replace
 an existing backup. Git hooks are local; each clone needs its own installation.

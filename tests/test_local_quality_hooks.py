@@ -17,6 +17,22 @@ def run(*args, cwd, env=None, input_text=None, check=True):
 
 
 class LocalQualityHookTests(unittest.TestCase):
+    def test_make_init_preserves_hook_when_core_hookspath_is_githooks(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            run("git", "init", "-q", cwd=repo)
+            run("git", "config", "core.hooksPath", ".githooks", cwd=repo)
+            (repo / ".githooks").mkdir()
+            shutil.copy2(ROOT / "Makefile", repo / "Makefile")
+            for name in ("install", "pre-push"):
+                shutil.copy2(ROOT / ".githooks" / name, repo / ".githooks" / name)
+            hook = repo / ".githooks/pre-push"
+            before = hook.read_bytes()
+            result = run("make", "init", cwd=repo)
+            self.assertIn("already active", result.stdout)
+            self.assertEqual(hook.read_bytes(), before)
+            self.assertFalse((repo / ".githooks/pre-push.specspace-previous").exists())
+
     def test_existing_hook_and_quality_run_and_dirty_tree_blocks(self):
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
@@ -26,6 +42,7 @@ class LocalQualityHookTests(unittest.TestCase):
             run("git", "config", "user.email", "test@example.invalid", cwd=repo)
             run("git", "config", "user.name", "Test", cwd=repo)
             (repo / ".githooks").mkdir()
+            shutil.copy2(ROOT / "Makefile", repo / "Makefile")
             for name in ("install", "pre-push"):
                 shutil.copy2(ROOT / ".githooks" / name, repo / ".githooks" / name)
             for name in (
@@ -45,8 +62,8 @@ class LocalQualityHookTests(unittest.TestCase):
             old = hooks / "pre-push"
             old.write_text('#!/bin/sh\ncat > "$HOOK_INPUT"\nprintf "%s\\n" "$@" > "$HOOK_ARGS"\n')
             old.chmod(0o755)
-            run(str(repo / ".githooks/install"), cwd=repo)
-            run(str(repo / ".githooks/install"), cwd=repo)
+            run("make", "init", cwd=repo)
+            run("make", "init", cwd=repo)
             self.assertTrue((hooks / "pre-push.specspace-previous").is_file())
             binaries = base / "bin"
             binaries.mkdir()

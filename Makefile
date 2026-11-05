@@ -19,10 +19,15 @@ AGENT ?= 1
 QUALITY_PYTHON ?= quality/.venv/bin/python
 QUALITY_REPORT_DIR ?= quality/reports/local
 
-.PHONY: help serve api ui legacy-ui dev legacy-dev start stop specspace-start specspace-stop specspace-restart specspace-status ui-e2e-raw-idea-entry ui-e2e-product-demo ui-e2e-product-demo-hosted ui-e2e-product-demo-live test lint canonicalize canon quickstart
+.PHONY: init help serve api ui legacy-ui dev legacy-dev start stop specspace-start specspace-stop specspace-restart specspace-status ui-e2e-raw-idea-entry ui-e2e-product-demo ui-e2e-product-demo-hosted ui-e2e-product-demo-live test lint canonicalize canon quickstart
+
+init:
+	@.githooks/install
+	@echo "Git hooks initialized. For quality dependencies, see quality/README.md#setup-and-run."
 
 help:
 	@echo "Targets:"
+	@echo "  make init                    Initialize local Git hooks"
 	@echo "  make quickstart              Canonicalize + run API + UI (all-in-one)"
 	@echo "  make serve DIALOG_DIR=/absolute/path/to/dialogs [PORT=8000]"
 	@echo "  make canonicalize DIALOG_DIR=/path/to/import_json OUTPUT_DIR=/path/to/canonical_json"
