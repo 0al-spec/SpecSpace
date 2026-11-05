@@ -32,7 +32,7 @@ export function publishedWorkspace(search: string): string {
   return id;
 }
 function scope(url: string, workspace: string): string {
-  const parsed = new URL(url, "http://specspace.invalid");
+  const parsed = new URL(url, "https://specspace.invalid");
   parsed.searchParams.set("workspace", workspace);
   return parsed.pathname + parsed.search;
 }
@@ -67,21 +67,10 @@ async function get(url: string, fetcher: typeof fetch, signal: AbortSignal): Pro
   if (!response.ok) throw new Error(`Published ontology unavailable (HTTP ${response.status})`);
   return response.json();
 }
-export async function loadPublishedOntology(
-  workspace: string,
-  signal: AbortSignal,
-  selectedPath?: string,
-  fetcher: typeof fetch = fetch,
-): Promise<PublishedResult> {
-  const catalog = envelope(
-    await get(scope("/api/v1/artifacts", workspace), fetcher, signal),
-    "specspace_artifact_catalog",
-    workspace,
-  );
-  if (!Array.isArray(catalog.artifacts)) throw new Error("Invalid artifact catalog");
+function artifactCandidates(artifacts: unknown[]): PublishedCandidate[] {
   const candidates: PublishedCandidate[] = [];
   const paths = new Set<string>();
-  for (const raw of catalog.artifacts) {
+  for (const raw of artifacts) {
     const row = object(raw);
     const path = row.path;
     if (typeof path !== "string" || !safePath(path))
@@ -102,18 +91,38 @@ export async function loadPublishedOntology(
       throw new Error("Invalid published digest");
     candidates.push({ path, format, sha256 });
   }
+  return candidates;
+}
+function verifyDigest(candidate: PublishedCandidate, content: Record<string, unknown>): void {
+  if (candidate.sha256 && content.sha256 !== candidate.sha256)
+    throw new Error("Published artifact changed since its catalog was read");
+}
+export async function loadPublishedOntology(
+  workspace: string,
+  signal: AbortSignal,
+  selectedPath?: string,
+  fetcher: typeof fetch = fetch,
+): Promise<PublishedResult> {
+  const catalog = envelope(
+    await get(scope("/api/v1/artifacts", workspace), fetcher, signal),
+    "specspace_artifact_catalog",
+    workspace,
+  );
+  if (!Array.isArray(catalog.artifacts)) throw new Error("Invalid artifact catalog");
+  const candidates = artifactCandidates(catalog.artifacts);
   const diagrams = candidates.filter((item) => item.format === "diagram");
   const available = diagrams.length ? diagrams : candidates;
   if (!available.length) return { kind: "missing" };
-  const selected = selectedPath
-    ? available.find((item) => item.path === selectedPath)
-    : available.length === 1
-      ? available[0]
-      : undefined;
+  let selected: PublishedCandidate | undefined;
+  if (selectedPath) selected = available.find((item) => item.path === selectedPath);
+  else if (available.length === 1) selected = available[0];
   if (!selected && selectedPath) throw new Error("Selected artifact is no longer published");
   if (!selected) return { kind: "choose", candidates: available };
+  const source = object(catalog.source);
   const publicBootstrap =
     workspace === bootstrap &&
+    source.provider === "http" &&
+    source.artifact_base_url === "https://specgraph.tech" &&
     selected.path === "ontology/packages/specgraph-core/generated/ontology.normalized.json";
   const query = publicBootstrap
     ? "/api/v1/public-specgraph-ontology"
@@ -125,8 +134,7 @@ export async function loadPublishedOntology(
   );
   if (content.path !== selected.path || content.content_kind !== "json")
     throw new Error("Unexpected published artifact content");
-  if (selected.sha256 && content.sha256 !== selected.sha256)
-    throw new Error("Published artifact changed since its catalog was read");
+  verifyDigest(selected, content);
   const file = {
     path: selected.path,
     name: selected.format === "diagram" ? "ontology.graph.json" : "ontology.normalized.json",
@@ -135,5 +143,10 @@ export async function loadPublishedOntology(
   if (selected.format === "diagram") selectDiagramArtifact([file]);
   else if (loadLocalOntologyArtifact([file]).kind !== "loaded")
     throw new Error("Published normalized IR is invalid");
-  return { kind: "loaded", candidate: selected, file, digestMatched: !!selected.sha256 };
+  return {
+    kind: "loaded",
+    candidate: selected,
+    file,
+    digestMatched: !!selected.sha256,
+  };
 }

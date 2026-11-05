@@ -154,10 +154,11 @@ def test_public_ontology_is_fixed_to_published_bootstrap_source() -> None:
         with patch("viewer.specspace_v1_api.specspace_provider.HttpSpecGraphProvider") as factory:
             provider = factory.return_value
             provider.read_artifact_content.return_value = (HTTPStatus.OK, {"public": True})
-            with urlopen(
-                f"{base_url}/api/v1/public-specgraph-ontology?workspace=private&path=runs/private.json",
-                timeout=2,
-            ) as response:
+            request = Request(
+                f"{base_url}/api/v1/public-specgraph-ontology?workspace=private&path=runs/private.json"
+            )
+            # The request targets the loopback test server constructed above.
+            with urlopen(request, timeout=2) as response:  # nosec B310
                 assert json.load(response) == {"public": True}
             assert factory.call_args.kwargs["base_url"] == "https://specgraph.tech"
             provider.read_artifact_content.assert_called_once_with(

@@ -1,17 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { loadPublishedOntology, publishedWorkspace } from "./published-ontology";
-import { readFileSync } from "node:fs";
+import graph from "../../../widgets/ontology-explorer/model/motivation-full.fixture.json";
 import legacyIR from "./ontology-graph-contract/fixtures/ontology_normalized_ir.specgraph-core.min.json";
-const graph = JSON.parse(
-  readFileSync(
-    new URL(
-      "../../../widgets/ontology-explorer/model/motivation-full.fixture.json",
-      import.meta.url,
-    ),
-    "utf8",
-  ),
-);
-const row = (path = "runs/product-one/ontology.graph.json") => ({ path, sha256: "a".repeat(64) });
+const row = (path = "runs/product-one/ontology.graph.json") => ({
+  path,
+  sha256: "a".repeat(64),
+});
 const envelope = (kind: string, rest: object) => ({
   api_version: "v1",
   schema_version: 1,
@@ -21,8 +15,8 @@ const envelope = (kind: string, rest: object) => ({
   ...rest,
 });
 function fetcher(rows: object[], content: object = {}) {
-  return vi.fn(
-    async (url: string) =>
+  return vi.fn((url: string) =>
+    Promise.resolve(
       new Response(
         JSON.stringify(
           url.includes("/content?")
@@ -37,6 +31,7 @@ function fetcher(rows: object[], content: object = {}) {
         ),
         { status: 200 },
       ),
+    ),
   );
 }
 const load = (fn: ReturnType<typeof fetcher>, path?: string) =>
@@ -48,27 +43,29 @@ describe("published ontology selection", () => {
       .fn()
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({
-          api_version: "v1",
-          schema_version: 1,
-          artifact_kind: "specspace_artifact_catalog",
-          read_only: true,
-          source: {},
-          artifacts: [{ path }],
-        }),
+        json: () =>
+          Promise.resolve({
+            api_version: "v1",
+            schema_version: 1,
+            artifact_kind: "specspace_artifact_catalog",
+            read_only: true,
+            source: { provider: "http", artifact_base_url: "https://specgraph.tech" },
+            artifacts: [{ path }],
+          }),
       })
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({
-          api_version: "v1",
-          schema_version: 1,
-          artifact_kind: "specspace_artifact_content",
-          read_only: true,
-          source: {},
-          path,
-          content_kind: "json",
-          data: legacyIR,
-        }),
+        json: () =>
+          Promise.resolve({
+            api_version: "v1",
+            schema_version: 1,
+            artifact_kind: "specspace_artifact_content",
+            read_only: true,
+            source: {},
+            path,
+            content_kind: "json",
+            data: legacyIR,
+          }),
       });
     const result = await loadPublishedOntology(
       "specgraph-bootstrap",
@@ -78,6 +75,36 @@ describe("published ontology selection", () => {
     );
     expect(result.kind).toBe("loaded");
     expect(fetchMock.mock.calls[1][0]).toBe("/api/v1/public-specgraph-ontology");
+  });
+  it.each([
+    { provider: "file" },
+    { provider: "http", artifact_base_url: "https://example.invalid" },
+    {},
+  ])("uses the configured provider for non-public catalog source %o", async (source) => {
+    const path = "ontology/packages/specgraph-core/generated/ontology.normalized.json";
+    const calls: string[] = [];
+    const fetchMock = (url: string) => {
+      calls.push(url);
+      const common = { api_version: "v1", schema_version: 1, read_only: true, source };
+      const data = url.includes("/content?")
+        ? {
+            ...common,
+            artifact_kind: "specspace_artifact_content",
+            path,
+            content_kind: "json",
+            data: legacyIR,
+          }
+        : { ...common, artifact_kind: "specspace_artifact_catalog", artifacts: [{ path }] };
+      return Promise.resolve(new Response(JSON.stringify(data), { status: 200 }));
+    };
+    const result = await loadPublishedOntology(
+      "specgraph-bootstrap",
+      new AbortController().signal,
+      undefined,
+      fetchMock as typeof fetch,
+    );
+    expect(result.kind).toBe("loaded");
+    expect(calls[1]).toContain("/api/v1/artifacts/content?");
   });
   it("keeps workspace scope and uses only same-origin content API", async () => {
     const fn = fetcher([{ ...row(), url: "https://untrusted.invalid/" }]);
@@ -94,13 +121,18 @@ describe("published ontology selection", () => {
     expect((await load(fetcher(rows))).kind).toBe("loaded");
     await expect(
       load(
-        fetcher(rows, { data: { ...graph, schemaVersion: "ontology.diagram-projection/v999" } }),
+        fetcher(rows, {
+          data: { ...graph, schemaVersion: "ontology.diagram-projection/v999" },
+        }),
       ),
     ).rejects.toThrow("Unsupported");
   });
   it("loads existing published normalized IR without pretending it is a diagram", async () => {
     const path = "ontology.normalized.json";
-    const fn = fetcher([{ path, group: "ontology_ir" }], { path, data: legacyIR });
+    const fn = fetcher([{ path, group: "ontology_ir" }], {
+      path,
+      data: legacyIR,
+    });
     const result = await load(fn);
     expect(result.kind === "loaded" && result.candidate.format).toBe("legacy");
   });
@@ -115,8 +147,14 @@ describe("published ontology selection", () => {
     const path = "generated/ontology.normalized.json";
     const fn = fetcher(
       [
-        { path: "tests/fixtures/ontology_import/import-fixture.yaml", group: "ontology_ir" },
-        { path: "tests/fixtures/ontology_import/compatibility-report.yaml", group: "ontology_ir" },
+        {
+          path: "tests/fixtures/ontology_import/import-fixture.yaml",
+          group: "ontology_ir",
+        },
+        {
+          path: "tests/fixtures/ontology_import/compatibility-report.yaml",
+          group: "ontology_ir",
+        },
         { path, group: "ontology_ir" },
       ],
       { path, data: legacyIR },
@@ -127,7 +165,10 @@ describe("published ontology selection", () => {
     expect(
       await load(
         fetcher([
-          { path: "tests/fixtures/ontology_import/import-fixture.yaml", group: "ontology_ir" },
+          {
+            path: "tests/fixtures/ontology_import/import-fixture.yaml",
+            group: "ontology_ir",
+          },
         ]),
       ),
     ).toEqual({ kind: "missing" });
@@ -135,7 +176,10 @@ describe("published ontology selection", () => {
   it("accepts explicitly indexed normalized IR with a nonstandard filename", async () => {
     const path = "packages/core/generated.json";
     const result = await load(
-      fetcher([{ path, referenced_by_package_index: true }], { path, data: legacyIR }),
+      fetcher([{ path, referenced_by_package_index: true }], {
+        path,
+        data: legacyIR,
+      }),
     );
     expect(result.kind === "loaded" && result.candidate.path).toBe(path);
   });
