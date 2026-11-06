@@ -232,3 +232,9 @@
     flex-direction: column;
   }
 }
+
+.graphFixture {
+  height: 520px;
+  min-width: 0;
+  position: relative;
+}

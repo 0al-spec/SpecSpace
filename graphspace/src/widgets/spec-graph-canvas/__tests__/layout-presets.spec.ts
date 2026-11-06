@@ -59,10 +59,7 @@ const edge = (
   status: "resolved",
 });
 
-const responseWith = (
-  nodes: SpecNode[],
-  edges: SpecEdge[],
-): SpecGraphResponse => ({
+const responseWith = (nodes: SpecNode[], edges: SpecEdge[]): SpecGraphResponse => ({
   spec_dir: "/specs",
   graph: {
     nodes,
@@ -99,6 +96,7 @@ describe("SpecGraph canvas layout presets", () => {
       "tree",
       "linear",
       "spine",
+      "dagre",
       "canonical",
       "status-columns",
     ]);
@@ -111,6 +109,35 @@ describe("SpecGraph canvas layout presets", () => {
       x: 360,
       y: 0,
     });
+  });
+
+  it("uses the refinement hierarchy for Dagre and ignores secondary edges", () => {
+    const nodes = [node("a", "linked"), node("b", "linked"), node("c", "linked")];
+    const primary = [edge("ab", "refines", "b", "a"), edge("bc", "refines", "c", "b")];
+    const positions = computeSpecGraphCanvasLayoutPositions(nodes, primary, "dagre");
+    const withSecondary = computeSpecGraphCanvasLayoutPositions(
+      nodes,
+      [...primary, edge("back", "depends_on", "c", "a")],
+      "dagre",
+    );
+    expect(positions).toEqual(withSecondary);
+    expect(positions.get("a")!.x).toBeLessThan(positions.get("b")!.x);
+    expect(positions.get("b")!.x).toBeLessThan(positions.get("c")!.x);
+    expect(
+      computeSpecGraphCanvasLayoutPositions([...nodes].reverse(), [...primary].reverse(), "dagre"),
+    ).toEqual(positions);
+  });
+
+  it("handles a cyclic Dagre hierarchy without dropping nodes", () => {
+    const nodes = [node("a", "linked"), node("b", "linked")];
+    const edges = [edge("ab", "refines", "a", "b"), edge("ba", "refines", "b", "a")];
+    const positions = computeSpecGraphCanvasLayoutPositions(nodes, edges, "dagre");
+    expect(positions.size).toBe(2);
+    expect(
+      [...positions.values()].every(
+        (point) => Number.isFinite(point.x) && Number.isFinite(point.y),
+      ),
+    ).toBe(true);
   });
 
   it("places every forward edge rightward in Linear layout", () => {
@@ -133,28 +160,12 @@ describe("SpecGraph canvas layout presets", () => {
   });
 
   it("keeps raw SpecGraph edge direction in Canonical layout", () => {
-    const nodes = [
-      node("SG-SPEC-0001", "linked"),
-      node("SG-SPEC-0002", "linked"),
-    ];
-    const edges = [
-      edge("refines-2-1", "refines", "SG-SPEC-0002", "SG-SPEC-0001"),
-    ];
-    const treePositions = computeSpecGraphCanvasLayoutPositions(
-      nodes,
-      edges,
-      "tree",
-    );
-    const canonicalPositions = computeSpecGraphCanvasLayoutPositions(
-      nodes,
-      edges,
-      "canonical",
-    );
+    const nodes = [node("SG-SPEC-0001", "linked"), node("SG-SPEC-0002", "linked")];
+    const edges = [edge("refines-2-1", "refines", "SG-SPEC-0002", "SG-SPEC-0001")];
+    const treePositions = computeSpecGraphCanvasLayoutPositions(nodes, edges, "tree");
+    const canonicalPositions = computeSpecGraphCanvasLayoutPositions(nodes, edges, "canonical");
     const treeFlow = toSpecGraphFlowElements(responseWith(nodes, edges), "tree");
-    const canonicalFlow = toSpecGraphFlowElements(
-      responseWith(nodes, edges),
-      "canonical",
-    );
+    const canonicalFlow = toSpecGraphFlowElements(responseWith(nodes, edges), "canonical");
 
     expect(treePositions.get("SG-SPEC-0001")).toEqual({ x: 0, y: 0 });
     expect(treePositions.get("SG-SPEC-0002")).toEqual({ x: 360, y: 0 });
@@ -265,19 +276,16 @@ describe("SpecGraph canvas layout presets", () => {
   it("normalizes and persists the selected layout preset", () => {
     const storage = new MemoryStorage();
 
-    expect(normalizeSpecGraphCanvasLayoutPreset("status-columns")).toBe(
-      "status-columns",
-    );
+    expect(normalizeSpecGraphCanvasLayoutPreset("status-columns")).toBe("status-columns");
     expect(normalizeSpecGraphCanvasLayoutPreset("spine")).toBe("spine");
-    expect(normalizeSpecGraphCanvasLayoutPreset("refinement-ladder")).toBe(
-      "tree",
-    );
+    expect(normalizeSpecGraphCanvasLayoutPreset("refinement-ladder")).toBe("tree");
     expect(normalizeSpecGraphCanvasLayoutPreset("__proto__")).toBeNull();
     expect(normalizeSpecGraphCanvasLayoutPreset("constructor")).toBeNull();
     expect(normalizeSpecGraphCanvasLayoutPreset("unknown")).toBeNull();
-    expect(readSpecGraphCanvasLayoutPreset(storage)).toBe(
-      DEFAULT_SPEC_GRAPH_CANVAS_LAYOUT_PRESET,
-    );
+    expect(readSpecGraphCanvasLayoutPreset(storage)).toBe(DEFAULT_SPEC_GRAPH_CANVAS_LAYOUT_PRESET);
+
+    writeSpecGraphCanvasLayoutPreset(storage, "dagre");
+    expect(readSpecGraphCanvasLayoutPreset(storage)).toBe("dagre");
 
     writeSpecGraphCanvasLayoutPreset(storage, "status-columns");
 
