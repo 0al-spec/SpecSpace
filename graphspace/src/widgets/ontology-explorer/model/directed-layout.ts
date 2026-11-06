@@ -9,7 +9,7 @@ export function directedLayout(graph: Graph): Graph {
   layout.setDefaultEdgeLabel(() => ({}));
   layout.setGraph({ rankdir: "LR", nodesep: 42, ranksep: 110, marginx: 28, marginy: 28 });
   for (const node of [...graph.nodes].sort((a, b) => a.id.localeCompare(b.id))) {
-    layout.setNode(node.id, { width: 220, height: 76 });
+    layout.setNode(node.id, { width: 250, height: 76 + (node.data.ports?.length ?? 0) * 34 });
   }
   const edges = graph.edges.map((edge) => {
     if (edge.data?.kind !== "extends" && edge.data?.kind !== "implements") return edge;
@@ -31,7 +31,8 @@ export function directedLayout(graph: Graph): Graph {
   return {
     nodes: graph.nodes.map((node) => {
       const position = layout.node(node.id) as { x: number; y: number };
-      return { ...node, position: { x: position.x - 110, y: position.y - 38 } };
+      const height = 76 + (node.data.ports?.length ?? 0) * 34;
+      return { ...node, position: { x: position.x - 125, y: position.y - height / 2 } };
     }),
     edges,
   };
@@ -43,5 +44,5 @@ function isHierarchyEdge(kind: string | undefined): boolean {
 
 /** The visual endpoints of hierarchy edges are swapped in this layout. */
 export function reversesEdge(mode: string, kind: string | undefined): boolean {
-  return mode === "RL" || (mode === "directed" && isHierarchyEdge(kind));
+  return mode === "directed" && isHierarchyEdge(kind);
 }

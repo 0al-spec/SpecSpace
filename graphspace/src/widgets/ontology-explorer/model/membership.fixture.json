@@ -1,0 +1,157 @@
+{
+  "classes" : [
+    {
+      "aliases" : [
+
+      ],
+      "central" : false,
+      "description" : "Include the referenced repository in a project.",
+      "extends" : "ont:Action",
+      "fields" : [
+        {
+          "id" : "repository",
+          "required" : true,
+          "source" : {
+            "id" : "org.example.membership",
+            "pointer" : "/spec/classes/AddRepository/fields/repository",
+            "sourceByteDigest" : "sha256:3fe6f4442a9846f535e45da26249116341744c3dd7b32811480ed78e5708e0c5",
+            "sourceDigest" : "sha256:3fe6f4442a9846f535e45da26249116341744c3dd7b32811480ed78e5708e0c5",
+            "version" : "0.1.0"
+          },
+          "target" : "membership:Repository",
+          "type" : "ref"
+        }
+      ],
+      "fqid" : "membership:AddRepository",
+      "id" : "AddRepository",
+      "implements" : [
+
+      ],
+      "kind" : "Action",
+      "source" : {
+        "id" : "org.example.membership",
+        "pointer" : "/spec/classes/AddRepository",
+        "sourceByteDigest" : "sha256:3fe6f4442a9846f535e45da26249116341744c3dd7b32811480ed78e5708e0c5",
+        "sourceDigest" : "sha256:3fe6f4442a9846f535e45da26249116341744c3dd7b32811480ed78e5708e0c5",
+        "version" : "0.1.0"
+      },
+      "uri" : "ontology://org.example.membership/0.1.0/classes/AddRepository"
+    },
+    {
+      "aliases" : [
+
+      ],
+      "central" : false,
+      "description" : "A project containing repositories.",
+      "extends" : "ont:DomainEntity",
+      "fqid" : "membership:Project",
+      "id" : "Project",
+      "implements" : [
+
+      ],
+      "kind" : "DomainEntity",
+      "source" : {
+        "id" : "org.example.membership",
+        "pointer" : "/spec/classes/Project",
+        "sourceByteDigest" : "sha256:3fe6f4442a9846f535e45da26249116341744c3dd7b32811480ed78e5708e0c5",
+        "sourceDigest" : "sha256:3fe6f4442a9846f535e45da26249116341744c3dd7b32811480ed78e5708e0c5",
+        "version" : "0.1.0"
+      },
+      "uri" : "ontology://org.example.membership/0.1.0/classes/Project"
+    },
+    {
+      "aliases" : [
+
+      ],
+      "central" : false,
+      "description" : "A repository tracked by the application.",
+      "extends" : "ont:DomainEntity",
+      "fqid" : "membership:Repository",
+      "id" : "Repository",
+      "implements" : [
+
+      ],
+      "kind" : "DomainEntity",
+      "source" : {
+        "id" : "org.example.membership",
+        "pointer" : "/spec/classes/Repository",
+        "sourceByteDigest" : "sha256:3fe6f4442a9846f535e45da26249116341744c3dd7b32811480ed78e5708e0c5",
+        "sourceDigest" : "sha256:3fe6f4442a9846f535e45da26249116341744c3dd7b32811480ed78e5708e0c5",
+        "version" : "0.1.0"
+      },
+      "uri" : "ontology://org.example.membership/0.1.0/classes/Repository"
+    },
+    {
+      "aliases" : [
+
+      ],
+      "central" : false,
+      "description" : "Operator changing a project.",
+      "extends" : "ont:DomainEntity",
+      "fqid" : "membership:User",
+      "id" : "User",
+      "implements" : [
+
+      ],
+      "kind" : "DomainEntity",
+      "source" : {
+        "id" : "org.example.membership",
+        "pointer" : "/spec/classes/User",
+        "sourceByteDigest" : "sha256:3fe6f4442a9846f535e45da26249116341744c3dd7b32811480ed78e5708e0c5",
+        "sourceDigest" : "sha256:3fe6f4442a9846f535e45da26249116341744c3dd7b32811480ed78e5708e0c5",
+        "version" : "0.1.0"
+      },
+      "uri" : "ontology://org.example.membership/0.1.0/classes/User"
+    }
+  ],
+  "id" : "org.example.membership",
+  "imports" : [
+    {
+      "id" : "ontology.foundation",
+      "namespace" : "ont",
+      "version" : "0.2.0"
+    }
+  ],
+  "namespace" : "membership",
+  "policies" : [
+
+  ],
+  "protocols" : [
+
+  ],
+  "relations" : [
+    {
+      "action" : "membership:AddRepository",
+      "domain" : "membership:User",
+      "fqid" : "membership:addsRepositoryTo",
+      "id" : "addsRepositoryTo",
+      "range" : "membership:Project",
+      "source" : {
+        "id" : "org.example.membership",
+        "pointer" : "/spec/relations/addsRepositoryTo",
+        "sourceByteDigest" : "sha256:3fe6f4442a9846f535e45da26249116341744c3dd7b32811480ed78e5708e0c5",
+        "sourceDigest" : "sha256:3fe6f4442a9846f535e45da26249116341744c3dd7b32811480ed78e5708e0c5",
+        "version" : "0.1.0"
+      },
+      "uri" : "ontology://org.example.membership/0.1.0/relations/addsRepositoryTo"
+    }
+  ],
+  "schemaVersion" : "ontology.diagram-projection/v1",
+  "sourceByteDigest" : "sha256:3fe6f4442a9846f535e45da26249116341744c3dd7b32811480ed78e5708e0c5",
+  "sourceDigest" : "sha256:3fe6f4442a9846f535e45da26249116341744c3dd7b32811480ed78e5708e0c5",
+  "sources" : [
+    {
+      "alias" : "membership",
+      "id" : "org.example.membership",
+      "namespace" : "membership",
+      "sourceByteDigest" : "sha256:3fe6f4442a9846f535e45da26249116341744c3dd7b32811480ed78e5708e0c5",
+      "sourceDigest" : "sha256:3fe6f4442a9846f535e45da26249116341744c3dd7b32811480ed78e5708e0c5",
+      "version" : "0.1.0"
+    }
+  ],
+  "stateMachines" : [
+
+  ],
+  "version" : "0.1.0",
+  "view" : "full"
+}
