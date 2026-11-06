@@ -1,14 +1,14 @@
 {
   "artifact_kind": "specspace_static_quality_metrics",
   "schema_version": 1,
-  "source_revision": "d944d983402cc5557a8526c0005887c9a81cf677",
-  "workflow_run_id": "42156616922",
+  "source_revision": "86b5a9b852494834a45a2a330458afe26d8ad86e",
+  "workflow_run_id": "42172310092",
   "profile_digest": "c8a0e542e277c67bbbb4a56b1507a94a777dafec06a728e0f04225d87ca3c1e9",
-  "report_sha256": "2899aa6b997105c23e3c99c123783440e0789ec70a95fd89313ec1fb6a4da976",
+  "report_sha256": "6c8f35e15940e40dc21a6299e3e5f26841ae6963601627be9ed270ee73353117",
   "findings": {
     "ruff": 284,
     "basedpyright": 390,
-    "eslint": 2054,
+    "eslint": 2053,
     "bandit": 227
   }
 }
