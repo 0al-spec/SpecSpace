@@ -114,6 +114,7 @@ export function UiCatalogPage() {
             </div>
             <div className={styles.graphFixture}>
               <SpecGraphCanvas
+                className={styles.graphFixtureCanvas}
                 state={{ kind: "idle", source: "sample", data: SAMPLE_SPEC_GRAPH }}
               />
             </div>

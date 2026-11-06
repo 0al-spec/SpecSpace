@@ -238,3 +238,7 @@
   min-width: 0;
   position: relative;
 }
+
+.graphFixture .graphFixtureCanvas {
+  position: absolute;
+}
