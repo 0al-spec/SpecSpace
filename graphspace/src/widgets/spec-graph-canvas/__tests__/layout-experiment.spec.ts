@@ -4,6 +4,8 @@ import type { SpecEdge } from "@/entities/spec-edge";
 import type { SpecNode } from "@/entities/spec-node";
 import snapshot from "../../../../experiments/spec-graph-layout/specgraph-snapshot.json";
 import { computeSpecGraphCanvasLayoutPositions } from "../model/layout-presets";
+import { pathsIntersect, routeCrossings } from "./layout-routes";
+import { samplePath } from "./layout-route-sampling";
 
 type Point = { x: number; y: number };
 type Graph = { nodes: SpecNode[]; edges: SpecEdge[] };
@@ -106,22 +108,49 @@ function changeImpact(
   layout: (graph: Graph) => Map<string, Point>,
 ) {
   const anchor = [...graph.nodes].map((n) => n.node_id).sort((a, b) => a.localeCompare(b))[0];
-  const changed = layout({
-    nodes: [...graph.nodes, node("zz-experiment-leaf")],
-    edges: [...graph.edges, edge("zz-experiment-leaf", anchor)],
-  });
+  const deep = [...original.entries()].sort(
+    (a, b) => b[1].x - a[1].x || a[0].localeCompare(b[0]),
+  )[0][0];
+  const variants = {
+    root_leaf: {
+      nodes: [...graph.nodes, node("zz-experiment-leaf")],
+      edges: [...graph.edges, edge("zz-experiment-leaf", anchor)],
+    },
+    deep_leaf: {
+      nodes: [...graph.nodes, node("zz-experiment-leaf")],
+      edges: [...graph.edges, edge("zz-experiment-leaf", deep)],
+    },
+    isolated: { nodes: [...graph.nodes, node("zz-experiment-leaf")], edges: graph.edges },
+    secondary: { nodes: graph.nodes, edges: [...graph.edges, edge(anchor, deep, "depends_on")] },
+  };
   const beforeAnchor = original.get(anchor)!;
-  const afterAnchor = changed.get(anchor)!;
-  const deltaX = afterAnchor.x - beforeAnchor.x;
-  const deltaY = afterAnchor.y - beforeAnchor.y;
-  const moved = [...original].filter(([id, point]) => {
-    const next = changed.get(id)!;
-    return Math.abs(next.x - point.x - deltaX) > 0.01 || Math.abs(next.y - point.y - deltaY) > 0.01;
-  });
-  return { anchor, existing_nodes_moved_after_anchor_alignment: moved.length };
+  return Object.fromEntries(
+    Object.entries(variants).map(([name, variant]) => {
+      const changed = layout(variant);
+      const afterAnchor = changed.get(anchor)!;
+      const deltaX = afterAnchor.x - beforeAnchor.x;
+      const deltaY = afterAnchor.y - beforeAnchor.y;
+      const moved = [...original].filter(([id, point]) => {
+        const next = changed.get(id)!;
+        return (
+          Math.abs(next.x - point.x - deltaX) > 0.01 || Math.abs(next.y - point.y - deltaY) > 0.01
+        );
+      });
+      return [name, moved.length];
+    }),
+  );
 }
 
 describe("reproducible specification layout experiment", () => {
+  it("samples line, quadratic and cubic paths with their correct endpoints", () => {
+    expect(samplePath("M0,0L10,0Q15,0 15,5C15,10 20,10 20,15").at(-1)).toEqual({ x: 20, y: 15 });
+    expect(() => samplePath("M0,0Z")).toThrow();
+  });
+  it("counts a non-collinear contact at a polyline vertex but not collinear overlaps", () => {
+    expect(pathsIntersect(samplePath("M0,0L5,0L10,0"), samplePath("M5,-5L5,5"))).toBe(true);
+    expect(pathsIntersect(samplePath("M0,0L10,0"), samplePath("M5,0L15,0"))).toBe(false);
+    expect(pathsIntersect(samplePath("M0,0L10,0"), samplePath("M11,-5L11,5"))).toBe(false);
+  });
   for (const [name, graph] of Object.entries({ specgraph_snapshot: snapshotGraph, ...synthetic })) {
     it(`compares three layouts on ${name}`, () => {
       const tree = computeSpecGraphCanvasLayoutPositions(graph.nodes, graph.edges, "tree");
@@ -141,17 +170,29 @@ describe("reproducible specification layout experiment", () => {
           edges: graph.edges.length,
           tree: {
             ...metrics(graph, tree),
+            curved_route_pairs: routeCrossings(graph.edges, tree, "curved"),
+            curved_route_pairs_32: routeCrossings(graph.edges, tree, "curved", 32),
+            orthogonal_route_pairs: routeCrossings(graph.edges, tree, "orthogonal"),
             ...changeImpact(graph, tree, (g) =>
               computeSpecGraphCanvasLayoutPositions(g.nodes, g.edges, "tree"),
             ),
           },
           spine: {
             ...metrics(graph, spine),
+            curved_route_pairs: routeCrossings(graph.edges, spine, "curved"),
+            curved_route_pairs_32: routeCrossings(graph.edges, spine, "curved", 32),
+            orthogonal_route_pairs: routeCrossings(graph.edges, spine, "orthogonal"),
             ...changeImpact(graph, spine, (g) =>
               computeSpecGraphCanvasLayoutPositions(g.nodes, g.edges, "spine"),
             ),
           },
-          dagre: { ...metrics(graph, candidate), ...changeImpact(graph, candidate, experimental) },
+          dagre: {
+            ...metrics(graph, candidate),
+            curved_route_pairs: routeCrossings(graph.edges, candidate, "curved"),
+            curved_route_pairs_32: routeCrossings(graph.edges, candidate, "curved", 32),
+            orthogonal_route_pairs: routeCrossings(graph.edges, candidate, "orthogonal"),
+            ...changeImpact(graph, candidate, experimental),
+          },
         }),
       );
     });

@@ -50,3 +50,49 @@ zoom, interactive behavior, and incremental stability across multiple edits
 remain unmeasured. In the cycle case all three layouts necessarily leave one
 hierarchy edge non-forward; the multi-parent case has zero crossings under this
 proxy for all three. Compare the generated output when code or fixtures change.
+
+## React Flow routes and edit scenarios
+
+The test also generates paths using the production viewer's React Flow
+`getBezierPath` and `getSmoothStepPath`, the same handle sides and per-kind
+curvature. It uses the experiment's fixed 220×126 node dimensions and does not
+render the live DOM, use measured node sizes, account for viewport filtering,
+or sample the SVG created in a browser. `refines` is projected parent to child,
+as in Tree and Spine. All resolved edges are included.
+
+Each Q/C segment is approximated with 16 equal parameter steps; the curved case
+is additionally evaluated at 32. Counts are pairs of edges with at least one
+non-collinear segment intersection or contact, including contacts at sampled
+segment endpoints. Pairs sharing a graph endpoint and collinear overlaps are
+excluded; multiple intersections between the same pair count once. Rounded
+orthogonal corners are sampled as quadratic curves. Sampling and floating-point
+tests may miss or misclassify tangencies and close contacts, so counts are
+estimates and should not be interpreted as exact visible crossings.
+
+| Measure                          |  Tree | Spine | Dagre |
+| -------------------------------- | ----: | ----: | ----: |
+| Curved route pairs, 16 steps     |   964 |   249 |   251 |
+| Curved route pairs, 32 steps     |   970 |   250 |   252 |
+| Orthogonal route pairs, 16 steps | 1,428 |   409 |   417 |
+
+The difference between 16 and 32 is evidence of sampling sensitivity, not a
+statistical confidence interval. In particular, Spine's advantage over Dagre in
+this small comparison is too narrow to justify selecting either on crossings.
+
+The position-stability experiment now counts existing nodes that move relative
+to the same anchor after four independent changes: adding a child to the first
+node, adding a child to the rightmost node (according to each layout), adding an
+isolated node, or adding a secondary link. The rightmost-node operation is not
+necessarily the same target across algorithms. Counts on the snapshot:
+
+| Change                  | Tree | Spine | Dagre |
+| ----------------------- | ---: | ----: | ----: |
+| Child of first node     |    0 |    71 |    71 |
+| Child of rightmost node |    0 |     0 |     0 |
+| Isolated node           |    0 |     0 |    30 |
+| Secondary link          |    0 |     0 |     0 |
+
+These are controlled synthetic edits on one snapshot. They do not measure
+manual overrides or performance, and do not predict stability for arbitrary
+changes. The original straight-line table remains useful only for comparison
+with the first experiment, not as an estimate of rendered edge crossings.
