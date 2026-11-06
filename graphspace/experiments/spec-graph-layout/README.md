@@ -45,9 +45,8 @@ Snapshot results on the current checkout:
 | Bounding box area (px²)                    | 12,965,080 | 29,391,080 | 18,221,400 |
 | Existing nodes moved in one leaf insertion |          0 |         71 |         71 |
 
-These numbers do not establish that one viewer is more usable: routes, labels,
-zoom, interactive behavior, and incremental stability across multiple edits
-remain unmeasured. In the cycle case all three layouts necessarily leave one
+These first-experiment numbers do not establish that one viewer is more usable:
+labels, zoom, and interactive behavior remain unmeasured. In the cycle case all three layouts necessarily leave one
 hierarchy edge non-forward; the multi-parent case has zero crossings under this
 proxy for all three. Compare the generated output when code or fixtures change.
 
@@ -55,9 +54,10 @@ proxy for all three. Compare the generated output when code or fixtures change.
 
 The test also generates paths using the production viewer's React Flow
 `getBezierPath` and `getSmoothStepPath`, the same handle sides and per-kind
-curvature. It uses the experiment's fixed 220×126 node dimensions and does not
-render the live DOM, use measured node sizes, account for viewport filtering,
-or sample the SVG created in a browser. `refines` is projected parent to child,
+curvature. For the snapshot it uses node sizes observed on the live site:
+220×158 for 70 nodes and 220×132 for `SG-SPEC-0020` and `SG-SPEC-0046`.
+Synthetic fixtures use 220×126. The model reconstructs routes from test layout
+coordinates and does not account for viewport filtering. `refines` is projected parent to child,
 as in Tree and Spine. All resolved edges are included.
 
 Each Q/C segment is approximated with 16 equal parameter steps; the curved case
@@ -71,9 +71,9 @@ estimates and should not be interpreted as exact visible crossings.
 
 | Measure                          |  Tree | Spine | Dagre |
 | -------------------------------- | ----: | ----: | ----: |
-| Curved route pairs, 16 steps     |   964 |   249 |   251 |
-| Curved route pairs, 32 steps     |   970 |   250 |   252 |
-| Orthogonal route pairs, 16 steps | 1,428 |   409 |   417 |
+| Curved route pairs, 16 steps     |   964 |   250 |   251 |
+| Curved route pairs, 32 steps     |   970 |   251 |   252 |
+| Orthogonal route pairs, 16 steps | 1,425 |   407 |   415 |
 
 The difference between 16 and 32 is evidence of sampling sensitivity, not a
 statistical confidence interval. In particular, Spine's advantage over Dagre in
@@ -96,3 +96,17 @@ These are controlled synthetic edits on one snapshot. They do not measure
 manual overrides or performance, and do not predict stability for arbitrary
 changes. The original straight-line table remains useful only for comparison
 with the first experiment, not as an estimate of rendered edge crossings.
+
+## Observed production SVG paths
+
+On 2026-11-06, the live public canvas reported 72 nodes and 187 visible edges
+after selecting **All**, with SpecGraph source revision `1bc0e6f`. Sampling
+the actual curved SVG paths in the browser at 32 equal-distance intervals
+reported **965 intersecting pairs for Tree** and **250 for Spine**. This is
+a point-in-time observation, not a benchmark of Dagre, which is not in the UI.
+The browser sampler is `sample-live-dom.js`: on the public canvas select Tree
+or Spine, Curve and All, then evaluate the file's expression in the browser
+console. Restore previous UI settings afterward. The source revision, UI
+revision, node dimensions, manual position overrides and filters can change the
+result. Equal-distance DOM samples and equal-parameter reconstructed samples
+are different approximations; counts can differ.

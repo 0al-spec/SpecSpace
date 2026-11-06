@@ -156,6 +156,16 @@ describe("reproducible specification layout experiment", () => {
       const tree = computeSpecGraphCanvasLayoutPositions(graph.nodes, graph.edges, "tree");
       const spine = computeSpecGraphCanvasLayoutPositions(graph.nodes, graph.edges, "spine");
       const candidate = experimental(graph);
+      // DOM measurements from 2026-11-06 production snapshot; synthetic cases use 126px.
+      const heights =
+        name === "specgraph_snapshot"
+          ? new Map(
+              graph.nodes.map((n) => [
+                n.node_id,
+                ["SG-SPEC-0020", "SG-SPEC-0046"].includes(n.node_id) ? 132 : 158,
+              ]),
+            )
+          : undefined;
       expect(candidate.size).toBe(graph.nodes.length);
       expect(experimental(graph)).toEqual(candidate);
       const withoutSecondary = experimental({
@@ -170,27 +180,33 @@ describe("reproducible specification layout experiment", () => {
           edges: graph.edges.length,
           tree: {
             ...metrics(graph, tree),
-            curved_route_pairs: routeCrossings(graph.edges, tree, "curved"),
-            curved_route_pairs_32: routeCrossings(graph.edges, tree, "curved", 32),
-            orthogonal_route_pairs: routeCrossings(graph.edges, tree, "orthogonal"),
+            curved_route_pairs: routeCrossings(graph.edges, tree, "curved", 16, heights),
+            curved_route_pairs_32: routeCrossings(graph.edges, tree, "curved", 32, heights),
+            orthogonal_route_pairs: routeCrossings(graph.edges, tree, "orthogonal", 16, heights),
             ...changeImpact(graph, tree, (g) =>
               computeSpecGraphCanvasLayoutPositions(g.nodes, g.edges, "tree"),
             ),
           },
           spine: {
             ...metrics(graph, spine),
-            curved_route_pairs: routeCrossings(graph.edges, spine, "curved"),
-            curved_route_pairs_32: routeCrossings(graph.edges, spine, "curved", 32),
-            orthogonal_route_pairs: routeCrossings(graph.edges, spine, "orthogonal"),
+            curved_route_pairs: routeCrossings(graph.edges, spine, "curved", 16, heights),
+            curved_route_pairs_32: routeCrossings(graph.edges, spine, "curved", 32, heights),
+            orthogonal_route_pairs: routeCrossings(graph.edges, spine, "orthogonal", 16, heights),
             ...changeImpact(graph, spine, (g) =>
               computeSpecGraphCanvasLayoutPositions(g.nodes, g.edges, "spine"),
             ),
           },
           dagre: {
             ...metrics(graph, candidate),
-            curved_route_pairs: routeCrossings(graph.edges, candidate, "curved"),
-            curved_route_pairs_32: routeCrossings(graph.edges, candidate, "curved", 32),
-            orthogonal_route_pairs: routeCrossings(graph.edges, candidate, "orthogonal"),
+            curved_route_pairs: routeCrossings(graph.edges, candidate, "curved", 16, heights),
+            curved_route_pairs_32: routeCrossings(graph.edges, candidate, "curved", 32, heights),
+            orthogonal_route_pairs: routeCrossings(
+              graph.edges,
+              candidate,
+              "orthogonal",
+              16,
+              heights,
+            ),
             ...changeImpact(graph, candidate, experimental),
           },
         }),

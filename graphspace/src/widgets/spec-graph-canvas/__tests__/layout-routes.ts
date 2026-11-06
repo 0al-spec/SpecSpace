@@ -12,6 +12,7 @@ export function routeCrossings(
   positions: Map<string, Point>,
   mode: "curved" | "orthogonal",
   steps = 16,
+  heights?: ReadonlyMap<string, number>,
 ): number {
   const routes: Route[] = edges
     .filter(
@@ -21,13 +22,15 @@ export function routeCrossings(
         positions.has(edge.target_id),
     )
     .map((edge) => {
-      const source = positions.get(edge.edge_kind === "refines" ? edge.target_id : edge.source_id)!;
-      const target = positions.get(edge.edge_kind === "refines" ? edge.source_id : edge.target_id)!;
+      const sourceId = edge.edge_kind === "refines" ? edge.target_id : edge.source_id;
+      const targetId = edge.edge_kind === "refines" ? edge.source_id : edge.target_id;
+      const source = positions.get(sourceId)!;
+      const target = positions.get(targetId)!;
       const options = {
         sourceX: source.x + 220,
-        sourceY: source.y + 63,
+        sourceY: source.y + (heights?.get(sourceId) ?? 126) / 2,
         targetX: target.x,
-        targetY: target.y + 63,
+        targetY: target.y + (heights?.get(targetId) ?? 126) / 2,
         sourcePosition: Position.Right,
         targetPosition: Position.Left,
       };
