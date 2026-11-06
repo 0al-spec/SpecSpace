@@ -1,6 +1,6 @@
 {
   "repository": "https://github.com/0al-spec/Ontology",
-  "revision": "096f7f34cb5051e8d62722c4ce2c41b55f374c89",
+  "revision": "35b9eb1408f0160317cbd2846f84ce10931f3c6c",
   "license": "MIT",
   "files": {
     "GraphCanvas.tsx": {
