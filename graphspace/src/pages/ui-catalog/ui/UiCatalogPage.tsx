@@ -1,5 +1,5 @@
 import { SpecGraphCanvas, SAMPLE_SPEC_GRAPH } from "@/widgets/spec-graph-canvas";
-import { OntologyExplorerFixture } from "@/widgets/ontology-explorer";
+import { OntologyExplorerFixture, OntologyMembershipFixture } from "@/widgets/ontology-explorer";
 import { Panel } from "@/shared/ui/panel";
 import { PanelBtn } from "@/shared/ui/panel-btn";
 import styles from "./UiCatalogPage.module.css";
@@ -125,6 +125,12 @@ export function UiCatalogPage() {
               <span className={styles.badge}>real compiler projection · read only</span>
             </div>
             <OntologyExplorerFixture />
+          </section>
+          <section className={styles.section} id="ontology-membership">
+            <div className={styles.sectionHeader}>
+              <h2 className={styles.sectionTitle}>Ontology actions and fields</h2>
+            </div>
+            <OntologyMembershipFixture />
           </section>
           <section className={styles.section} id="utility-panel-components">
             <div className={styles.sectionHeader}>

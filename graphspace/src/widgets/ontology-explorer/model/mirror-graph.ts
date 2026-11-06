@@ -2,7 +2,7 @@ import { buildGraph } from "@/entities/ontology-diagram";
 
 type Graph = ReturnType<typeof buildGraph>;
 
-/** Reflect the layout while keeping arrowheads at their semantic targets. */
+/** Reflect node positions without reversing semantic endpoints or named handles. */
 export function mirrorGraph(graph: Graph): Graph {
   const xs = graph.nodes.map((node) => node.position.x);
   const axis = xs.length ? Math.min(...xs) + Math.max(...xs) : 0;
@@ -11,13 +11,7 @@ export function mirrorGraph(graph: Graph): Graph {
       ...node,
       position: { ...node.position, x: axis - node.position.x },
     })),
-    edges: graph.edges.map((edge) => ({
-      ...edge,
-      source: edge.target,
-      target: edge.source,
-      markerStart: edge.markerEnd,
-      markerEnd: edge.markerStart,
-      ariaLabel: edge.ariaLabel ?? `Edge from ${edge.source} to ${edge.target}`,
-    })),
+    // Keep named handles attached to their original nodes; only reflect positions.
+    edges: graph.edges,
   };
 }

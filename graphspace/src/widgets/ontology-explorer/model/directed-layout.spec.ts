@@ -64,7 +64,7 @@ describe("directedLayout", () => {
     expect(reversesEdge("directed", "extends")).toBe(true);
     expect(reversesEdge("directed", "implements")).toBe(true);
     expect(reversesEdge("directed", "relation")).toBe(false);
-    expect(reversesEdge("RL", "relation")).toBe(true);
+    expect(reversesEdge("RL", "relation")).toBe(false);
   });
   it("handles a cyclic real graph deterministically without dropping nodes or links", () => {
     const graph = buildGraph(parseProjection(fixture));

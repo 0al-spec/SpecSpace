@@ -16,7 +16,7 @@ import { directedLayout, reversesEdge } from "../model/directed-layout";
 import "./ontology-explorer.css";
 
 /** Read-only composition. It has no filesystem, HTTP or workspace-editor client. */
-export function OntologyExplorer({ projection }: { projection: Projection }) {
+export function OntologyExplorer({ projection }: Readonly<{ projection: Projection }>) {
   const [query, setQuery] = useState("");
   const [direction, setDirection] = useState<"LR" | "RL" | "directed">("LR");
   const [filters, setFilters] = useState(defaultFilters);
@@ -29,6 +29,15 @@ export function OntologyExplorer({ projection }: { projection: Projection }) {
     if (direction === "directed") return directedLayout(original);
     return original;
   }, [projection, direction]);
+  const classNodes = useMemo(
+    () =>
+      new Map(
+        graph.nodes
+          .filter((node) => node.id.startsWith("classes/"))
+          .map((node) => [node.data.label, node]),
+      ),
+    [graph],
+  );
   const counts = useMemo(() => graphFilterCounts(graph, projection.id), [graph, projection.id]);
   const packages = useMemo(() => graphPackages(graph, projection), [graph, projection]);
   const visibility = useMemo(
@@ -37,28 +46,43 @@ export function OntologyExplorer({ projection }: { projection: Projection }) {
   );
   const matches = useMemo(() => {
     const search = query.trim().toLowerCase();
-    if (!search) return [];
     const nodes = graph.nodes
       .filter(
-        (node) => visibility.nodeIds.has(node.id) && node.data.label.toLowerCase().includes(search),
+        (node) =>
+          (!search || visibility.nodeIds.has(node.id)) &&
+          node.data.label.toLowerCase().includes(search),
       )
       .map((node) => ({
         key: node.id,
         label: node.data.label,
-        kind: node.data.kind,
+        kind: node.data.isAction ? "action" : node.data.kind,
+        hidden: !visibility.nodeIds.has(node.id),
         focus: node.id,
         selection: { type: "node", id: node.id, data: node.data } as Selection,
       }));
-    const edges = graph.edges
-      .filter(
-        (edge) =>
-          visibility.edgeIds.has(edge.id) && edge.data?.semanticId.toLowerCase().includes(search),
-      )
+    const seen = new Set<string>();
+    const edges = [...graph.edges]
+      .sort((a, b) => Number(visibility.edgeIds.has(b.id)) - Number(visibility.edgeIds.has(a.id)))
+      .filter((edge) => {
+        const data = edge.data;
+        if (
+          !data ||
+          !edge.id.startsWith("relation/") ||
+          (search && !visibility.edgeIds.has(edge.id)) ||
+          data.kind !== "relation" ||
+          !data.semanticId.toLowerCase().includes(search) ||
+          seen.has(data.semanticId)
+        )
+          return false;
+        seen.add(data.semanticId);
+        return true;
+      })
       .map((edge) => ({
         key: edge.id,
         label: edge.data!.semanticId,
-        kind: edge.data!.kind,
+        kind: "relation",
         focus: edge.source,
+        hidden: !visibility.edgeIds.has(edge.id),
         selection: {
           type: "edge",
           id: edge.id,
@@ -120,23 +144,57 @@ export function OntologyExplorer({ projection }: { projection: Projection }) {
             packages={packages}
             view={projection.view}
           />
-          {query.trim() && (
-            <div className="search-results" aria-label="Search results">
-              <span className="section-label">{matches.length} matches</span>
-              {matches.map((match) => (
-                <button
-                  key={match.key}
-                  onClick={() => {
-                    setSelection(match.selection);
-                    setFocusNode({ id: match.focus });
-                  }}
+          <div
+            className="search-results declaration-catalog"
+            aria-label={query.trim() ? "Search results" : "Declaration catalog"}
+          >
+            <span className="section-label">
+              {query.trim()
+                ? `${matches.length} MATCHES`
+                : `DECLARATIONS · ${matches.filter((item) => item.kind !== "external").length}`}
+            </span>
+            {(
+              [
+                ["action", "Actions"],
+                ["class", "Classes"],
+                ["imported", "Imported classes"],
+                ["relation", "Relationships"],
+                ["protocol", "Protocols"],
+                ["policy", "Policies"],
+                ["machine", "State machines"],
+                ["state", "States"],
+                ["external", "Unloaded references"],
+              ] as const
+            ).map(([kind, title]) => {
+              const items = matches.filter((match) => match.kind === kind);
+              if (!items.length) return null;
+              return (
+                <details
+                  key={kind}
+                  open={Boolean(query.trim()) || ["action", "class", "relation"].includes(kind)}
                 >
-                  <span>{match.label}</span>
-                  <small>{match.kind}</small>
-                </button>
-              ))}
-            </div>
-          )}
+                  <summary>
+                    {title} <span>{items.length}</span>
+                  </summary>
+                  {items.map((match) => (
+                    <button
+                      key={match.key}
+                      onClick={() => {
+                        setSelection(match.selection);
+                        if (!match.hidden) setFocusNode({ id: match.focus });
+                      }}
+                    >
+                      <span>{match.label}</span>
+                      <small>
+                        {match.kind}
+                        {match.hidden ? " · hidden by filters" : ""}
+                      </small>
+                    </button>
+                  ))}
+                </details>
+              );
+            })}
+          </div>
           <p className="explorer-authority">
             Declaration view. A valid file does not establish approval, policy execution or source
             truth.
@@ -161,7 +219,17 @@ export function OntologyExplorer({ projection }: { projection: Projection }) {
             )
           }
         />
-        <Inspector selection={selection} filtered={filtered} />
+        <Inspector
+          selection={selection}
+          filtered={filtered}
+          classReferences={classNodes}
+          onSelectClass={(fqid) => {
+            const node = classNodes.get(fqid);
+            if (!node) return;
+            setSelection({ type: "node", id: node.id, data: node.data });
+            if (visibility.nodeIds.has(node.id)) setFocusNode({ id: node.id });
+          }}
+        />
       </div>
     </div>
   );
