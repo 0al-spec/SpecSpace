@@ -1,10 +1,10 @@
 {
   "artifact_kind": "specspace_static_quality_metrics",
   "schema_version": 1,
-  "source_revision": "86b5a9b852494834a45a2a330458afe26d8ad86e",
-  "workflow_run_id": "42172310092",
+  "source_revision": "79490d6eef15aadb9cab4625e001581095dcd3bd",
+  "workflow_run_id": "42250917417",
   "profile_digest": "c8a0e542e277c67bbbb4a56b1507a94a777dafec06a728e0f04225d87ca3c1e9",
-  "report_sha256": "6c8f35e15940e40dc21a6299e3e5f26841ae6963601627be9ed270ee73353117",
+  "report_sha256": "22679b3dd9d14b18b79ff01ed985a223231991e41c82758456f2c7ba30ed03bb",
   "findings": {
     "ruff": 284,
     "basedpyright": 390,
