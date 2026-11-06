@@ -119,14 +119,25 @@ export async function loadPublishedOntology(
   if (!selected && selectedPath) throw new Error("Selected artifact is no longer published");
   if (!selected) return { kind: "choose", candidates: available };
   const source = object(catalog.source);
-  const publicBootstrap =
+  const publicRoutes = new Map<string, string>([
+    [
+      "ontology/packages/specgraph-core/generated/ontology.normalized.json",
+      "/api/v1/public-specgraph-ontology",
+    ],
+    [
+      "ontology/packages/specgraph-core/generated/ontology.graph.json",
+      "/api/v1/public-specgraph-ontology-graph",
+    ],
+  ]);
+  const publicRoute =
     workspace === bootstrap &&
     source.provider === "http" &&
-    source.artifact_base_url === "https://specgraph.tech" &&
-    selected.path === "ontology/packages/specgraph-core/generated/ontology.normalized.json";
-  const query = publicBootstrap
-    ? "/api/v1/public-specgraph-ontology"
-    : scope("/api/v1/artifacts/content?path=" + encodeURIComponent(selected.path), workspace);
+    source.artifact_base_url === "https://specgraph.tech"
+      ? publicRoutes.get(selected.path)
+      : undefined;
+  const query =
+    publicRoute ??
+    scope("/api/v1/artifacts/content?path=" + encodeURIComponent(selected.path), workspace);
   const content = envelope(
     await get(query, fetcher, signal),
     "specspace_artifact_content",
