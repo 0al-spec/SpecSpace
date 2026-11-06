@@ -114,7 +114,7 @@ jobs:
         working-directory: graphspace
         env:
           SPECSPACE_E2E_PORT: "5198"
-        run: npm run e2e:ui-started -- ontology-explorer.spec.ts ontology-legacy-edges.spec.ts --workers=1
+        run: npm run e2e:ui-started -- ontology-explorer.spec.ts ontology-legacy-edges.spec.ts ui-catalog.spec.ts --workers=1
 
       - name: Upload Ontology Viewer browser evidence
         if: always()
