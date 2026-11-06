@@ -3,7 +3,7 @@ import { buildGraph } from "@/entities/ontology-diagram";
 
 type Graph = ReturnType<typeof buildGraph>;
 
-/** Layout inheritance from base to subtype, and other declared edges from source to target. */
+/** Rank only the type hierarchy; secondary relationships never change node placement. */
 export function directedLayout(graph: Graph): Graph {
   const layout = new dagre.graphlib.Graph({ multigraph: true });
   layout.setDefaultEdgeLabel(() => ({}));
@@ -22,7 +22,9 @@ export function directedLayout(graph: Graph): Graph {
       ariaLabel: edge.ariaLabel ?? `Edge from ${edge.source} to ${edge.target}`,
     };
   });
-  for (const edge of [...edges].sort((a, b) => a.id.localeCompare(b.id))) {
+  for (const edge of edges
+    .filter((item) => isHierarchyEdge(item.data?.kind))
+    .sort((a, b) => a.id.localeCompare(b.id))) {
     layout.setEdge(edge.source, edge.target, {}, edge.id);
   }
   dagre.layout(layout);
@@ -35,7 +37,11 @@ export function directedLayout(graph: Graph): Graph {
   };
 }
 
+function isHierarchyEdge(kind: string | undefined): boolean {
+  return kind === "extends" || kind === "implements";
+}
+
 /** The visual endpoints of hierarchy edges are swapped in this layout. */
 export function reversesEdge(mode: string, kind: string | undefined): boolean {
-  return mode === "RL" || (mode === "directed" && (kind === "extends" || kind === "implements"));
+  return mode === "RL" || (mode === "directed" && isHierarchyEdge(kind));
 }

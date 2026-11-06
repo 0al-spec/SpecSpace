@@ -4,7 +4,7 @@ import fixture from "./motivation-full.fixture.json";
 import { directedLayout, reversesEdge } from "./directed-layout";
 
 describe("directedLayout", () => {
-  it("places bases before subtypes and declared transitions source before target", () => {
+  it("places bases before subtypes without letting secondary links change placement", () => {
     const node = (id: string) => ({
       id,
       position: { x: 0, y: 0 },
@@ -27,7 +27,26 @@ describe("directedLayout", () => {
     const result = directedLayout(input);
     const x = (id: string) => result.nodes.find((n) => n.id === id)!.position.x;
     expect(x("base")).toBeLessThan(x("child"));
-    expect(x("child")).toBeLessThan(x("end"));
+    const withoutSecondary = directedLayout({ ...input, edges: [input.edges[0]] });
+    expect(result.nodes.map((node) => node.position)).toEqual(
+      withoutSecondary.nodes.map((node) => node.position),
+    );
+    const withBackwardLink = directedLayout({
+      ...input,
+      edges: [
+        ...input.edges,
+        edge("back", "end", "base", "relation"),
+        edge("same-layer", "base", "end", "relation"),
+      ],
+    });
+    expect(withBackwardLink.nodes.map((node) => node.position)).toEqual(
+      withoutSecondary.nodes.map((node) => node.position),
+    );
+    expect(withBackwardLink.edges.find((item) => item.id === "back")).toMatchObject({
+      source: "end",
+      target: "base",
+      markerEnd: { type: "arrowclosed" },
+    });
     expect(result.edges[0]).toMatchObject({
       source: "base",
       target: "child",

@@ -98,7 +98,8 @@ export function OntologyExplorer({ projection }: { projection: Projection }) {
             <option value="directed">Directed layers</option>
           </select>
           <small className="filter-search-note">
-            Directed layers try to place base types before derived types and follow declared links.
+            Hierarchy layers place base types before derived types; other links do not affect
+            placement.
           </small>
           <label className="search-label" htmlFor={searchId}>
             Search graph
