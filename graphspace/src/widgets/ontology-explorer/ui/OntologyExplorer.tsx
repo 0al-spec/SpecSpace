@@ -12,19 +12,22 @@ import {
   type Selection,
 } from "@/entities/ontology-diagram";
 import { mirrorGraph } from "../model/mirror-graph";
+import { directedLayout, reversesEdge } from "../model/directed-layout";
 import "./ontology-explorer.css";
 
 /** Read-only composition. It has no filesystem, HTTP or workspace-editor client. */
 export function OntologyExplorer({ projection }: { projection: Projection }) {
   const [query, setQuery] = useState("");
-  const [direction, setDirection] = useState<"LR" | "RL">("LR");
+  const [direction, setDirection] = useState<"LR" | "RL" | "directed">("LR");
   const [filters, setFilters] = useState(defaultFilters);
   const [selection, setSelection] = useState<Selection | null>(null);
   const [focusNode, setFocusNode] = useState<{ id: string } | null>(null);
   const searchId = useId();
   const graph = useMemo(() => {
     const original = buildGraph(projection);
-    return direction === "RL" ? mirrorGraph(original) : original;
+    if (direction === "RL") return mirrorGraph(original);
+    if (direction === "directed") return directedLayout(original);
+    return original;
   }, [projection, direction]);
   const counts = useMemo(() => graphFilterCounts(graph, projection.id), [graph, projection.id]);
   const packages = useMemo(() => graphPackages(graph, projection), [graph, projection]);
@@ -59,8 +62,8 @@ export function OntologyExplorer({ projection }: { projection: Projection }) {
         selection: {
           type: "edge",
           id: edge.id,
-          source: direction === "RL" ? edge.target : edge.source,
-          target: direction === "RL" ? edge.source : edge.target,
+          source: reversesEdge(direction, edge.data?.kind) ? edge.target : edge.source,
+          target: reversesEdge(direction, edge.data?.kind) ? edge.source : edge.target,
           data: edge.data!,
         } as Selection,
       }));
@@ -88,13 +91,15 @@ export function OntologyExplorer({ projection }: { projection: Projection }) {
             id={`${searchId}-direction`}
             className="search"
             value={direction}
-            onChange={(event) => setDirection(event.target.value as "LR" | "RL")}
+            onChange={(event) => setDirection(event.target.value as "LR" | "RL" | "directed")}
           >
             <option value="LR">References right</option>
             <option value="RL">References left (mirrored)</option>
+            <option value="directed">Directed layers</option>
           </select>
           <small className="filter-search-note">
-            Mirroring reverses the layout, not the meaning of arrows.
+            Hierarchy layers place base types before derived types; other links do not affect
+            placement.
           </small>
           <label className="search-label" htmlFor={searchId}>
             Search graph
@@ -150,7 +155,7 @@ export function OntologyExplorer({ projection }: { projection: Projection }) {
           filterMode={filters.mode}
           onSelect={(value) =>
             setSelection(
-              direction === "RL" && value.type === "edge"
+              value.type === "edge" && reversesEdge(direction, value.data.kind)
                 ? { ...value, source: value.target, target: value.source }
                 : value,
             )
