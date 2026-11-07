@@ -128,7 +128,7 @@ export function OntologyExplorer({ projection }: Readonly<{ projection: Projecti
           <small className="filter-search-note">
             {direction === "relations"
               ? "Relationship layers follow ontology relations; cycles may produce backward links."
-              : "Hierarchy layers place base types before derived types; other links do not affect placement."}
+              : "Hierarchy layers place base types before derived types and action roles before their relationships."}
           </small>
           <label className="search-label" htmlFor={searchId}>
             Search graph

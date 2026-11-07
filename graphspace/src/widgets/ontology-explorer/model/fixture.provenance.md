@@ -26,3 +26,13 @@ The fixture is public declaration data, not execution evidence.
 `https://specgraph.space/api/v1/public-specgraph-ontology-graph` response
 on 2026-11-07. It is JSON re-serialized for test use, not the original bytes.
 Its SHA-256 is `ff9cec8ef7393f6ce0cbf0e6a7f7d3aef3f3dfca1d34d17a4f3721a3bef52854`.
+
+## Publication verification action fixture
+
+`publication-verification.fixture.json` is a formatted JSON copy of the diagram projection of
+the draft model in SpecGraph PR #889 at `ef867a00eb1d01ea9ac59914e03485727b23d6e6`,
+exported by the compiler at Ontology commit `35b9eb1408f0160317cbd2846f84ce10931f3c6c`.
+The original export SHA-256 is `2b3520a76b70089e3a9a0b5ddf6fa22278e978a9edfeb8201001a5b7c29fe0f1`;
+the formatted fixture SHA-256 is `96bd0a1699e705b573790f3c988a5ea5122846db44b0381184dc4543a5d68525`.
+It is a draft declaration projection, not evidence of canonical acceptance or
+runtime policy execution. The foundation import is not expanded in this export.
