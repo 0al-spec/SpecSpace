@@ -4,15 +4,27 @@ import { buildGraph } from "@/entities/ontology-diagram";
 type Graph = ReturnType<typeof buildGraph>;
 
 /** Rank only the type hierarchy; secondary relationships never change node placement. */
-export function directedLayout(graph: Graph): Graph {
+export function directedLayout(
+  graph: Graph,
+  basis: "hierarchy" | "relations" = "hierarchy",
+): Graph {
   const layout = new dagre.graphlib.Graph({ multigraph: true });
   layout.setDefaultEdgeLabel(() => ({}));
-  layout.setGraph({ rankdir: "LR", nodesep: 42, ranksep: 110, marginx: 28, marginy: 28 });
+  layout.setGraph({
+    rankdir: "LR",
+    nodesep: 42,
+    ranksep: 110,
+    marginx: 28,
+    marginy: 28,
+  });
   for (const node of [...graph.nodes].sort((a, b) => a.id.localeCompare(b.id))) {
-    layout.setNode(node.id, { width: 250, height: 76 + (node.data.ports?.length ?? 0) * 34 });
+    layout.setNode(node.id, {
+      width: 250,
+      height: 76 + (node.data.ports?.length ?? 0) * 34,
+    });
   }
   const edges = graph.edges.map((edge) => {
-    if (edge.data?.kind !== "extends" && edge.data?.kind !== "implements") return edge;
+    if (basis !== "hierarchy" || !isHierarchyEdge(edge.data?.kind)) return edge;
     return {
       ...edge,
       source: edge.target,
@@ -23,7 +35,9 @@ export function directedLayout(graph: Graph): Graph {
     };
   });
   for (const edge of edges
-    .filter((item) => isHierarchyEdge(item.data?.kind))
+    .filter((item) =>
+      basis === "hierarchy" ? isHierarchyEdge(item.data?.kind) : item.data?.kind === "relation",
+    )
     .sort((a, b) => a.id.localeCompare(b.id))) {
     layout.setEdge(edge.source, edge.target, {}, edge.id);
   }
@@ -32,7 +46,10 @@ export function directedLayout(graph: Graph): Graph {
     nodes: graph.nodes.map((node) => {
       const position = layout.node(node.id) as { x: number; y: number };
       const height = 76 + (node.data.ports?.length ?? 0) * 34;
-      return { ...node, position: { x: position.x - 125, y: position.y - height / 2 } };
+      return {
+        ...node,
+        position: { x: position.x - 125, y: position.y - height / 2 },
+      };
     }),
     edges,
   };

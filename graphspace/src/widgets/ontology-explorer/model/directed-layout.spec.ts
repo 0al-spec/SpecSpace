@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildGraph, parseProjection } from "@/entities/ontology-diagram";
 import fixture from "./motivation-full.fixture.json";
+import specgraph from "./specgraph-core.fixture.json";
 import { directedLayout, reversesEdge } from "./directed-layout";
 
 describe("directedLayout", () => {
@@ -27,7 +28,10 @@ describe("directedLayout", () => {
     const result = directedLayout(input);
     const x = (id: string) => result.nodes.find((n) => n.id === id)!.position.x;
     expect(x("base")).toBeLessThan(x("child"));
-    const withoutSecondary = directedLayout({ ...input, edges: [input.edges[0]] });
+    const withoutSecondary = directedLayout({
+      ...input,
+      edges: [input.edges[0]],
+    });
     expect(result.nodes.map((node) => node.position)).toEqual(
       withoutSecondary.nodes.map((node) => node.position),
     );
@@ -72,5 +76,16 @@ describe("directedLayout", () => {
     expect(one.nodes).toHaveLength(graph.nodes.length);
     expect(one.edges).toHaveLength(graph.edges.length);
     expect(directedLayout(graph)).toEqual(one);
+  });
+  it("spreads the SpecGraph ontology by relationships without changing edge semantics", () => {
+    const graph = buildGraph(parseProjection(specgraph));
+    const hierarchy = directedLayout(graph);
+    const relations = directedLayout(graph, "relations");
+    const columns = (value: typeof graph) =>
+      new Set(value.nodes.map((node) => node.position.x)).size;
+    expect(columns(relations)).toBeGreaterThan(columns(hierarchy));
+    expect(relations.edges).toEqual(graph.edges);
+    expect(relations.nodes).toHaveLength(graph.nodes.length);
+    expect(directedLayout(graph, "relations")).toEqual(relations);
   });
 });

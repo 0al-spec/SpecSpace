@@ -23,7 +23,7 @@ for (const width of [390, 1280]) {
       "role/membership:addsRepositoryTo/object/0",
       "field/membership:AddRepository/repository",
     ];
-    for (const layout of ["LR", "RL", "directed"]) {
+    for (const layout of ["LR", "RL", "directed", "relations"]) {
       await page.getByLabel("Graph direction").selectOption(layout);
       for (const edge of edges) {
         const item = canvas.locator(`.react-flow__edge[data-id="${edge}"]`);
@@ -49,7 +49,7 @@ test("published SpecGraph projection still opens in all layouts", async ({ page 
   await page.getByLabel("Open ontology artifact").setInputFiles(projection);
   await expect(page.getByRole("heading", { name: "org.0al.specgraph.core" })).toBeVisible();
   const canvas = page.getByLabel("Ontology graph", { exact: true });
-  for (const layout of ["LR", "RL", "directed"]) {
+  for (const layout of ["LR", "RL", "directed", "relations"]) {
     await page.getByLabel("Graph direction").selectOption(layout);
     await expect(canvas.locator(".react-flow__node")).toHaveCount(21);
     await expect(canvas.locator(".react-flow__edge")).toHaveCount(36);
