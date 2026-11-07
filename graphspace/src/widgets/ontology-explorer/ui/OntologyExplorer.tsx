@@ -13,12 +13,32 @@ import {
 } from "@/entities/ontology-diagram";
 import { mirrorGraph } from "../model/mirror-graph";
 import { directedLayout, reversesEdge } from "../model/directed-layout";
+import { typeLayerLayout } from "../model/type-layer-layout";
 import "./ontology-explorer.css";
+
+const descriptions = new Map([
+  ["LR", "Uses the projection's original arrangement."],
+  ["RL", "Mirrors the projection's original arrangement."],
+  [
+    "directed",
+    "Hierarchy layers place base types before derived types and action roles before their relationships.",
+  ],
+  [
+    "relations",
+    "Relationship layers follow ontology relations; cycles may produce backward links.",
+  ],
+  [
+    "types",
+    "Type layers group foundation bases, declarations, actions and relationships. Empty layers are omitted.",
+  ],
+]);
 
 /** Read-only composition. It has no filesystem, HTTP or workspace-editor client. */
 export function OntologyExplorer({ projection }: Readonly<{ projection: Projection }>) {
   const [query, setQuery] = useState("");
-  const [direction, setDirection] = useState<"LR" | "RL" | "directed" | "relations">("LR");
+  const [direction, setDirection] = useState<"LR" | "RL" | "directed" | "relations" | "types">(
+    "LR",
+  );
   const [filters, setFilters] = useState(defaultFilters);
   const [selection, setSelection] = useState<Selection | null>(null);
   const [focusNode, setFocusNode] = useState<{ id: string } | null>(null);
@@ -28,6 +48,7 @@ export function OntologyExplorer({ projection }: Readonly<{ projection: Projecti
     if (direction === "RL") return mirrorGraph(original);
     if (direction === "directed") return directedLayout(original);
     if (direction === "relations") return directedLayout(original, "relations");
+    if (direction === "types") return typeLayerLayout(original);
     return original;
   }, [projection, direction]);
   const classNodes = useMemo(
@@ -117,19 +138,16 @@ export function OntologyExplorer({ projection }: Readonly<{ projection: Projecti
             className="search"
             value={direction}
             onChange={(event) =>
-              setDirection(event.target.value as "LR" | "RL" | "directed" | "relations")
+              setDirection(event.target.value as "LR" | "RL" | "directed" | "relations" | "types")
             }
           >
             <option value="LR">References right</option>
             <option value="RL">References left (mirrored)</option>
             <option value="directed">Directed layers</option>
             <option value="relations">Relationship layers</option>
+            <option value="types">Type layers (experimental)</option>
           </select>
-          <small className="filter-search-note">
-            {direction === "relations"
-              ? "Relationship layers follow ontology relations; cycles may produce backward links."
-              : "Hierarchy layers place base types before derived types and action roles before their relationships."}
-          </small>
+          <small className="filter-search-note">{descriptions.get(direction)}</small>
           <label className="search-label" htmlFor={searchId}>
             Search graph
           </label>

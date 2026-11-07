@@ -23,20 +23,23 @@ for (const width of [390, 1280]) {
       "role/membership:addsRepositoryTo/object/0",
       "field/membership:AddRepository/repository",
     ];
-    for (const layout of ["LR", "RL", "directed", "relations"]) {
+    for (const layout of ["LR", "RL", "directed", "relations", "types"]) {
       await page.getByLabel("Graph direction").selectOption(layout);
       for (const edge of edges) {
         const item = canvas.locator(`.react-flow__edge[data-id="${edge}"]`);
         await expect(item).toHaveCount(1);
         await expect(item.locator("path.react-flow__edge-path")).toHaveAttribute("d", /[CL]/);
-        if ((layout === "directed" || layout === "relations") && edge.startsWith("role/")) {
+        if (
+          (layout === "directed" || layout === "relations" || layout === "types") &&
+          edge.startsWith("role/")
+        ) {
           await expect(item.locator("path.react-flow__edge-path")).toHaveAttribute(
             "marker-end",
             /url\(/,
           );
         }
         if (
-          (layout === "directed" || layout === "relations") &&
+          (layout === "directed" || layout === "relations" || layout === "types") &&
           edge === "role/membership:addsRepositoryTo/action"
         ) {
           for (const lineStyle of ["Rect", "Curve"]) {
@@ -97,7 +100,7 @@ test("published SpecGraph projection still opens in all layouts", async ({ page 
   await page.getByLabel("Open ontology artifact").setInputFiles(projection);
   await expect(page.getByRole("heading", { name: "org.0al.specgraph.core" })).toBeVisible();
   const canvas = page.getByLabel("Ontology graph", { exact: true });
-  for (const layout of ["LR", "RL", "directed", "relations"]) {
+  for (const layout of ["LR", "RL", "directed", "relations", "types"]) {
     await page.getByLabel("Graph direction").selectOption(layout);
     await expect(canvas.locator(".react-flow__node")).toHaveCount(21);
     await expect(canvas.locator(".react-flow__edge")).toHaveCount(36);
@@ -114,12 +117,31 @@ test("draft publication verifier flows from base through class to relationship",
       path.resolve("src/widgets/ontology-explorer/model/publication-verification.fixture.json"),
     );
   const canvas = page.getByLabel("Ontology graph", { exact: true });
-  for (const layout of ["directed", "relations"]) {
+  for (const layout of ["directed", "relations", "types"]) {
     await page.getByLabel("Graph direction").selectOption(layout);
     await page.getByRole("radio", { name: "Curve", exact: true }).check();
     const base = canvas.locator('[data-id="external/classes/ont:DomainEntity"]');
     const verifier = canvas.locator('[data-id="classes/pubverify:PublicationVerifier"]');
     const relation = canvas.locator('[data-id="relations/pubverify:verifiesPublishedBundle"]');
+    if (layout === "types") {
+      const action = canvas.locator('[data-id="classes/pubverify:VerifyPublishedBundle"]');
+      await expect
+        .poll(async () => {
+          const [verifierBox, actionBox, relationBox] = await Promise.all([
+            verifier.boundingBox(),
+            action.boundingBox(),
+            relation.boundingBox(),
+          ]);
+          return Boolean(
+            verifierBox &&
+            actionBox &&
+            relationBox &&
+            verifierBox.x < actionBox.x &&
+            actionBox.x < relationBox.x,
+          );
+        })
+        .toBe(true);
+    }
     await expect
       .poll(async () => {
         const [baseBox, verifierBox, relationBox] = await Promise.all([
@@ -166,7 +188,7 @@ test("layered hierarchy arrows leave the base on the right and enter the subtype
     .getByLabel("Open ontology artifact")
     .setInputFiles(path.resolve("src/widgets/ontology-explorer/model/specgraph-core.fixture.json"));
   const canvas = page.getByLabel("Ontology graph", { exact: true });
-  for (const layout of ["directed", "relations"]) {
+  for (const layout of ["directed", "relations", "types"]) {
     await page.getByLabel("Graph direction").selectOption(layout);
     const edge = canvas.locator('[data-id="extends/sgcore:Intent"]');
     const line = edge.locator("path.react-flow__edge-path");

@@ -98,5 +98,5 @@ function isHierarchyEdge(kind: string | undefined): boolean {
 
 /** The visual endpoints of hierarchy edges are swapped in this layout. */
 export function reversesEdge(mode: string, kind: string | undefined): boolean {
-  return (mode === "directed" || mode === "relations") && isHierarchyEdge(kind);
+  return (mode === "directed" || mode === "relations" || mode === "types") && isHierarchyEdge(kind);
 }

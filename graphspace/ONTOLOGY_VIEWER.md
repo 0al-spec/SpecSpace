@@ -15,14 +15,24 @@ cannot be reconstructed by the viewer: export a full profile and explicitly
 include the imports you need. Loaded declarations, unresolved references,
 structural validity, approval and executed policies remain separate concepts.
 
-In **Directed layers** and **Relationship layers**, inheritance is drawn as a
-flow from a base type to its subtype: the arrow is labelled `extended by`
+In **Directed layers**, **Relationship layers** and the experimental **Type
+layers**, inheritance is drawn as a flow from a base type to its subtype: the
+arrow is labelled `extended by`
 (`implemented by` for protocol conformance). The source declaration remains
 `subtype extends base`; selecting the edge shows that original declaration.
-Action relationship role wires enter their named ports from the left; both
-layered modes use hierarchy and role links for placement. In **Relationship
-layers**, other ontology relations also influence placement. Constraints that
-would introduce a cycle remain visible as backward links.
+Action relationship role wires enter their named ports from the left. **Directed
+layers** and **Relationship layers** use hierarchy and role links for placement;
+in **Relationship layers**, other ontology relations also influence placement.
+Constraints that would introduce a cycle remain visible as backward links.
+
+**Type layers** groups foundation base types and unloaded hierarchy bases,
+other declarations, actions, and relationship nodes in columns from left to
+right. Empty columns are omitted. Unresolved references that are not used as
+hierarchy bases or action roles remain with the other declarations: their type is
+not inferred. This is a
+view of the existing graph, not a change to the ontology or a claim that every
+class inherits from another class in the adjacent column. Lines may cross cards;
+the ports identify their endpoints.
 
 ## Development and updates
 
