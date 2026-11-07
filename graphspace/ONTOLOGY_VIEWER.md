@@ -15,19 +15,39 @@ cannot be reconstructed by the viewer: export a full profile and explicitly
 include the imports you need. Loaded declarations, unresolved references,
 structural validity, approval and executed policies remain separate concepts.
 
-In **Directed layers** and **Relationship layers**, inheritance is drawn as a
-flow from a base type to its subtype: the arrow is labelled `extended by`
+In **Directed layers**, **Relationship layers** and the experimental **Type
+layers**, inheritance is drawn as a flow from a base type to its subtype: the
+arrow is labelled `extended by`
 (`implemented by` for protocol conformance). The source declaration remains
 `subtype extends base`; selecting the edge shows that original declaration.
-Action relationship role wires enter their named ports from the left; both
-layered modes use hierarchy and role links for placement. In **Relationship
-layers**, other ontology relations also influence placement. Constraints that
-would introduce a cycle remain visible as backward links.
+Action relationship role wires enter their named ports from the left. **Directed
+layers** and **Relationship layers** use hierarchy and role links for placement;
+in **Relationship layers**, other ontology relations also influence placement.
+Constraints that would introduce a cycle remain visible as backward links.
+
+**Type layers** groups foundation base types and unloaded hierarchy bases,
+other declarations, actions, and relationship nodes from left to right. Within
+each group, inheritance takes precedence and other directed links add columns
+when they do not contradict that hierarchy or previously placed links. Siblings
+may share a column, while a descendant appears after all of its parents.
+Members of an inheritance cycle share a column. Other cyclic or cross-group
+links remain visible and can point backward. Empty columns are omitted.
+Unresolved references that are not used as hierarchy bases or action roles
+remain with the other declarations: their type is not inferred. This is a view
+of the existing graph, not a change to the ontology. Lines may cross cards; the
+ports identify their endpoints.
 
 ## Development and updates
 
 `/dev/ui-catalog#ontology-explorer` renders the same widget with a real full
 motivation/events compiler fixture. The catalog is dev-only.
+
+The `specgraph-payloadcheck.fixture.json` layout test uses a full projection
+exported with Ontology 0.8.0 from SpecGraph commit
+`a6cfdb7d44bbc8687bf2db5078fa42701bc74d0c`, with the local `SG-SPEC-0071`
+package and its direct `specgraph-core` import. Its source-byte digests bind the
+YAML inputs; `sg:DomainEntity` remains an unloaded foundation reference. JSON
+whitespace was formatted for this repository.
 
 The source library lives in `src/entities/ontology-diagram`; its MIT license,
 exact upstream revision and per-file SHA-256 hashes are retained. The widget

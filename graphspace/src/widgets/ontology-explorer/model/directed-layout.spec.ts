@@ -73,6 +73,8 @@ describe("directedLayout", () => {
     expect(reversesEdge("relations", "extends")).toBe(true);
     expect(reversesEdge("relations", "implements")).toBe(true);
     expect(reversesEdge("relations", "relation")).toBe(false);
+    expect(reversesEdge("types", "extends")).toBe(true);
+    expect(reversesEdge("types", "relation")).toBe(false);
     expect(reversesEdge("RL", "relation")).toBe(false);
   });
   it("handles a cyclic real graph deterministically without dropping nodes or links", () => {

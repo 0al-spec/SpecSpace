@@ -1,6 +1,7 @@
 import dagre from "@dagrejs/dagre";
 import { MarkerType } from "@xyflow/react";
 import { buildGraph } from "@/entities/ontology-diagram";
+import { isHierarchyEdge, wouldCreateCycle } from "./layout-constraints";
 
 type Graph = ReturnType<typeof buildGraph>;
 
@@ -50,18 +51,7 @@ export function directedLayout(
   // Give the hierarchy precedence. Add relation constraints only if they do
   // not introduce a cycle; rejected edges remain visible in the graph.
   const outgoing = new Map<string, Set<string>>();
-  const wouldCycle = (source: string, target: string): boolean => {
-    const pending = [target];
-    const visited = new Set<string>();
-    while (pending.length) {
-      const current = pending.pop()!;
-      if (current === source) return true;
-      if (visited.has(current)) continue;
-      visited.add(current);
-      pending.push(...(outgoing.get(current) ?? []));
-    }
-    return false;
-  };
+  const successors = (id: string) => outgoing.get(id) ?? [];
   const rankEdges = edges.filter(
     (item) =>
       isHierarchyEdge(item.data?.kind) ||
@@ -73,7 +63,7 @@ export function directedLayout(
   };
   rankEdges.sort((a, b) => priority(b) - priority(a) || a.id.localeCompare(b.id));
   for (const edge of rankEdges) {
-    if (wouldCycle(edge.source, edge.target)) continue;
+    if (wouldCreateCycle(edge.source, edge.target, successors)) continue;
     if (!outgoing.has(edge.source)) outgoing.set(edge.source, new Set());
     outgoing.get(edge.source)!.add(edge.target);
     layout.setEdge(edge.source, edge.target, {}, edge.id);
@@ -92,11 +82,7 @@ export function directedLayout(
   };
 }
 
-function isHierarchyEdge(kind: string | undefined): boolean {
-  return kind === "extends" || kind === "implements";
-}
-
 /** The visual endpoints of hierarchy edges are swapped in this layout. */
 export function reversesEdge(mode: string, kind: string | undefined): boolean {
-  return (mode === "directed" || mode === "relations") && isHierarchyEdge(kind);
+  return (mode === "directed" || mode === "relations" || mode === "types") && isHierarchyEdge(kind);
 }
