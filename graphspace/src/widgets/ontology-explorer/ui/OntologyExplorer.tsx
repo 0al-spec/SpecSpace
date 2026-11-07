@@ -18,7 +18,7 @@ import "./ontology-explorer.css";
 /** Read-only composition. It has no filesystem, HTTP or workspace-editor client. */
 export function OntologyExplorer({ projection }: Readonly<{ projection: Projection }>) {
   const [query, setQuery] = useState("");
-  const [direction, setDirection] = useState<"LR" | "RL" | "directed">("LR");
+  const [direction, setDirection] = useState<"LR" | "RL" | "directed" | "relations">("LR");
   const [filters, setFilters] = useState(defaultFilters);
   const [selection, setSelection] = useState<Selection | null>(null);
   const [focusNode, setFocusNode] = useState<{ id: string } | null>(null);
@@ -27,6 +27,7 @@ export function OntologyExplorer({ projection }: Readonly<{ projection: Projecti
     const original = buildGraph(projection);
     if (direction === "RL") return mirrorGraph(original);
     if (direction === "directed") return directedLayout(original);
+    if (direction === "relations") return directedLayout(original, "relations");
     return original;
   }, [projection, direction]);
   const classNodes = useMemo(
@@ -115,15 +116,19 @@ export function OntologyExplorer({ projection }: Readonly<{ projection: Projecti
             id={`${searchId}-direction`}
             className="search"
             value={direction}
-            onChange={(event) => setDirection(event.target.value as "LR" | "RL" | "directed")}
+            onChange={(event) =>
+              setDirection(event.target.value as "LR" | "RL" | "directed" | "relations")
+            }
           >
             <option value="LR">References right</option>
             <option value="RL">References left (mirrored)</option>
             <option value="directed">Directed layers</option>
+            <option value="relations">Relationship layers</option>
           </select>
           <small className="filter-search-note">
-            Hierarchy layers place base types before derived types; other links do not affect
-            placement.
+            {direction === "relations"
+              ? "Relationship layers follow ontology relations; cycles may produce backward links."
+              : "Hierarchy layers place base types before derived types; other links do not affect placement."}
           </small>
           <label className="search-label" htmlFor={searchId}>
             Search graph
