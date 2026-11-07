@@ -1,7 +1,7 @@
 {
   "artifact_kind": "specspace_stack_badges",
   "schema_version": 1,
-  "source_revision": "f0b6374daf7011113d0e2d0005910f837fae9267",
+  "source_revision": "ac858d51e377f14ace7c4ed27e6dab30dfef5e84",
   "sources": [
     "Dockerfile",
     "graphspace/package-lock.json"
