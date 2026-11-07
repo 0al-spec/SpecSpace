@@ -108,6 +108,47 @@ test("published SpecGraph projection still opens in all layouts", async ({ page 
   }
 });
 
+test("type layers use real SpecGraph relationships as well as inheritance", async ({ page }) => {
+  await page.goto("/ontology?source=local");
+  await page
+    .getByLabel("Open ontology artifact")
+    .setInputFiles(
+      path.resolve("src/widgets/ontology-explorer/model/specgraph-payloadcheck.fixture.json"),
+    );
+  await page.getByLabel("Graph direction").selectOption("types");
+  const canvas = page.getByLabel("Ontology graph", { exact: true });
+  await expect(canvas.locator(".react-flow__node")).toHaveCount(26);
+  await expect(canvas.locator(".react-flow__edge")).toHaveCount(43);
+  await expect
+    .poll(async () => {
+      const ids = [
+        "external/classes/sg:DomainEntity",
+        "classes/sgcore:Evidence",
+        "classes/payload:FetchedFileObservation",
+        "classes/payload:ManifestEntry",
+      ];
+      const bounds = await Promise.all(
+        ids.map((id) => canvas.locator(`.react-flow__node[data-id="${id}"]`).boundingBox()),
+      );
+      const [base, evidence, observation, manifest] = bounds;
+      return Boolean(
+        base &&
+        evidence &&
+        observation &&
+        manifest &&
+        base.x < evidence.x &&
+        evidence.x < observation.x &&
+        observation.x < manifest.x,
+      );
+    })
+    .toBe(true);
+  for (const id of ["sgcore:edgeRelatesNode", "sgcore:nodeConnectedByEdge"]) {
+    await expect(
+      canvas.locator(`[data-id="relation/${id}/0"] path.react-flow__edge-path`),
+    ).toHaveAttribute("marker-end", /url\(/);
+  }
+});
+
 test("draft publication verifier flows from base through class to relationship", async ({
   page,
 }) => {

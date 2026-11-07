@@ -27,18 +27,27 @@ Constraints that would introduce a cycle remain visible as backward links.
 
 **Type layers** groups foundation base types and unloaded hierarchy bases,
 other declarations, actions, and relationship nodes from left to right. Within
-each group, inheritance adds columns: siblings may share a column, while a
-descendant appears after all of its parents. Members of an inheritance cycle
-share a column because no left-to-right ordering can satisfy the entire cycle.
-Empty columns are omitted. Unresolved references that are not used as hierarchy
-bases or action roles remain with the other declarations: their type is not
-inferred. This is a view of the existing graph, not a change to the ontology.
-Lines may cross cards; the ports identify their endpoints.
+each group, inheritance takes precedence and other directed links add columns
+when they do not contradict that hierarchy or previously placed links. Siblings
+may share a column, while a descendant appears after all of its parents.
+Members of an inheritance cycle share a column. Other cyclic or cross-group
+links remain visible and can point backward. Empty columns are omitted.
+Unresolved references that are not used as hierarchy bases or action roles
+remain with the other declarations: their type is not inferred. This is a view
+of the existing graph, not a change to the ontology. Lines may cross cards; the
+ports identify their endpoints.
 
 ## Development and updates
 
 `/dev/ui-catalog#ontology-explorer` renders the same widget with a real full
 motivation/events compiler fixture. The catalog is dev-only.
+
+The `specgraph-payloadcheck.fixture.json` layout test uses a full projection
+exported with Ontology 0.8.0 from SpecGraph commit
+`a6cfdb7d44bbc8687bf2db5078fa42701bc74d0c`, with the local `SG-SPEC-0071`
+package and its direct `specgraph-core` import. Its source-byte digests bind the
+YAML inputs; `sg:DomainEntity` remains an unloaded foundation reference. JSON
+whitespace was formatted for this repository.
 
 The source library lives in `src/entities/ontology-diagram`; its MIT license,
 exact upstream revision and per-file SHA-256 hashes are retained. The widget

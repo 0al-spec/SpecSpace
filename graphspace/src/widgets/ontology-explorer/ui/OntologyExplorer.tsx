@@ -27,10 +27,7 @@ const descriptions = new Map([
     "relations",
     "Relationship layers follow ontology relations; cycles may produce backward links.",
   ],
-  [
-    "types",
-    "Type layers group declarations and separate inheritance generations. Cycles share a column.",
-  ],
+  ["types", "Type layers prioritize inheritance, then other links. Some links may point backward."],
 ]);
 
 /** Read-only composition. It has no filesystem, HTTP or workspace-editor client. */

@@ -1,11 +1,36 @@
 import dagre from "@dagrejs/dagre";
 import { buildGraph } from "@/entities/ontology-diagram";
 import { directedLayout } from "./directed-layout";
+import { isHierarchyEdge, wouldCreateCycle } from "./layout-constraints";
 
 type Graph = ReturnType<typeof buildGraph>;
 type Node = Graph["nodes"][number];
 type Edge = Graph["edges"][number];
 type Hierarchy = dagre.graphlib.Graph;
+
+function isHierarchy(edge: Edge): boolean {
+  return isHierarchyEdge(edge.data?.kind);
+}
+
+function addRelationConstraints(graph: Hierarchy, component: Map<string, string>, edges: Edge[]) {
+  const priority = (edge: Edge) => {
+    if (edge.data?.kind === "relation" && edge.targetHandle) return 0;
+    if (edge.data?.kind === "relation") return 1;
+    if (edge.data?.kind === "field-ref") return 2;
+    return 3;
+  };
+  const candidates = edges
+    .filter(
+      (edge) => !isHierarchy(edge) && component.has(edge.source) && component.has(edge.target),
+    )
+    .sort((a, b) => priority(a) - priority(b) || a.id.localeCompare(b.id));
+  const successors = (id: string) => graph.successors(id) ?? [];
+  for (const edge of candidates) {
+    const from = component.get(edge.source)!;
+    const to = component.get(edge.target)!;
+    if (!wouldCreateCycle(from, to, successors)) graph.setEdge(from, to);
+  }
+}
 
 function collapseHierarchyCycles(hierarchy: Hierarchy, nodes: Node[]) {
   // A cycle cannot be drawn strictly left-to-right. Treat each strongly
@@ -27,16 +52,17 @@ function collapseHierarchyCycles(hierarchy: Hierarchy, nodes: Node[]) {
   return { component, acyclic };
 }
 
-/** Keep descendants to the right of all their parents inside each type group. */
-function hierarchyColumns(nodes: Node[], edges: Edge[]): Node[][] {
+/** Respect hierarchy first, then place other directed links where they do not form a cycle. */
+function hierarchyColumns(nodes: Node[], hierarchyEdges: Edge[], edges: Edge[]): Node[][] {
   const hierarchy = new dagre.graphlib.Graph();
   for (const node of nodes) hierarchy.setNode(node.id, {});
-  for (const edge of edges) {
+  for (const edge of hierarchyEdges) {
     if (hierarchy.hasNode(edge.source) && hierarchy.hasNode(edge.target)) {
       hierarchy.setEdge(edge.source, edge.target);
     }
   }
   const { component, acyclic } = collapseHierarchyCycles(hierarchy, nodes);
+  addRelationConstraints(acyclic, component, edges);
   const depth = new Map(acyclic.nodes().map((id) => [id, 0]));
   for (const id of dagre.graphlib.alg.topsort(acyclic)) {
     for (const child of acyclic.successors(id) ?? []) {
@@ -56,9 +82,7 @@ function hierarchyColumns(nodes: Node[], edges: Edge[]): Node[][] {
 export function typeLayerLayout(input: Graph): Graph {
   // Reuse the base-to-subtype visual direction and preserve all edge data.
   const graph = directedLayout(input, "relations");
-  const hierarchy = graph.edges.filter(
-    (edge) => edge.data?.kind === "extends" || edge.data?.kind === "implements",
-  );
+  const hierarchy = graph.edges.filter(isHierarchy);
   const hierarchyBases = new Set(hierarchy.map((edge) => edge.source));
   const actionRoles = new Set(
     graph.edges
@@ -100,7 +124,7 @@ export function typeLayerLayout(input: Graph): Graph {
   const gap = 52;
   const ordered = [...lanes.entries()]
     .sort(([left], [right]) => left - right)
-    .flatMap(([, nodes]) => hierarchyColumns(nodes, hierarchy))
+    .flatMap(([, nodes]) => hierarchyColumns(nodes, hierarchy, graph.edges))
     .map((nodes) => ({
       nodes,
       height: nodes.reduce((sum, node) => sum + nodeHeight(node), 0) + gap * (nodes.length - 1),
