@@ -1,0 +1,136 @@
+{
+  "classes": [
+    {
+      "aliases": [],
+      "central": false,
+      "description": "SpecGraph's verifier that reads the published bundle and compares it with retained local artifacts.",
+      "extends": "ont:DomainEntity",
+      "fqid": "pubverify:PublicationVerifier",
+      "id": "PublicationVerifier",
+      "implements": [],
+      "kind": "DomainEntity",
+      "source": {
+        "id": "org.0al.specgraph.publication-verification",
+        "pointer": "/spec/classes/PublicationVerifier",
+        "sourceByteDigest": "sha256:4c7933225808e570a1b0b8ca29e372369e9469b9130a6de34cef96af8a037204",
+        "sourceDigest": "sha256:4c7933225808e570a1b0b8ca29e372369e9469b9130a6de34cef96af8a037204",
+        "version": "0.1.0-draft.1"
+      },
+      "uri": "ontology://org.0al.specgraph.publication-verification/0.1.0-draft.1/classes/PublicationVerifier"
+    },
+    {
+      "aliases": [],
+      "central": false,
+      "description": "The bundle served at the selected HTTPS base URL for this verification attempt.",
+      "extends": "ont:DomainEntity",
+      "fqid": "pubverify:PublishedBundle",
+      "id": "PublishedBundle",
+      "implements": [],
+      "kind": "DomainEntity",
+      "source": {
+        "id": "org.0al.specgraph.publication-verification",
+        "pointer": "/spec/classes/PublishedBundle",
+        "sourceByteDigest": "sha256:4c7933225808e570a1b0b8ca29e372369e9469b9130a6de34cef96af8a037204",
+        "sourceDigest": "sha256:4c7933225808e570a1b0b8ca29e372369e9469b9130a6de34cef96af8a037204",
+        "version": "0.1.0-draft.1"
+      },
+      "uri": "ontology://org.0al.specgraph.publication-verification/0.1.0-draft.1/classes/PublishedBundle"
+    },
+    {
+      "aliases": [],
+      "central": false,
+      "description": "The local bundle supplying exact metadata bytes and the manifest of expected payload paths and digests.",
+      "extends": "ont:DomainEntity",
+      "fqid": "pubverify:RetainedBundle",
+      "id": "RetainedBundle",
+      "implements": [],
+      "kind": "DomainEntity",
+      "source": {
+        "id": "org.0al.specgraph.publication-verification",
+        "pointer": "/spec/classes/RetainedBundle",
+        "sourceByteDigest": "sha256:4c7933225808e570a1b0b8ca29e372369e9469b9130a6de34cef96af8a037204",
+        "sourceDigest": "sha256:4c7933225808e570a1b0b8ca29e372369e9469b9130a6de34cef96af8a037204",
+        "version": "0.1.0-draft.1"
+      },
+      "uri": "ontology://org.0al.specgraph.publication-verification/0.1.0-draft.1/classes/RetainedBundle"
+    },
+    {
+      "aliases": [],
+      "central": false,
+      "description": "Compare the published bundle against the selected retained bundle.",
+      "extends": "ont:Action",
+      "fields": [
+        {
+          "id": "expectedBundle",
+          "required": true,
+          "source": {
+            "id": "org.0al.specgraph.publication-verification",
+            "pointer": "/spec/classes/VerifyPublishedBundle/fields/expectedBundle",
+            "sourceByteDigest": "sha256:4c7933225808e570a1b0b8ca29e372369e9469b9130a6de34cef96af8a037204",
+            "sourceDigest": "sha256:4c7933225808e570a1b0b8ca29e372369e9469b9130a6de34cef96af8a037204",
+            "version": "0.1.0-draft.1"
+          },
+          "target": "pubverify:RetainedBundle",
+          "type": "ref"
+        }
+      ],
+      "fqid": "pubverify:VerifyPublishedBundle",
+      "id": "VerifyPublishedBundle",
+      "implements": [],
+      "kind": "Action",
+      "source": {
+        "id": "org.0al.specgraph.publication-verification",
+        "pointer": "/spec/classes/VerifyPublishedBundle",
+        "sourceByteDigest": "sha256:4c7933225808e570a1b0b8ca29e372369e9469b9130a6de34cef96af8a037204",
+        "sourceDigest": "sha256:4c7933225808e570a1b0b8ca29e372369e9469b9130a6de34cef96af8a037204",
+        "version": "0.1.0-draft.1"
+      },
+      "uri": "ontology://org.0al.specgraph.publication-verification/0.1.0-draft.1/classes/VerifyPublishedBundle"
+    }
+  ],
+  "id": "org.0al.specgraph.publication-verification",
+  "imports": [
+    {
+      "id": "ontology.foundation",
+      "namespace": "ont",
+      "version": "0.2.0"
+    }
+  ],
+  "namespace": "pubverify",
+  "policies": [],
+  "protocols": [],
+  "relations": [
+    {
+      "action": "pubverify:VerifyPublishedBundle",
+      "description": "The verifier checks the published bundle against the retained bundle and produces an observation on success.",
+      "domain": "pubverify:PublicationVerifier",
+      "fqid": "pubverify:verifiesPublishedBundle",
+      "id": "verifiesPublishedBundle",
+      "range": "pubverify:PublishedBundle",
+      "source": {
+        "id": "org.0al.specgraph.publication-verification",
+        "pointer": "/spec/relations/verifiesPublishedBundle",
+        "sourceByteDigest": "sha256:4c7933225808e570a1b0b8ca29e372369e9469b9130a6de34cef96af8a037204",
+        "sourceDigest": "sha256:4c7933225808e570a1b0b8ca29e372369e9469b9130a6de34cef96af8a037204",
+        "version": "0.1.0-draft.1"
+      },
+      "uri": "ontology://org.0al.specgraph.publication-verification/0.1.0-draft.1/relations/verifiesPublishedBundle"
+    }
+  ],
+  "schemaVersion": "ontology.diagram-projection/v1",
+  "sourceByteDigest": "sha256:4c7933225808e570a1b0b8ca29e372369e9469b9130a6de34cef96af8a037204",
+  "sourceDigest": "sha256:4c7933225808e570a1b0b8ca29e372369e9469b9130a6de34cef96af8a037204",
+  "sources": [
+    {
+      "alias": "pubverify",
+      "id": "org.0al.specgraph.publication-verification",
+      "namespace": "pubverify",
+      "sourceByteDigest": "sha256:4c7933225808e570a1b0b8ca29e372369e9469b9130a6de34cef96af8a037204",
+      "sourceDigest": "sha256:4c7933225808e570a1b0b8ca29e372369e9469b9130a6de34cef96af8a037204",
+      "version": "0.1.0-draft.1"
+    }
+  ],
+  "stateMachines": [],
+  "version": "0.1.0-draft.1",
+  "view": "full"
+}

@@ -29,6 +29,54 @@ for (const width of [390, 1280]) {
         const item = canvas.locator(`.react-flow__edge[data-id="${edge}"]`);
         await expect(item).toHaveCount(1);
         await expect(item.locator("path.react-flow__edge-path")).toHaveAttribute("d", /[CL]/);
+        if ((layout === "directed" || layout === "relations") && edge.startsWith("role/")) {
+          await expect(item.locator("path.react-flow__edge-path")).toHaveAttribute(
+            "marker-end",
+            /url\(/,
+          );
+        }
+        if (
+          (layout === "directed" || layout === "relations") &&
+          edge === "role/membership:addsRepositoryTo/action"
+        ) {
+          for (const lineStyle of ["Rect", "Curve"]) {
+            await page.getByRole("radio", { name: lineStyle, exact: true }).check();
+            await expect
+              .poll(async () =>
+                item.locator("path.react-flow__edge-path").evaluate((path) => {
+                  const line = path as SVGPathElement;
+                  const matrix = line.getScreenCTM()!;
+                  const start = line.getPointAtLength(0).matrixTransform(matrix);
+                  const end = line.getPointAtLength(line.getTotalLength()).matrixTransform(matrix);
+                  const graph = line.closest(".react-flow")!;
+                  const source = graph
+                    .querySelector(
+                      '[data-id="classes/membership:AddRepository"] .react-flow__handle.source',
+                    )!
+                    .getBoundingClientRect();
+                  const target = graph
+                    .querySelector(
+                      '[data-id="relations/membership:addsRepositoryTo"] .react-flow__handle.target[data-handleid="action"]',
+                    )!
+                    .getBoundingClientRect();
+                  const center = (rect: DOMRect) => ({
+                    x: rect.x + rect.width / 2,
+                    y: rect.y + rect.height / 2,
+                  });
+                  const from = center(source),
+                    to = center(target);
+                  return {
+                    startX: start.x >= source.left - 1 && start.x <= source.right + 1,
+                    startY: start.y >= source.top - 1 && start.y <= source.bottom + 1,
+                    endX: end.x >= target.left - 1 && end.x <= target.right + 1,
+                    endY: end.y >= target.top - 1 && end.y <= target.bottom + 1,
+                    forward: from.x < to.x,
+                  };
+                }),
+              )
+              .toEqual({ startX: true, startY: true, endX: true, endY: true, forward: true });
+          }
+        }
       }
     }
     await page.getByRole("button", { name: "membership:addsRepositoryTo relation" }).click();
@@ -53,5 +101,118 @@ test("published SpecGraph projection still opens in all layouts", async ({ page 
     await page.getByLabel("Graph direction").selectOption(layout);
     await expect(canvas.locator(".react-flow__node")).toHaveCount(21);
     await expect(canvas.locator(".react-flow__edge")).toHaveCount(36);
+  }
+});
+
+test("draft publication verifier flows from base through class to relationship", async ({
+  page,
+}) => {
+  await page.goto("/ontology?source=local");
+  await page
+    .getByLabel("Open ontology artifact")
+    .setInputFiles(
+      path.resolve("src/widgets/ontology-explorer/model/publication-verification.fixture.json"),
+    );
+  const canvas = page.getByLabel("Ontology graph", { exact: true });
+  for (const layout of ["directed", "relations"]) {
+    await page.getByLabel("Graph direction").selectOption(layout);
+    await page.getByRole("radio", { name: "Curve", exact: true }).check();
+    const base = canvas.locator('[data-id="external/classes/ont:DomainEntity"]');
+    const verifier = canvas.locator('[data-id="classes/pubverify:PublicationVerifier"]');
+    const relation = canvas.locator('[data-id="relations/pubverify:verifiesPublishedBundle"]');
+    await expect
+      .poll(async () => {
+        const [baseBox, verifierBox, relationBox] = await Promise.all([
+          base.boundingBox(),
+          verifier.boundingBox(),
+          relation.boundingBox(),
+        ]);
+        return Boolean(
+          baseBox &&
+          verifierBox &&
+          relationBox &&
+          baseBox.x < verifierBox.x &&
+          verifierBox.x < relationBox.x,
+        );
+      })
+      .toBe(true);
+    for (const edgeId of [
+      "extends/pubverify:PublicationVerifier",
+      "role/pubverify:verifiesPublishedBundle/subject",
+    ]) {
+      await expect(
+        canvas.locator(`[data-id="${edgeId}"] path.react-flow__edge-path`),
+      ).toHaveAttribute("marker-end", /url\(/);
+    }
+    await expect(
+      canvas.locator(
+        '[data-id="field/pubverify:VerifyPublishedBundle/expectedBundle"] path.react-flow__edge-path',
+      ),
+    ).toHaveAttribute("d", /C/);
+  }
+  await page.getByRole("button", { name: "pubverify:verifiesPublishedBundle relation" }).click();
+  const inspector = page.getByLabel("Inspector");
+  await expect(inspector).toContainText("pubverify:PublicationVerifier");
+  await inspector.getByRole("button", { name: "pubverify:VerifyPublishedBundle" }).click();
+  await inspector.getByRole("button", { name: "expectedBundle: Ref<RetainedBundle>" }).click();
+  await expect(inspector.getByRole("heading", { name: "pubverify:RetainedBundle" })).toBeVisible();
+});
+
+test("layered hierarchy arrows leave the base on the right and enter the subtype on the left", async ({
+  page,
+}) => {
+  await page.goto("/ontology?source=local");
+  await page
+    .getByLabel("Open ontology artifact")
+    .setInputFiles(path.resolve("src/widgets/ontology-explorer/model/specgraph-core.fixture.json"));
+  const canvas = page.getByLabel("Ontology graph", { exact: true });
+  for (const layout of ["directed", "relations"]) {
+    await page.getByLabel("Graph direction").selectOption(layout);
+    const edge = canvas.locator('[data-id="extends/sgcore:Intent"]');
+    const line = edge.locator("path.react-flow__edge-path");
+    await expect(edge).toContainText("extended by");
+    for (const lineStyle of ["Rect", "Curve"]) {
+      await page.getByRole("radio", { name: lineStyle, exact: true }).check();
+      await expect(line).toHaveAttribute("marker-end", /url\(/);
+      await expect
+        .poll(async () =>
+          line.evaluate((path) => {
+            const node = path as SVGPathElement;
+            const matrix = node.getScreenCTM()!;
+            const start = node.getPointAtLength(0).matrixTransform(matrix);
+            const end = node.getPointAtLength(node.getTotalLength()).matrixTransform(matrix);
+            const graph = node.closest(".react-flow")!;
+            const base = graph
+              .querySelector(
+                '[data-id="external/classes/sg:DomainEntity"] .react-flow__handle.source',
+              )!
+              .getBoundingClientRect();
+            const child = graph
+              .querySelector('[data-id="classes/sgcore:Intent"] .react-flow__handle.target')!
+              .getBoundingClientRect();
+            const center = (rect: DOMRect) => ({
+              x: rect.x + rect.width / 2,
+              y: rect.y + rect.height / 2,
+            });
+            const from = center(base),
+              to = center(child);
+            return (
+              Math.abs(start.x - from.x) < 2 &&
+              Math.abs(start.y - from.y) < 2 &&
+              Math.abs(end.x - to.x) < 2 &&
+              Math.abs(end.y - to.y) < 2 &&
+              from.x < to.x
+            );
+          }),
+        )
+        .toBe(true);
+    }
+    // Overlapping edge hit areas can intercept physical clicks; test the
+    // selection contract independently of routing and hit testing.
+    await edge.dispatchEvent("click");
+    const inspector = page.getByLabel("Inspector");
+    await expect(inspector.getByRole("heading", { name: "sgcore:Intent" })).toBeVisible();
+    await inspector.getByText("Declaration data").click();
+    await expect(inspector).toContainText('"extends": "sg:DomainEntity"');
   }
 });

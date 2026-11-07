@@ -15,6 +15,15 @@ cannot be reconstructed by the viewer: export a full profile and explicitly
 include the imports you need. Loaded declarations, unresolved references,
 structural validity, approval and executed policies remain separate concepts.
 
+In **Directed layers** and **Relationship layers**, inheritance is drawn as a
+flow from a base type to its subtype: the arrow is labelled `extended by`
+(`implemented by` for protocol conformance). The source declaration remains
+`subtype extends base`; selecting the edge shows that original declaration.
+Action relationship role wires enter their named ports from the left; both
+layered modes use hierarchy and role links for placement. In **Relationship
+layers**, other ontology relations also influence placement. Constraints that
+would introduce a cycle remain visible as backward links.
+
 ## Development and updates
 
 `/dev/ui-catalog#ontology-explorer` renders the same widget with a real full
