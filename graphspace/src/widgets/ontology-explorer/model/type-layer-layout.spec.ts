@@ -3,6 +3,19 @@ import { buildGraph, parseProjection } from "@/entities/ontology-diagram";
 import publication from "./publication-verification.fixture.json";
 import { typeLayerLayout } from "./type-layer-layout";
 
+const template = publication.classes.find((item) => item.id === "PublishedBundle")!;
+
+function classWithParent(id: string, parent: string, extra: Record<string, unknown> = {}) {
+  return {
+    ...template,
+    ...extra,
+    id,
+    fqid: `pubverify:${id}`,
+    extends: `pubverify:${parent}`,
+    source: { ...template.source, pointer: `/spec/classes/${id}` },
+  };
+}
+
 describe("typeLayerLayout", () => {
   it("groups foundation bases, classes, actions and relationship nodes without changing declarations", () => {
     const input = buildGraph(parseProjection(publication));
@@ -62,5 +75,76 @@ describe("typeLayerLayout", () => {
     expect(x("external/classes/pubverify:VerifyPublishedBundle")).toBeLessThan(
       x("relations/pubverify:verifiesPublishedBundle"),
     );
+  });
+
+  it("places each generation in its own column while siblings share a column", () => {
+    const input = {
+      ...publication,
+      classes: [
+        ...publication.classes,
+        classWithParent("FirstChild", "PublishedBundle"),
+        classWithParent("Sibling", "PublishedBundle"),
+        classWithParent("Grandchild", "FirstChild"),
+      ],
+    };
+    const graph = typeLayerLayout(buildGraph(parseProjection(input)));
+    const x = (id: string) => graph.nodes.find((node) => node.id === id)!.position.x;
+    const base = x("external/classes/ont:DomainEntity");
+    const parent = x("classes/pubverify:PublishedBundle");
+    const child = x("classes/pubverify:FirstChild");
+    const sibling = x("classes/pubverify:Sibling");
+    const grandchild = x("classes/pubverify:Grandchild");
+    const action = x("classes/pubverify:VerifyPublishedBundle");
+    const relation = x("relations/pubverify:verifiesPublishedBundle");
+    expect(base).toBeLessThan(parent);
+    expect(parent).toBeLessThan(child);
+    expect(child).toBe(sibling);
+    expect(child).toBeLessThan(grandchild);
+    expect(grandchild).toBeLessThan(action);
+    expect(action).toBeLessThan(relation);
+  });
+
+  it("places a class after every parent when it extends a class and implements a protocol", () => {
+    const input = {
+      ...publication,
+      protocols: [
+        ...publication.protocols,
+        {
+          id: "Auditable",
+          fqid: "pubverify:Auditable",
+          source: { ...template.source, pointer: "/spec/protocols/Auditable" },
+        },
+      ],
+      classes: [
+        ...publication.classes,
+        classWithParent("FirstChild", "PublishedBundle"),
+        classWithParent("Grandchild", "FirstChild", { implements: ["pubverify:Auditable"] }),
+      ],
+    };
+    const graph = typeLayerLayout(buildGraph(parseProjection(input)));
+    const x = (id: string) => graph.nodes.find((node) => node.id === id)!.position.x;
+    expect(x("protocols/pubverify:Auditable")).toBeLessThan(x("classes/pubverify:Grandchild"));
+    expect(x("classes/pubverify:FirstChild")).toBeLessThan(x("classes/pubverify:Grandchild"));
+  });
+
+  it("keeps cyclic inheritance in one column with all edges visible", () => {
+    const input = {
+      ...publication,
+      classes: [
+        ...publication.classes,
+        classWithParent("CycleA", "CycleB"),
+        classWithParent("CycleB", "CycleA"),
+        classWithParent("AfterCycle", "CycleA"),
+      ],
+    };
+    const source = buildGraph(parseProjection(input));
+    const graph = typeLayerLayout(source);
+    const x = (id: string) => graph.nodes.find((node) => node.id === id)!.position.x;
+    expect(x("classes/pubverify:CycleA")).toBe(x("classes/pubverify:CycleB"));
+    expect(x("classes/pubverify:CycleA")).toBeLessThan(x("classes/pubverify:AfterCycle"));
+    expect(graph.edges).toHaveLength(source.edges.length);
+    expect(graph.edges.find((edge) => edge.id === "extends/pubverify:CycleA")).toBeDefined();
+    expect(graph.edges.find((edge) => edge.id === "extends/pubverify:CycleB")).toBeDefined();
+    expect(typeLayerLayout(source)).toEqual(graph);
   });
 });

@@ -26,13 +26,14 @@ in **Relationship layers**, other ontology relations also influence placement.
 Constraints that would introduce a cycle remain visible as backward links.
 
 **Type layers** groups foundation base types and unloaded hierarchy bases,
-other declarations, actions, and relationship nodes in columns from left to
-right. Empty columns are omitted. Unresolved references that are not used as
-hierarchy bases or action roles remain with the other declarations: their type is
-not inferred. This is a
-view of the existing graph, not a change to the ontology or a claim that every
-class inherits from another class in the adjacent column. Lines may cross cards;
-the ports identify their endpoints.
+other declarations, actions, and relationship nodes from left to right. Within
+each group, inheritance adds columns: siblings may share a column, while a
+descendant appears after all of its parents. Members of an inheritance cycle
+share a column because no left-to-right ordering can satisfy the entire cycle.
+Empty columns are omitted. Unresolved references that are not used as hierarchy
+bases or action roles remain with the other declarations: their type is not
+inferred. This is a view of the existing graph, not a change to the ontology.
+Lines may cross cards; the ports identify their endpoints.
 
 ## Development and updates
 

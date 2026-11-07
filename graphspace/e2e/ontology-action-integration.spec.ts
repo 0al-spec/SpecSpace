@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 
 const fixture = path.resolve("src/widgets/ontology-explorer/model/membership.fixture.json");
@@ -178,6 +179,78 @@ test("draft publication verifier flows from base through class to relationship",
   await inspector.getByRole("button", { name: "pubverify:VerifyPublishedBundle" }).click();
   await inspector.getByRole("button", { name: "expectedBundle: Ref<RetainedBundle>" }).click();
   await expect(inspector.getByRole("heading", { name: "pubverify:RetainedBundle" })).toBeVisible();
+});
+
+test("type layers separate successive generations of inheritance", async ({ page }) => {
+  const file = path.resolve(
+    "src/widgets/ontology-explorer/model/publication-verification.fixture.json",
+  );
+  const fixture = JSON.parse(readFileSync(file, "utf8"));
+  const template = fixture.classes.find((item: { id: string }) => item.id === "PublishedBundle");
+  const child = (id: string, parent: string) => ({
+    ...template,
+    id,
+    fqid: `pubverify:${id}`,
+    extends: `pubverify:${parent}`,
+    source: { ...template.source, pointer: `/spec/classes/${id}` },
+  });
+  fixture.classes.push(child("DerivedBundle", "PublishedBundle"));
+  fixture.classes.push(child("SpecializedBundle", "DerivedBundle"));
+
+  await page.goto("/ontology?source=local");
+  await page.getByLabel("Open ontology artifact").setInputFiles({
+    name: "inheritance-example.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(fixture)),
+  });
+  await page.getByLabel("Graph direction").selectOption("types");
+  const canvas = page.getByLabel("Ontology graph", { exact: true });
+  await expect
+    .poll(async () => {
+      const ids = ["PublishedBundle", "DerivedBundle", "SpecializedBundle"];
+      const [base, first, second] = await Promise.all(
+        ids.map((id) => canvas.locator(`[data-id="classes/pubverify:${id}"]`).boundingBox()),
+      );
+      return Boolean(base && first && second && base.x < first.x && first.x < second.x);
+    })
+    .toBe(true);
+  for (const [parent, childId] of [
+    ["PublishedBundle", "DerivedBundle"],
+    ["DerivedBundle", "SpecializedBundle"],
+  ]) {
+    const edge = canvas.locator(
+      `[data-id="extends/pubverify:${childId}"] path.react-flow__edge-path`,
+    );
+    await expect(edge).toHaveAttribute("marker-end", /url\(/);
+    await expect
+      .poll(async () =>
+        edge.evaluate(
+          (path, { parentId, child }) => {
+            const line = path as SVGPathElement;
+            const matrix = line.getScreenCTM()!;
+            const start = line.getPointAtLength(0).matrixTransform(matrix);
+            const end = line.getPointAtLength(line.getTotalLength()).matrixTransform(matrix);
+            const graph = line.closest(".react-flow")!;
+            const source = graph
+              .querySelector(
+                `[data-id="classes/pubverify:${parentId}"] .react-flow__handle.source`,
+              )!
+              .getBoundingClientRect();
+            const target = graph
+              .querySelector(`[data-id="classes/pubverify:${child}"] .react-flow__handle.target`)!
+              .getBoundingClientRect();
+            return (
+              Math.abs(start.x - (source.x + source.width / 2)) < 2 &&
+              Math.abs(start.y - (source.y + source.height / 2)) < 2 &&
+              Math.abs(end.x - (target.x + target.width / 2)) < 2 &&
+              Math.abs(end.y - (target.y + target.height / 2)) < 2
+            );
+          },
+          { parentId: parent, child: childId },
+        ),
+      )
+      .toBe(true);
+  }
 });
 
 test("layered hierarchy arrows leave the base on the right and enter the subtype on the left", async ({

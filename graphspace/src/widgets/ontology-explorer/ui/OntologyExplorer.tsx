@@ -29,7 +29,7 @@ const descriptions = new Map([
   ],
   [
     "types",
-    "Type layers group foundation bases, declarations, actions and relationships. Empty layers are omitted.",
+    "Type layers group declarations and separate inheritance generations. Cycles share a column.",
   ],
 ]);
 
