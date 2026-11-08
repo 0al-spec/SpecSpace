@@ -87,11 +87,13 @@ const responseWith = (nodes: SpecNode[], edges: SpecEdge[]): SpecGraphResponse =
 });
 
 describe("SpecGraph canvas layout presets", () => {
-  it("keeps Tree as the default Refinement Ladder flow layout", () => {
-    const { nodes } = toSpecGraphFlowElements(SAMPLE_SPEC_GRAPH);
+  it("uses Dagre by default and preserves the Tree layout", () => {
+    const defaultGraph = toSpecGraphFlowElements(SAMPLE_SPEC_GRAPH);
+    expect(defaultGraph).toEqual(toSpecGraphFlowElements(SAMPLE_SPEC_GRAPH, "dagre"));
+    const { nodes } = toSpecGraphFlowElements(SAMPLE_SPEC_GRAPH, "tree");
     const byId = new Map(nodes.map((item) => [item.id, item]));
 
-    expect(DEFAULT_SPEC_GRAPH_CANVAS_LAYOUT_PRESET).toBe("tree");
+    expect(DEFAULT_SPEC_GRAPH_CANVAS_LAYOUT_PRESET).toBe("dagre");
     expect(SPEC_GRAPH_CANVAS_LAYOUT_PRESETS).toEqual([
       "tree",
       "linear",
