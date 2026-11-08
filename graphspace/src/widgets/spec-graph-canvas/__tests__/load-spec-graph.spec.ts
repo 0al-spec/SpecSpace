@@ -24,13 +24,19 @@ describe("fetchSpecGraph", () => {
     expect(result.kind).toBe("ok");
     if (result.kind !== "ok") return;
     expect(result.data.graph.nodes).toHaveLength(3);
-    expect(fetcher).toHaveBeenCalledWith("/api/v1/spec-graph", { signal: undefined });
+    expect(fetcher).toHaveBeenCalledWith("/api/v1/spec-graph", {
+      signal: undefined,
+    });
   });
 
   it("returns response-error when the body is not JSON", async () => {
-    const fetcher = vi.fn().mockResolvedValue(
-      new Response("<html>oops</html>", { headers: { "Content-Type": "text/html" } }),
-    );
+    const fetcher = vi
+      .fn()
+      .mockResolvedValue(
+        new Response("<html>oops</html>", {
+          headers: { "Content-Type": "text/html" },
+        }),
+      );
     const result = await fetchSpecGraph({ fetcher });
     expect(result.kind).toBe("response-error");
   });
@@ -53,7 +59,12 @@ describe("loadSpecGraph", () => {
   it("returns sample fallback on HTTP failure", async () => {
     const fetcher = vi
       .fn()
-      .mockResolvedValue(buildResponse({ error: "spec graph disabled" }, { status: 404, statusText: "Not Found" }));
+      .mockResolvedValue(
+        buildResponse(
+          { error: "spec graph disabled" },
+          { status: 404, statusText: "Not Found" },
+        ),
+      );
     const state = await loadSpecGraph({ fetcher });
 
     expect(state.kind).toBe("sample");
@@ -72,7 +83,9 @@ describe("loadSpecGraph", () => {
   });
 
   it("returns sample fallback on invalid payload", async () => {
-    const fetcher = vi.fn().mockResolvedValue(buildResponse({ nodes: [], edges: [] }));
+    const fetcher = vi
+      .fn()
+      .mockResolvedValue(buildResponse({ nodes: [], edges: [] }));
     const state = await loadSpecGraph({ fetcher });
 
     expect(state.kind).toBe("sample");
@@ -155,7 +168,8 @@ describe("toSpecGraphFlowElements", () => {
   it("renders refines edges in hierarchy direction while preserving raw edge data", () => {
     const { edges } = toSpecGraphFlowElements(SAMPLE_SPEC_GRAPH);
     const refines = edges.find(
-      (edge) => edge.id === "SG-SPEC-SAMPLE-RUNTIME__refines__SG-SPEC-SAMPLE-ROOT",
+      (edge) =>
+        edge.id === "SG-SPEC-SAMPLE-RUNTIME__refines__SG-SPEC-SAMPLE-ROOT",
     );
     expect(refines?.source).toBe("SG-SPEC-SAMPLE-ROOT");
     expect(refines?.target).toBe("SG-SPEC-SAMPLE-RUNTIME");
@@ -227,7 +241,9 @@ describe("buildSpecGraphSelection", () => {
   });
 
   it("returns null when the selected node no longer exists", () => {
-    expect(buildSpecGraphSelection(SAMPLE_SPEC_GRAPH, "SG-SPEC-MISSING")).toBeNull();
+    expect(
+      buildSpecGraphSelection(SAMPLE_SPEC_GRAPH, "SG-SPEC-MISSING"),
+    ).toBeNull();
     expect(buildSpecGraphSelection(SAMPLE_SPEC_GRAPH, null)).toBeNull();
   });
 });
