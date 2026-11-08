@@ -119,7 +119,7 @@ describe("toSpecGraphFlowElements", () => {
     expect(byId.get("SG-SPEC-SAMPLE-ROOT")?.position).toEqual({ x: 0, y: 172 });
     expect(byId.get("SG-SPEC-SAMPLE-RUNTIME")?.position).toEqual({
       x: 360,
-      y: 0,
+      y: 172,
     });
     expect(edges).toHaveLength(3);
   });
@@ -143,7 +143,7 @@ describe("toSpecGraphFlowElements", () => {
     expect(byId.get("SG-SPEC-SAMPLE-ROOT")?.position).toEqual({ x: 0, y: 172 });
     expect(byId.get("SG-SPEC-SAMPLE-RUNTIME")?.position).toEqual({
       x: 360,
-      y: 0,
+      y: 172,
     });
     expect(edges.map((edge) => edge.id)).toEqual([
       "SG-SPEC-SAMPLE-ROOT__depends_on__SG-SPEC-SAMPLE-RUNTIME",
