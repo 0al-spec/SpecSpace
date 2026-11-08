@@ -112,6 +112,77 @@ describe("published ontology selection", () => {
     expect(result.kind).toBe("loaded");
     expect(fetchMock.mock.calls[1][0]).toBe("/api/v1/public-specgraph-ontology-graph");
   });
+  it("prefers the versioned published core but honors explicit legacy selection", async () => {
+    const oldPath = "ontology/packages/specgraph-core/generated/ontology.graph.json";
+    const newPath = "ontology/packages/specgraph-core/versions/0.3.0/generated/ontology.graph.json";
+    const source = { provider: "http", artifact_base_url: "https://specgraph.tech" };
+    const fetchMock = vi.fn((url: string) => {
+      const common = { api_version: "v1", schema_version: 1, read_only: true, source };
+      const current = url === "/api/v1/public-specgraph-ontology-030-graph";
+      const previous = url === "/api/v1/public-specgraph-ontology-graph";
+      const payload =
+        current || previous
+          ? {
+              ...common,
+              artifact_kind: "specspace_artifact_content",
+              path: current ? newPath : oldPath,
+              content_kind: "json",
+              sha256: "a".repeat(64),
+              data: graph,
+            }
+          : {
+              ...common,
+              artifact_kind: "specspace_artifact_catalog",
+              artifacts: [row(oldPath), row(newPath)],
+            };
+      return Promise.resolve(new Response(JSON.stringify(payload), { status: 200 }));
+    });
+    const signal = new AbortController().signal;
+    const result = await loadPublishedOntology(
+      "specgraph-bootstrap",
+      signal,
+      undefined,
+      fetchMock as typeof fetch,
+    );
+    expect(result.kind === "loaded" && result.candidate.path).toBe(newPath);
+    expect(fetchMock.mock.calls[1][0]).toBe("/api/v1/public-specgraph-ontology-030-graph");
+    const oldResult = await loadPublishedOntology(
+      "specgraph-bootstrap",
+      signal,
+      oldPath,
+      fetchMock as typeof fetch,
+    );
+    expect(oldResult.kind === "loaded" && oldResult.candidate.path).toBe(oldPath);
+    expect(fetchMock.mock.calls[3][0]).toBe("/api/v1/public-specgraph-ontology-graph");
+  });
+  it("does not prefer the versioned path for other providers", async () => {
+    const oldPath = "ontology/packages/specgraph-core/generated/ontology.graph.json";
+    const newPath = "ontology/packages/specgraph-core/versions/0.3.0/generated/ontology.graph.json";
+    const source = { provider: "file" };
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            api_version: "v1",
+            schema_version: 1,
+            read_only: true,
+            source,
+            artifact_kind: "specspace_artifact_catalog",
+            artifacts: [row(oldPath), row(newPath)],
+          }),
+          { status: 200 },
+        ),
+      ),
+    );
+    const result = await loadPublishedOntology(
+      "specgraph-bootstrap",
+      new AbortController().signal,
+      undefined,
+      fetchMock as unknown as typeof fetch,
+    );
+    expect(result.kind).toBe("choose");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
   it.each([
     { provider: "file" },
     { provider: "http", artifact_base_url: "https://example.invalid" },

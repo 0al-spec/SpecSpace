@@ -330,6 +330,9 @@ class ViewerHandler(BaseHTTPRequestHandler):
     handle_v1_public_specgraph_ontology_graph = (
         specspace_v1_api.handle_v1_public_specgraph_ontology_graph
     )
+    handle_v1_public_specgraph_ontology_030_graph = (
+        specspace_v1_api.handle_v1_public_specgraph_ontology_030_graph
+    )
     handle_v1_artifacts = specspace_v1_api.handle_v1_artifacts
     handle_v1_ontology_semantic_review_surface = (
         specspace_v1_api.handle_v1_ontology_semantic_review_surface

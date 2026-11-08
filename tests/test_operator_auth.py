@@ -196,6 +196,30 @@ def test_public_ontology_graph_is_fixed_and_does_not_expose_workspace_data() -> 
         _stop_server(server, thread)
 
 
+def test_public_versioned_ontology_graph_cannot_access_other_artifacts() -> None:
+    server, thread, base_url = _start_server()
+    try:
+        with patch("viewer.specspace_v1_api.specspace_provider.HttpSpecGraphProvider") as factory:
+            provider = factory.return_value
+            provider.read_artifact_content.return_value = (HTTPStatus.OK, {"public": True})
+            request = Request(
+                f"{base_url}/api/v1/public-specgraph-ontology-030-graph"
+                "?workspace=private&path=runs/private.json"
+            )
+            with urlopen(request, timeout=2) as response:  # nosec B310
+                assert json.load(response) == {"public": True}
+            assert factory.call_args.kwargs["base_url"] == "https://specgraph.tech"
+            provider.read_artifact_content.assert_called_once_with(
+                "ontology/packages/specgraph-core/versions/0.3.0/generated/ontology.graph.json"
+            )
+        assert (
+            _error(Request(f"{base_url}/api/v1/artifacts/content?path=runs/private.json")).code
+            == 401
+        )
+    finally:
+        _stop_server(server, thread)
+
+
 def test_private_get_rejects_wrong_credentials_and_accepts_operator() -> None:
     server, thread, base_url = _start_server()
     try:
