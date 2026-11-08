@@ -112,6 +112,38 @@ describe("published ontology selection", () => {
     expect(result.kind).toBe("loaded");
     expect(fetchMock.mock.calls[1][0]).toBe("/api/v1/public-specgraph-ontology-graph");
   });
+  it("opens the published combined draft overview ahead of the core", async () => {
+    const core = "ontology/packages/specgraph-core/versions/0.3.0/generated/ontology.graph.json";
+    const overview = "specs/models/review/ontology-overview/generated/ontology.graph.json";
+    const source = { provider: "http", artifact_base_url: "https://specgraph.tech" };
+    const fetchMock = vi.fn((url: string) => {
+      const common = { api_version: "v1", schema_version: 1, read_only: true, source };
+      const payload =
+        url === "/api/v1/public-specgraph-ontology-overview-graph"
+          ? {
+              ...common,
+              artifact_kind: "specspace_artifact_content",
+              path: overview,
+              content_kind: "json",
+              sha256: "a".repeat(64),
+              data: graph,
+            }
+          : {
+              ...common,
+              artifact_kind: "specspace_artifact_catalog",
+              artifacts: [row(core), row(overview)],
+            };
+      return Promise.resolve(new Response(JSON.stringify(payload), { status: 200 }));
+    });
+    const result = await loadPublishedOntology(
+      "specgraph-bootstrap",
+      new AbortController().signal,
+      undefined,
+      fetchMock as typeof fetch,
+    );
+    expect(result.kind === "loaded" && result.candidate.path).toBe(overview);
+    expect(fetchMock.mock.calls[1][0]).toBe("/api/v1/public-specgraph-ontology-overview-graph");
+  });
   it("prefers the versioned published core but honors explicit legacy selection", async () => {
     const oldPath = "ontology/packages/specgraph-core/generated/ontology.graph.json";
     const newPath = "ontology/packages/specgraph-core/versions/0.3.0/generated/ontology.graph.json";

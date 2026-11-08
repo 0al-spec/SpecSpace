@@ -19,6 +19,8 @@ export type PublishedResult =
       digestMatched: boolean;
     };
 const bootstrap = "specgraph-bootstrap";
+export const draftOverviewGraph =
+  "specs/models/review/ontology-overview/generated/ontology.graph.json";
 const currentCoreGraph =
   "ontology/packages/specgraph-core/versions/0.3.0/generated/ontology.graph.json";
 const object = (value: unknown): Record<string, unknown> => {
@@ -110,6 +112,8 @@ function selectCandidate(
     return selected;
   }
   if (isPublicBootstrap) {
+    const overview = available.find((item) => item.path === draftOverviewGraph);
+    if (overview) return overview;
     const current = available.find((item) => item.path === currentCoreGraph);
     if (current) return current;
   }
@@ -148,6 +152,7 @@ export async function loadPublishedOntology(
       "/api/v1/public-specgraph-ontology-graph",
     ],
     [currentCoreGraph, "/api/v1/public-specgraph-ontology-030-graph"],
+    [draftOverviewGraph, "/api/v1/public-specgraph-ontology-overview-graph"],
   ]);
   const publicRoute = isPublicBootstrap ? publicRoutes.get(selected.path) : undefined;
   const query =
