@@ -30,13 +30,11 @@ describe("fetchSpecGraph", () => {
   });
 
   it("returns response-error when the body is not JSON", async () => {
-    const fetcher = vi
-      .fn()
-      .mockResolvedValue(
-        new Response("<html>oops</html>", {
-          headers: { "Content-Type": "text/html" },
-        }),
-      );
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response("<html>oops</html>", {
+        headers: { "Content-Type": "text/html" },
+      }),
+    );
     const result = await fetchSpecGraph({ fetcher });
     expect(result.kind).toBe("response-error");
   });
@@ -60,10 +58,7 @@ describe("loadSpecGraph", () => {
     const fetcher = vi
       .fn()
       .mockResolvedValue(
-        buildResponse(
-          { error: "spec graph disabled" },
-          { status: 404, statusText: "Not Found" },
-        ),
+        buildResponse({ error: "spec graph disabled" }, { status: 404, statusText: "Not Found" }),
       );
     const state = await loadSpecGraph({ fetcher });
 
@@ -83,9 +78,7 @@ describe("loadSpecGraph", () => {
   });
 
   it("returns sample fallback on invalid payload", async () => {
-    const fetcher = vi
-      .fn()
-      .mockResolvedValue(buildResponse({ nodes: [], edges: [] }));
+    const fetcher = vi.fn().mockResolvedValue(buildResponse({ nodes: [], edges: [] }));
     const state = await loadSpecGraph({ fetcher });
 
     expect(state.kind).toBe("sample");
@@ -168,8 +161,7 @@ describe("toSpecGraphFlowElements", () => {
   it("renders refines edges in hierarchy direction while preserving raw edge data", () => {
     const { edges } = toSpecGraphFlowElements(SAMPLE_SPEC_GRAPH);
     const refines = edges.find(
-      (edge) =>
-        edge.id === "SG-SPEC-SAMPLE-RUNTIME__refines__SG-SPEC-SAMPLE-ROOT",
+      (edge) => edge.id === "SG-SPEC-SAMPLE-RUNTIME__refines__SG-SPEC-SAMPLE-ROOT",
     );
     expect(refines?.source).toBe("SG-SPEC-SAMPLE-ROOT");
     expect(refines?.target).toBe("SG-SPEC-SAMPLE-RUNTIME");
@@ -179,9 +171,7 @@ describe("toSpecGraphFlowElements", () => {
 
   it("styles edge kinds distinctly", () => {
     const { edges } = toSpecGraphFlowElements(SAMPLE_SPEC_GRAPH);
-    const styles = new Map(
-      edges.map((edge) => [edge.data?.specEdge.edge_kind, edge.style]),
-    );
+    const styles = new Map(edges.map((edge) => [edge.data?.specEdge.edge_kind, edge.style]));
     expect(styles.get("depends_on")).toMatchObject({ stroke: "#b06924" });
     expect(styles.get("refines")).toMatchObject({
       stroke: "#4e689b",
@@ -229,10 +219,7 @@ describe("toSpecGraphFlowElements", () => {
 
 describe("buildSpecGraphSelection", () => {
   it("returns the selected node with graph context for inspector surfaces", () => {
-    const selection = buildSpecGraphSelection(
-      SAMPLE_SPEC_GRAPH,
-      "SG-SPEC-SAMPLE-ROOT",
-    );
+    const selection = buildSpecGraphSelection(SAMPLE_SPEC_GRAPH, "SG-SPEC-SAMPLE-ROOT");
 
     expect(selection?.node.node_id).toBe("SG-SPEC-SAMPLE-ROOT");
     expect(selection?.specDir).toBe("sample://graphspace/specs/nodes");
@@ -241,9 +228,7 @@ describe("buildSpecGraphSelection", () => {
   });
 
   it("returns null when the selected node no longer exists", () => {
-    expect(
-      buildSpecGraphSelection(SAMPLE_SPEC_GRAPH, "SG-SPEC-MISSING"),
-    ).toBeNull();
+    expect(buildSpecGraphSelection(SAMPLE_SPEC_GRAPH, "SG-SPEC-MISSING")).toBeNull();
     expect(buildSpecGraphSelection(SAMPLE_SPEC_GRAPH, null)).toBeNull();
   });
 });
