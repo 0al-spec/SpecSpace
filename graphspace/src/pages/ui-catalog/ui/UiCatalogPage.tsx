@@ -1,12 +1,33 @@
-import { OntologyExplorerFixture } from "@/widgets/ontology-explorer";
+import { SpecGraphCanvas, SAMPLE_SPEC_GRAPH } from "@/widgets/spec-graph-canvas";
+import { OntologyExplorerFixture, OntologyMembershipFixture } from "@/widgets/ontology-explorer";
 import { Panel } from "@/shared/ui/panel";
 import { PanelBtn } from "@/shared/ui/panel-btn";
 import styles from "./UiCatalogPage.module.css";
-import { CanonicalDecisionsPanel, type ProductWorkspaceDecisions } from "@/widgets/canonical-decisions";
+import {
+  CanonicalDecisionsPanel,
+  type ProductWorkspaceDecisions,
+} from "@/widgets/canonical-decisions";
 
 const decisionFixture: ProductWorkspaceDecisions = {
-  status: "available", available: true, workspace_id: "team-decision-log",
-  decisions: [{ id: "DEC-001", key: "decision.workspace-read-model", title: "Publish canonical Decisions as a read-only workspace view", status: "reviewed", created_at: "2026-09-24T00:00:00Z", updated_at: "2026-09-24T00:00:00Z", revision: 1, statement: "Keep canonical Decision identity and provenance visible in Product Workspace.", rationale: "The legacy SpecSpace graph requires a different node contract.", provenance: { authority: "product-owner", authored_by: "workspace-team" }, source_ref: "specs/nodes/DEC-001.yaml", source_sha256: "a".repeat(64) }],
+  status: "available",
+  available: true,
+  workspace_id: "team-decision-log",
+  decisions: [
+    {
+      id: "DEC-001",
+      key: "decision.workspace-read-model",
+      title: "Publish canonical Decisions as a read-only workspace view",
+      status: "reviewed",
+      created_at: "2026-09-24T00:00:00Z",
+      updated_at: "2026-09-24T00:00:00Z",
+      revision: 1,
+      statement: "Keep canonical Decision identity and provenance visible in Product Workspace.",
+      rationale: "The legacy SpecSpace graph requires a different node contract.",
+      provenance: { authority: "product-owner", authored_by: "workspace-team" },
+      source_ref: "specs/nodes/DEC-001.yaml",
+      source_sha256: "a".repeat(64),
+    },
+  ],
 };
 
 const utilityPanelComponentItems = [
@@ -16,7 +37,20 @@ const utilityPanelComponentItems = [
 ] as const;
 
 const catalogSections = [
-  { id: "ontology-explorer", title: "Ontology Explorer", status: "active", href: "#ontology-explorer", items: ["Compiler projection"] },
+  {
+    id: "spec-graph-layout",
+    title: "SpecGraph layout",
+    status: "active",
+    href: "#spec-graph-layout",
+    items: ["Layout presets"],
+  },
+  {
+    id: "ontology-explorer",
+    title: "Ontology Explorer",
+    status: "active",
+    href: "#ontology-explorer",
+    items: ["Compiler projection"],
+  },
   {
     id: "utility-panel-components",
     title: "Utility panel components",
@@ -41,8 +75,8 @@ export function UiCatalogPage() {
           <span className={styles.kicker}>SpecSpace UI catalog</span>
           <h1 className={styles.title}>Design system workbench</h1>
           <p className={styles.subtitle}>
-            Dev-only catalog for isolating UI primitives and domain composites
-            before they are promoted into production surfaces.
+            Dev-only catalog for isolating UI primitives and domain composites before they are
+            promoted into production surfaces.
           </p>
         </div>
         <dl className={styles.summary} aria-label="Catalog summary">
@@ -74,9 +108,29 @@ export function UiCatalogPage() {
         </nav>
 
         <div className={styles.content}>
+          <section className={styles.section} id="spec-graph-layout">
+            <div className={styles.sectionHeader}>
+              <h2 className={styles.sectionTitle}>SpecGraph layout</h2>
+            </div>
+            <div className={styles.graphFixture}>
+              <SpecGraphCanvas
+                className={styles.graphFixtureCanvas}
+                state={{ kind: "idle", source: "sample", data: SAMPLE_SPEC_GRAPH }}
+              />
+            </div>
+          </section>
           <section className={styles.section} id="ontology-explorer">
-            <div className={styles.sectionHeader}><h2 className={styles.sectionTitle}>Ontology Explorer</h2><span className={styles.badge}>real compiler projection · read only</span></div>
+            <div className={styles.sectionHeader}>
+              <h2 className={styles.sectionTitle}>Ontology Explorer</h2>
+              <span className={styles.badge}>real compiler projection · read only</span>
+            </div>
             <OntologyExplorerFixture />
+          </section>
+          <section className={styles.section} id="ontology-membership">
+            <div className={styles.sectionHeader}>
+              <h2 className={styles.sectionTitle}>Ontology actions and fields</h2>
+            </div>
+            <OntologyMembershipFixture />
           </section>
           <section className={styles.section} id="utility-panel-components">
             <div className={styles.sectionHeader}>
@@ -122,19 +176,11 @@ export function UiCatalogPage() {
                 <span className={styles.cardTitle}>Panel</span>
                 <span className={styles.cardMeta}>default / sm</span>
               </Panel>
-              <div
-                className={styles.buttonSet}
-                role="group"
-                aria-label="Panel button examples"
-              >
+              <div className={styles.buttonSet} role="group" aria-label="Panel button examples">
                 <PanelBtn title="Default panel button" aria-label="Default panel button">
                   +
                 </PanelBtn>
-                <PanelBtn
-                  active
-                  title="Active panel button"
-                  aria-label="Active panel button"
-                >
+                <PanelBtn active title="Active panel button" aria-label="Active panel button">
                   *
                 </PanelBtn>
                 <PanelBtn
@@ -149,8 +195,18 @@ export function UiCatalogPage() {
           </section>
 
           <section className={styles.section} id="canonical-decisions">
-            <div className={styles.sectionHeader}><div><span className={styles.sectionKicker}>Product Workspace surface</span><h2 className={styles.sectionTitle}>Canonical decisions</h2></div><span className={styles.badge}>fixture</span></div>
-            <CanonicalDecisionsPanel url="/fixture" artifactContentUrl="/fixture" fixture={decisionFixture} />
+            <div className={styles.sectionHeader}>
+              <div>
+                <span className={styles.sectionKicker}>Product Workspace surface</span>
+                <h2 className={styles.sectionTitle}>Canonical decisions</h2>
+              </div>
+              <span className={styles.badge}>fixture</span>
+            </div>
+            <CanonicalDecisionsPanel
+              url="/fixture"
+              artifactContentUrl="/fixture"
+              fixture={decisionFixture}
+            />
           </section>
         </div>
       </div>

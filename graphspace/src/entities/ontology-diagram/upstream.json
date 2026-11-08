@@ -1,15 +1,15 @@
 {
   "repository": "https://github.com/0al-spec/Ontology",
-  "revision": "613b0accf17e30fa774e126f50c163f5a697a24a",
+  "revision": "b1a0da17ddd9256c74c36d6ea83f50d96af10e48",
   "license": "MIT",
   "files": {
     "GraphCanvas.tsx": {
       "source": "tools/ontology-viewer/src/GraphCanvas.tsx",
-      "sha256": "94cdd878ae77c21ccfb4441ebfb7160059b365979426dec3ee4d9504f1fcda97"
+      "sha256": "a4eb4eaa6f6ccbdd5d55a773e044a528db7f245cfa7beb4700b8bf24022d5806"
     },
     "Inspector.tsx": {
       "source": "tools/ontology-viewer/src/Inspector.tsx",
-      "sha256": "4f4a2788762b42c4e619d7e09336810fd0a30fe16cec6c1a94175aeb42f9dc41"
+      "sha256": "b3583f7ad8be787bc923edfc4b24a84007cc2fcf4d9c8f0b43898a893cb75617"
     },
     "FilterPanel.tsx": {
       "source": "tools/ontology-viewer/src/FilterPanel.tsx",
@@ -17,19 +17,19 @@
     },
     "filters.ts": {
       "source": "tools/ontology-viewer/src/filters.ts",
-      "sha256": "02bf5e7b07a07c9a56720882f13ba0ede8cf3fafe0c40c6cd9a6a6aea59f5c23"
+      "sha256": "de4fe3aeda9e3531c0c523e34d14c9e54fc7574158d9834dab5922751d7ae5e7"
     },
     "graph.ts": {
       "source": "tools/ontology-viewer/src/graph.ts",
-      "sha256": "79e73574457e680a84d11849d2b6d3087659e73301067de2dc96f2d4356fd02f"
+      "sha256": "45499858ebae9403010b62d6b1965c1834107b0782fe8f8791d1f977fa30bea1"
     },
     "packages.ts": {
       "source": "tools/ontology-viewer/src/packages.ts",
-      "sha256": "35d135eba818ad4aa8f97021799c3695992f46a78cde2a0a1e81cd95763da043"
+      "sha256": "2833bd45b1541b214964a0417a83806c2ef55433871bf29f64c99893bd71fdf5"
     },
     "projection.ts": {
       "source": "tools/ontology-viewer/src/projection.ts",
-      "sha256": "0c56c180c0921d4d5464bab6a68cfea1f5d5422d3cc7d3424ea07b180daf8f6a"
+      "sha256": "810a884f3e214fc15f24de7a764bdd02e15c73b8e3129d3c7134f960f22db4e5"
     },
     "selection.ts": {
       "source": "tools/ontology-viewer/src/selection.ts",
@@ -41,11 +41,15 @@
     },
     "style.css": {
       "source": "tools/ontology-viewer/src/style.css",
-      "sha256": "249d7e928b5bc959f201b4e489d0daa8b2adcadf1e0e052e0436c05aa7a46ecf"
+      "sha256": "96e56238a7949765aba2ba210fab9a03bd4aee3d1ace902d3558f784063319a1"
     },
     "LICENSE": {
       "source": "LICENSE",
       "sha256": "75ca81d10f36d440b7a04a580c1ba8a13849b9c071f37dfc6cae43721be1d943"
+    },
+    "canvasEdges.tsx": {
+      "source": "tools/ontology-viewer/src/canvasEdges.tsx",
+      "sha256": "a0d4234b6f53f60fbe153db36801a270b0f3d7a5b8825463b1b69205ec175195"
     }
   }
 }

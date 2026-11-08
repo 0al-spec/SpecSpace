@@ -9,6 +9,8 @@ export interface SourceLocation {
 }
 
 export type Declaration = JsonObject & { id: string; fqid: string; source: SourceLocation };
+type ClassField = JsonObject & { source?: SourceLocation };
+type ClassDeclaration = Declaration & { fields?: ClassField[] };
 export type Relation = Declaration & { domain: string; range: string | { oneOf: string[] } };
 export interface Projection {
   schemaVersion: 'ontology.diagram-projection/v1';
@@ -18,11 +20,20 @@ export interface Projection {
   view: 'full' | 'relations';
   sources: JsonObject[];
   imports: JsonObject[];
-  classes: Declaration[];
+  externalImports?: JsonObject[];
+  classes: ClassDeclaration[];
   relations: Relation[];
   protocols: Declaration[];
   policies: Declaration[];
   stateMachines: Declaration[];
+}
+
+/** Foundation imports may use their compiler-defined default namespace. */
+export function importNamespace(entry: JsonObject): string {
+  if (typeof entry.namespace === 'string' && entry.namespace) return entry.namespace;
+  if (entry.id === 'ontology.foundation') return 'ont';
+  if (entry.id === 'specgraph.foundation') return 'sg';
+  return '';
 }
 
 function object(value: unknown, path: string): JsonObject {
@@ -66,6 +77,39 @@ function declarations(value: unknown, path: string): Declaration[] {
   });
 }
 
+function samePackageSource(packageSource: JsonObject | SourceLocation, source: SourceLocation): boolean {
+  return packageSource.id === source.id && packageSource.version === source.version &&
+    packageSource.sourceDigest === source.sourceDigest && packageSource.sourceByteDigest === source.sourceByteDigest;
+}
+
+function pointerComponent(id: string): string {
+  return id.replaceAll('~', '~0').replaceAll('/', '~1');
+}
+
+function classes(value: unknown): ClassDeclaration[] {
+  return declarations(value, 'classes').map(({ fields, ...owner }) => {
+    if (owner.source.pointer !== `/spec/classes/${pointerComponent(owner.id)}`) {
+      throw new Error(`${owner.fqid}: source pointer does not match the class`);
+    }
+    if (fields === undefined) return owner;
+    const path = `${owner.fqid}.fields`;
+    const parsed = objects(fields, path).map(({ source, ...field }, index) => {
+      if (source === undefined) return field;
+      const id = text(field.id, `${path}[${index}].id`);
+      const sourcePath = `${path}.${id}.source`;
+      const fieldSource = location(source, sourcePath);
+      if (!samePackageSource(owner.source, fieldSource)) {
+        throw new Error(`${sourcePath} does not match the owning class package, version or digests`);
+      }
+      if (fieldSource.pointer !== `${owner.source.pointer}/fields/${pointerComponent(id)}`) {
+        throw new Error(`${sourcePath}.pointer does not match the field`);
+      }
+      return { ...field, source: fieldSource };
+    });
+    return { ...owner, fields: parsed };
+  });
+}
+
 function relations(value: unknown): Relation[] {
   return declarations(value, 'relations').map((entry, index) => {
     const path = `relations[${index}]`;
@@ -106,12 +150,28 @@ export function parseProjection(value: unknown): Projection {
   const root = sources[0];
   if (root.id !== id || root.version !== version || root.namespace !== namespace || root.alias !== namespace ||
       root.sourceDigest !== sourceDigest || root.sourceByteDigest !== sourceByteDigest) throw new Error('sources[0] does not match the root package');
+  const imports = objects(graph.imports, 'imports');
+  const externalImports = graph.externalImports === undefined ? undefined : objects(graph.externalImports, 'externalImports');
+  const externalIdentities = new Set<string>();
+  for (const [index, entry] of (externalImports || []).entries()) {
+    const path = `externalImports[${index}]`;
+    const id = text(entry.id, `${path}.id`);
+    const version = text(entry.version, `${path}.version`);
+    const alias = text(entry.alias, `${path}.alias`);
+    if (!/^[a-z][a-z0-9-]*$/.test(alias)) throw new Error(`${path}: invalid alias ${alias}`);
+    if (aliases.has(alias) || imports.some((item) => importNamespace(item) === alias)) throw new Error(`${path}: duplicate alias ${alias}`);
+    if ([...sources, ...imports].some((item) => item.id === id && item.version === version)) throw new Error(`${path}: package is already bound`);
+    const identity = `${id}@${version}`;
+    if (externalIdentities.has(identity)) throw new Error(`${path}: duplicate package identity ${identity}`);
+    externalIdentities.add(identity);
+    aliases.add(alias);
+  }
   const result: Projection = {
     schemaVersion: graph.schemaVersion,
     id, namespace, version,
     view: graph.view,
-    sources, imports: objects(graph.imports, 'imports'),
-    classes: declarations(graph.classes, 'classes'), relations: relations(graph.relations),
+    sources, imports, ...(externalImports ? { externalImports } : {}),
+    classes: classes(graph.classes), relations: relations(graph.relations),
     protocols: declarations(graph.protocols, 'protocols'), policies: declarations(graph.policies, 'policies'),
     stateMachines: declarations(graph.stateMachines, 'stateMachines'),
   };
@@ -120,8 +180,8 @@ export function parseProjection(value: unknown): Projection {
     for (const record of records) {
       const source = record.source;
       if (!source.pointer.startsWith(`/spec/${section}/`)) throw new Error(`${record.fqid}: source pointer does not match ${section}`);
-      if (!sources.some((item) => item.id === source.id && item.version === source.version &&
-          item.sourceDigest === source.sourceDigest && item.sourceByteDigest === source.sourceByteDigest)) {
+      if (!sources.some((item) => samePackageSource(item, source) &&
+          (section !== 'classes' || record.fqid === `${item.alias}:${record.id}`))) {
         throw new Error(`${record.fqid}: source does not match a loaded package`);
       }
     }
