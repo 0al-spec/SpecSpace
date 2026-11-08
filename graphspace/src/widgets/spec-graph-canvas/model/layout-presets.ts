@@ -18,7 +18,7 @@ export const SPEC_GRAPH_CANVAS_FORCE_LAYOUT_TARGET = "force" as const;
 export type SpecGraphCanvasLayoutCycleTarget =
   SpecGraphCanvasLayoutPreset | typeof SPEC_GRAPH_CANVAS_FORCE_LAYOUT_TARGET;
 
-export const DEFAULT_SPEC_GRAPH_CANVAS_LAYOUT_PRESET: SpecGraphCanvasLayoutPreset = "tree";
+export const DEFAULT_SPEC_GRAPH_CANVAS_LAYOUT_PRESET: SpecGraphCanvasLayoutPreset = "dagre";
 
 export const SPEC_GRAPH_CANVAS_LAYOUT_PRESET_LABELS: Record<SpecGraphCanvasLayoutPreset, string> = {
   tree: "Tree",
