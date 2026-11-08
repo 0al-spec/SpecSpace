@@ -19,6 +19,8 @@ export type PublishedResult =
       digestMatched: boolean;
     };
 const bootstrap = "specgraph-bootstrap";
+const currentCoreGraph =
+  "ontology/packages/specgraph-core/versions/0.3.0/generated/ontology.graph.json";
 const object = (value: unknown): Record<string, unknown> => {
   if (!value || typeof value !== "object" || Array.isArray(value))
     throw new Error("Invalid published artifact envelope");
@@ -97,6 +99,22 @@ function verifyDigest(candidate: PublishedCandidate, content: Record<string, unk
   if (candidate.sha256 && content.sha256 !== candidate.sha256)
     throw new Error("Published artifact changed since its catalog was read");
 }
+function selectCandidate(
+  available: PublishedCandidate[],
+  selectedPath: string | undefined,
+  isPublicBootstrap: boolean,
+): PublishedCandidate | undefined {
+  if (selectedPath) {
+    const selected = available.find((item) => item.path === selectedPath);
+    if (!selected) throw new Error("Selected artifact is no longer published");
+    return selected;
+  }
+  if (isPublicBootstrap) {
+    const current = available.find((item) => item.path === currentCoreGraph);
+    if (current) return current;
+  }
+  return available.length === 1 ? available[0] : undefined;
+}
 export async function loadPublishedOntology(
   workspace: string,
   signal: AbortSignal,
@@ -109,16 +127,17 @@ export async function loadPublishedOntology(
     workspace,
   );
   if (!Array.isArray(catalog.artifacts)) throw new Error("Invalid artifact catalog");
+  const source = object(catalog.source);
+  const isPublicBootstrap =
+    workspace === bootstrap &&
+    source.provider === "http" &&
+    source.artifact_base_url === "https://specgraph.tech";
   const candidates = artifactCandidates(catalog.artifacts);
   const diagrams = candidates.filter((item) => item.format === "diagram");
   const available = diagrams.length ? diagrams : candidates;
   if (!available.length) return { kind: "missing" };
-  let selected: PublishedCandidate | undefined;
-  if (selectedPath) selected = available.find((item) => item.path === selectedPath);
-  else if (available.length === 1) selected = available[0];
-  if (!selected && selectedPath) throw new Error("Selected artifact is no longer published");
+  const selected = selectCandidate(available, selectedPath, isPublicBootstrap);
   if (!selected) return { kind: "choose", candidates: available };
-  const source = object(catalog.source);
   const publicRoutes = new Map<string, string>([
     [
       "ontology/packages/specgraph-core/generated/ontology.normalized.json",
@@ -128,13 +147,9 @@ export async function loadPublishedOntology(
       "ontology/packages/specgraph-core/generated/ontology.graph.json",
       "/api/v1/public-specgraph-ontology-graph",
     ],
+    [currentCoreGraph, "/api/v1/public-specgraph-ontology-030-graph"],
   ]);
-  const publicRoute =
-    workspace === bootstrap &&
-    source.provider === "http" &&
-    source.artifact_base_url === "https://specgraph.tech"
-      ? publicRoutes.get(selected.path)
-      : undefined;
+  const publicRoute = isPublicBootstrap ? publicRoutes.get(selected.path) : undefined;
   const query =
     publicRoute ??
     scope("/api/v1/artifacts/content?path=" + encodeURIComponent(selected.path), workspace);

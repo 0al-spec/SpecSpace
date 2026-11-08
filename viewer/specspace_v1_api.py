@@ -1322,6 +1322,17 @@ def handle_v1_public_specgraph_ontology_graph(handler: SpecSpaceV1Handler) -> No
     json_response(handler, status, payload)
 
 
+def handle_v1_public_specgraph_ontology_030_graph(handler: SpecSpaceV1Handler) -> None:
+    """Expose the versioned public SpecGraph core diagram, without arbitrary path access."""
+    provider = specspace_provider.HttpSpecGraphProvider(
+        base_url="https://specgraph.tech", cache=specspace_provider.HttpArtifactCache()
+    )
+    status, payload = provider.read_artifact_content(
+        "ontology/packages/specgraph-core/versions/0.3.0/generated/ontology.graph.json"
+    )
+    json_response(handler, status, payload)
+
+
 def _select_workspace_binding(
     local_binding: dict[str, Any],
     provider_binding: Any,
