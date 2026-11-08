@@ -14,6 +14,7 @@ import {
 import { mirrorGraph } from "../model/mirror-graph";
 import { directedLayout, reversesEdge } from "../model/directed-layout";
 import { typeLayerLayout } from "../model/type-layer-layout";
+import { dimOutsideRelationship, relationshipFocus } from "../model/relationship-focus";
 import "./ontology-explorer.css";
 
 const descriptions = new Map([
@@ -39,15 +40,21 @@ export function OntologyExplorer({ projection }: Readonly<{ projection: Projecti
   const [filters, setFilters] = useState(defaultFilters);
   const [selection, setSelection] = useState<Selection | null>(null);
   const [focusNode, setFocusNode] = useState<{ id: string } | null>(null);
+  const [focusRelationship, setFocusRelationship] = useState(false);
   const searchId = useId();
+  const original = useMemo(() => buildGraph(projection), [projection]);
   const graph = useMemo(() => {
-    const original = buildGraph(projection);
     if (direction === "RL") return mirrorGraph(original);
     if (direction === "directed") return directedLayout(original);
     if (direction === "relations") return directedLayout(original, "relations");
     if (direction === "types") return typeLayerLayout(original);
     return original;
-  }, [projection, direction]);
+  }, [original, direction]);
+  const focused = useMemo(
+    () => (focusRelationship ? relationshipFocus(original, selection) : null),
+    [focusRelationship, original, selection],
+  );
+  const canvasGraph = useMemo(() => dimOutsideRelationship(graph, focused), [graph, focused]);
   const classNodes = useMemo(
     () =>
       new Map(
@@ -63,6 +70,13 @@ export function OntologyExplorer({ projection }: Readonly<{ projection: Projecti
     () => graphVisibility(graph, filters, projection.id),
     [graph, filters, projection.id],
   );
+  const focusOutsideFilters = focused
+    ? [...focused.nodeIds].some((id) => !visibility.nodeIds.has(id)) ||
+      [...focused.edgeIds].some((id) => !visibility.edgeIds.has(id))
+    : false;
+  const focusHasUnloaded = focused
+    ? original.nodes.some((node) => focused.nodeIds.has(node.id) && node.data.kind === "external")
+    : false;
   const matches = useMemo(() => {
     const search = query.trim().toLowerCase();
     const nodes = graph.nodes
@@ -145,6 +159,23 @@ export function OntologyExplorer({ projection }: Readonly<{ projection: Projecti
             <option value="types">Type layers (experimental)</option>
           </select>
           <small className="filter-search-note">{descriptions.get(direction)}</small>
+          <label className="relationship-focus-control">
+            <input
+              type="checkbox"
+              checked={focusRelationship}
+              onChange={(event) => setFocusRelationship(event.target.checked)}
+            />
+            Focus on relationship
+          </label>
+          {focusRelationship && (
+            <small className="relationship-focus-note" role="status">
+              {focused
+                ? "Relationship dependencies are highlighted."
+                : "Select a relationship to highlight its dependencies."}
+              {focusOutsideFilters && " Some dependencies are outside the active filters."}
+              {focusHasUnloaded && " Some dependencies are unloaded external references."}
+            </small>
+          )}
           <label className="search-label" htmlFor={searchId}>
             Search graph
           </label>
@@ -225,7 +256,7 @@ export function OntologyExplorer({ projection }: Readonly<{ projection: Projecti
           </div>
         </section>
         <GraphCanvas
-          graph={graph}
+          graph={canvasGraph}
           identity={`${projection.id}@${projection.version}:${direction}`}
           search={query}
           focusNode={focusNode}
