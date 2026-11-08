@@ -15,6 +15,15 @@ cannot be reconstructed by the viewer: export a full profile and explicitly
 include the imports you need. Loaded declarations, unresolved references,
 structural validity, approval and executed policies remain separate concepts.
 
+**Focus on relationship** highlights the selected relationship, its roles or
+endpoints, and their recursive inheritance, conformance and `Ref` dependencies.
+The rest of the graph is dimmed without moving nodes or changing line style.
+Selecting another relationship updates the focus; switching the mode off
+restores the normal view. A non-relationship selection keeps the mode ready for
+the next relationship. Existing filters remain in effect; the status reports
+when focused dependencies are filtered or include unloaded external references.
+The path is based on declarations, not proof of execution or completeness.
+
 In **Directed layers**, **Relationship layers** and the experimental **Type
 layers**, inheritance is drawn as a flow from a base type to its subtype: the
 arrow is labelled `extended by`
