@@ -167,6 +167,59 @@ for (const mobile of [false, true]) {
   });
 }
 
+for (const mobile of [false, true]) {
+  test(`published combined draft shows action relationships ${mobile ? "mobile" : "desktop"}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(
+      mobile ? { width: 390, height: 844 } : { width: 1600, height: 1000 },
+    );
+    const path = "specs/models/review/ontology-overview/generated/ontology.graph.json";
+    const graph = JSON.parse(
+      readFileSync(
+        "src/widgets/ontology-explorer/model/publication-verification.fixture.json",
+        "utf8",
+      ),
+    );
+    const common = {
+      api_version: "v1",
+      schema_version: 1,
+      read_only: true,
+      source: { provider: "http", artifact_base_url: "https://specgraph.tech" },
+    };
+    await page.route("**/api/v1/artifacts?**", (route) =>
+      route.fulfill({
+        json: {
+          ...common,
+          artifact_kind: "specspace_artifact_catalog",
+          artifacts: [{ path, sha256: "a".repeat(64) }],
+        },
+      }),
+    );
+    await page.route("**/api/v1/public-specgraph-ontology-overview-graph", (route) =>
+      route.fulfill({
+        json: {
+          ...common,
+          artifact_kind: "specspace_artifact_content",
+          path,
+          content_kind: "json",
+          sha256: "a".repeat(64),
+          data: graph,
+        },
+      }),
+    );
+    await page.goto("/ontology");
+    await expect(
+      page.getByText("Published combined ontology · draft", { exact: false }),
+    ).toBeVisible();
+    const relationship = page.locator('[data-id="relations/pubverify:verifiesPublishedBundle"]');
+    await expect(relationship).toBeVisible();
+    await expect(relationship).toContainText("subject:");
+    await expect(relationship).toContainText("action:");
+    await expect(relationship).toContainText("object:");
+  });
+}
+
 test("missing published data stays scoped and allows a local file", async ({ page }) => {
   await page.route("**/api/v1/artifacts**", (route) =>
     route.fulfill({
