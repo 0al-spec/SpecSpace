@@ -1,0 +1,314 @@
+{
+  "classes": [
+    {
+      "aliases": [],
+      "central": false,
+      "description": "Governed representation of what the product must be and how it can be validated.",
+      "diagramOrigin": "org.0al.specgraph.core@0.3.0",
+      "extends": "sg:DomainEntity",
+      "fqid": "sgcore:Intent",
+      "id": "Intent",
+      "implements": [],
+      "kind": "DomainEntity",
+      "source": {
+        "id": "org.0al.specgraph.core",
+        "pointer": "/spec/classes/Intent",
+        "sourceByteDigest": "sha256:56dbc9f05f439eb7bf6b028433906c3bcf87b10486fdb6bef23332defa5281f8",
+        "sourceDigest": "sha256:56dbc9f05f439eb7bf6b028433906c3bcf87b10486fdb6bef23332defa5281f8",
+        "version": "0.3.0"
+      },
+      "uri": "ontology://org.0al.specgraph.core/0.3.0/classes/Intent"
+    },
+    {
+      "aliases": [],
+      "central": false,
+      "description": "A pre-canonical synthesis of one or more intent fragments and optional context, not an approved Intent.",
+      "diagramOrigin": "org.0al.specgraph.core@0.3.0",
+      "extends": "sg:DomainEntity",
+      "fqid": "sgcore:IntentDraft",
+      "id": "IntentDraft",
+      "implements": [],
+      "kind": "DomainEntity",
+      "source": {
+        "id": "org.0al.specgraph.core",
+        "pointer": "/spec/classes/IntentDraft",
+        "sourceByteDigest": "sha256:56dbc9f05f439eb7bf6b028433906c3bcf87b10486fdb6bef23332defa5281f8",
+        "sourceDigest": "sha256:56dbc9f05f439eb7bf6b028433906c3bcf87b10486fdb6bef23332defa5281f8",
+        "version": "0.3.0"
+      },
+      "uri": "ontology://org.0al.specgraph.core/0.3.0/classes/IntentDraft"
+    },
+    {
+      "aliases": [],
+      "central": false,
+      "description": "A partial observable intent signal that does not by itself constitute a complete intent draft.",
+      "diagramOrigin": "org.0al.specgraph.core@0.3.0",
+      "extends": "sg:DomainEntity",
+      "fqid": "sgcore:IntentFragment",
+      "id": "IntentFragment",
+      "implements": [],
+      "kind": "DomainEntity",
+      "source": {
+        "id": "org.0al.specgraph.core",
+        "pointer": "/spec/classes/IntentFragment",
+        "sourceByteDigest": "sha256:56dbc9f05f439eb7bf6b028433906c3bcf87b10486fdb6bef23332defa5281f8",
+        "sourceDigest": "sha256:56dbc9f05f439eb7bf6b028433906c3bcf87b10486fdb6bef23332defa5281f8",
+        "version": "0.3.0"
+      },
+      "uri": "ontology://org.0al.specgraph.core/0.3.0/classes/IntentFragment"
+    },
+    {
+      "aliases": [],
+      "central": false,
+      "description": "A reviewable candidate operationalization of intent, distinct from its motivating intent and not itself an approval.",
+      "diagramOrigin": "org.0al.specgraph.core@0.3.0",
+      "extends": "sg:DomainEntity",
+      "fqid": "sgcore:Proposal",
+      "id": "Proposal",
+      "implements": [],
+      "kind": "DomainEntity",
+      "source": {
+        "id": "org.0al.specgraph.core",
+        "pointer": "/spec/classes/Proposal",
+        "sourceByteDigest": "sha256:56dbc9f05f439eb7bf6b028433906c3bcf87b10486fdb6bef23332defa5281f8",
+        "sourceDigest": "sha256:56dbc9f05f439eb7bf6b028433906c3bcf87b10486fdb6bef23332defa5281f8",
+        "version": "0.3.0"
+      },
+      "uri": "ontology://org.0al.specgraph.core/0.3.0/classes/Proposal"
+    },
+    {
+      "aliases": [],
+      "central": false,
+      "description": "A person or agent acting to synthesize fragments into a candidate draft in this interpretation.",
+      "diagramOrigin": "org.0al.specgraph.intent-proposal@0.4.0-draft.1",
+      "extends": "ont:DomainEntity",
+      "fqid": "sgproposal:IntentSynthesizer",
+      "id": "IntentSynthesizer",
+      "implements": [],
+      "kind": "DomainEntity",
+      "source": {
+        "id": "org.0al.specgraph.intent-proposal",
+        "pointer": "/spec/classes/IntentSynthesizer",
+        "sourceByteDigest": "sha256:f97facc5a1f85c6a95435097359ea88061ce1bae5bf2f6e1cbfdc28538d251de",
+        "sourceDigest": "sha256:f97facc5a1f85c6a95435097359ea88061ce1bae5bf2f6e1cbfdc28538d251de",
+        "version": "0.4.0-draft.1"
+      },
+      "uri": "ontology://org.0al.specgraph.intent-proposal/0.4.0-draft.1/classes/IntentSynthesizer"
+    },
+    {
+      "aliases": [],
+      "central": false,
+      "description": "Interpret a fragment in the context of an existing candidate intent draft.",
+      "diagramOrigin": "org.0al.specgraph.intent-proposal@0.4.0-draft.1",
+      "extends": "ont:Action",
+      "fields": [
+        {
+          "description": "The candidate draft for which the fragment is interpreted; the application resolves this reference.",
+          "id": "candidateDraft",
+          "required": true,
+          "source": {
+            "id": "org.0al.specgraph.intent-proposal",
+            "pointer": "/spec/classes/InterpretFragmentForDraft/fields/candidateDraft",
+            "sourceByteDigest": "sha256:f97facc5a1f85c6a95435097359ea88061ce1bae5bf2f6e1cbfdc28538d251de",
+            "sourceDigest": "sha256:f97facc5a1f85c6a95435097359ea88061ce1bae5bf2f6e1cbfdc28538d251de",
+            "version": "0.4.0-draft.1"
+          },
+          "target": "sgcore:IntentDraft",
+          "targetSourceDigest": "sha256:56dbc9f05f439eb7bf6b028433906c3bcf87b10486fdb6bef23332defa5281f8",
+          "targetType": "sgcore:IntentDraft",
+          "targetUri": "ontology://org.0al.specgraph.core/0.3.0/classes/IntentDraft",
+          "type": "ref"
+        }
+      ],
+      "fqid": "sgproposal:InterpretFragmentForDraft",
+      "id": "InterpretFragmentForDraft",
+      "implements": [],
+      "kind": "Action",
+      "source": {
+        "id": "org.0al.specgraph.intent-proposal",
+        "pointer": "/spec/classes/InterpretFragmentForDraft",
+        "sourceByteDigest": "sha256:f97facc5a1f85c6a95435097359ea88061ce1bae5bf2f6e1cbfdc28538d251de",
+        "sourceDigest": "sha256:f97facc5a1f85c6a95435097359ea88061ce1bae5bf2f6e1cbfdc28538d251de",
+        "version": "0.4.0-draft.1"
+      },
+      "uri": "ontology://org.0al.specgraph.intent-proposal/0.4.0-draft.1/classes/InterpretFragmentForDraft"
+    },
+    {
+      "aliases": [],
+      "central": false,
+      "description": "Interpret an intent in the context of an existing candidate proposal.",
+      "diagramOrigin": "org.0al.specgraph.intent-proposal@0.4.0-draft.1",
+      "extends": "ont:Action",
+      "fields": [
+        {
+          "description": "The candidate for which the intent is interpreted; the application resolves this reference.",
+          "id": "candidateProposal",
+          "required": true,
+          "source": {
+            "id": "org.0al.specgraph.intent-proposal",
+            "pointer": "/spec/classes/InterpretIntentForProposal/fields/candidateProposal",
+            "sourceByteDigest": "sha256:f97facc5a1f85c6a95435097359ea88061ce1bae5bf2f6e1cbfdc28538d251de",
+            "sourceDigest": "sha256:f97facc5a1f85c6a95435097359ea88061ce1bae5bf2f6e1cbfdc28538d251de",
+            "version": "0.4.0-draft.1"
+          },
+          "target": "sgcore:Proposal",
+          "targetSourceDigest": "sha256:56dbc9f05f439eb7bf6b028433906c3bcf87b10486fdb6bef23332defa5281f8",
+          "targetType": "sgcore:Proposal",
+          "targetUri": "ontology://org.0al.specgraph.core/0.3.0/classes/Proposal",
+          "type": "ref"
+        }
+      ],
+      "fqid": "sgproposal:InterpretIntentForProposal",
+      "id": "InterpretIntentForProposal",
+      "implements": [],
+      "kind": "Action",
+      "source": {
+        "id": "org.0al.specgraph.intent-proposal",
+        "pointer": "/spec/classes/InterpretIntentForProposal",
+        "sourceByteDigest": "sha256:f97facc5a1f85c6a95435097359ea88061ce1bae5bf2f6e1cbfdc28538d251de",
+        "sourceDigest": "sha256:f97facc5a1f85c6a95435097359ea88061ce1bae5bf2f6e1cbfdc28538d251de",
+        "version": "0.4.0-draft.1"
+      },
+      "uri": "ontology://org.0al.specgraph.intent-proposal/0.4.0-draft.1/classes/InterpretIntentForProposal"
+    },
+    {
+      "aliases": [],
+      "central": false,
+      "description": "A person or agent acting as the author of a candidate proposal in this interpretation.",
+      "diagramOrigin": "org.0al.specgraph.intent-proposal@0.4.0-draft.1",
+      "extends": "ont:DomainEntity",
+      "fqid": "sgproposal:ProposalAuthor",
+      "id": "ProposalAuthor",
+      "implements": [],
+      "kind": "DomainEntity",
+      "source": {
+        "id": "org.0al.specgraph.intent-proposal",
+        "pointer": "/spec/classes/ProposalAuthor",
+        "sourceByteDigest": "sha256:f97facc5a1f85c6a95435097359ea88061ce1bae5bf2f6e1cbfdc28538d251de",
+        "sourceDigest": "sha256:f97facc5a1f85c6a95435097359ea88061ce1bae5bf2f6e1cbfdc28538d251de",
+        "version": "0.4.0-draft.1"
+      },
+      "uri": "ontology://org.0al.specgraph.intent-proposal/0.4.0-draft.1/classes/ProposalAuthor"
+    }
+  ],
+  "id": "org.0al.specgraph.review.ontology-overview",
+  "imports": [
+    {
+      "id": "ontology.foundation",
+      "namespace": "ont",
+      "version": "0.2.0"
+    },
+    {
+      "id": "org.0al.specgraph.core",
+      "namespace": "sgcore",
+      "version": "0.3.0"
+    },
+    {
+      "id": "org.0al.specgraph.intent-proposal",
+      "namespace": "sgproposal",
+      "version": "0.4.0-draft.1"
+    },
+    {
+      "id": "org.0al.specgraph.proposal-promotion",
+      "namespace": "sgpromotion",
+      "version": "0.3.0-draft.1"
+    },
+    {
+      "id": "org.0al.specgraph.publication-verification",
+      "namespace": "pubverify",
+      "version": "0.1.0-draft.1"
+    },
+    {
+      "id": "specgraph.foundation",
+      "namespace": "sg",
+      "version": "0.1.0"
+    }
+  ],
+  "namespace": "sgreview",
+  "policies": [],
+  "protocols": [],
+  "relations": [
+    {
+      "action": "sgproposal:InterpretFragmentForDraft",
+      "description": "A synthesizer interprets a fragment while developing the draft identified by the action.",
+      "diagramOrigin": "org.0al.specgraph.intent-proposal@0.4.0-draft.1",
+      "domain": "sgproposal:IntentSynthesizer",
+      "fqid": "sgproposal:interpretsFragmentForDraft",
+      "id": "sgproposal:interpretsFragmentForDraft",
+      "range": "sgcore:IntentFragment",
+      "source": {
+        "id": "org.0al.specgraph.intent-proposal",
+        "pointer": "/spec/relations/interpretsFragmentForDraft",
+        "sourceByteDigest": "sha256:f97facc5a1f85c6a95435097359ea88061ce1bae5bf2f6e1cbfdc28538d251de",
+        "sourceDigest": "sha256:f97facc5a1f85c6a95435097359ea88061ce1bae5bf2f6e1cbfdc28538d251de",
+        "version": "0.4.0-draft.1"
+      },
+      "uri": "ontology://org.0al.specgraph.intent-proposal/0.4.0-draft.1/relations/interpretsFragmentForDraft"
+    },
+    {
+      "action": "sgproposal:InterpretIntentForProposal",
+      "description": "An author interprets an intent while developing the candidate identified by the action.",
+      "diagramOrigin": "org.0al.specgraph.intent-proposal@0.4.0-draft.1",
+      "domain": "sgproposal:ProposalAuthor",
+      "fqid": "sgproposal:interpretsIntentForProposal",
+      "id": "sgproposal:interpretsIntentForProposal",
+      "range": "sgcore:Intent",
+      "source": {
+        "id": "org.0al.specgraph.intent-proposal",
+        "pointer": "/spec/relations/interpretsIntentForProposal",
+        "sourceByteDigest": "sha256:f97facc5a1f85c6a95435097359ea88061ce1bae5bf2f6e1cbfdc28538d251de",
+        "sourceDigest": "sha256:f97facc5a1f85c6a95435097359ea88061ce1bae5bf2f6e1cbfdc28538d251de",
+        "version": "0.4.0-draft.1"
+      },
+      "uri": "ontology://org.0al.specgraph.intent-proposal/0.4.0-draft.1/relations/interpretsIntentForProposal"
+    }
+  ],
+  "schemaVersion": "ontology.diagram-projection/v1",
+  "sourceByteDigest": "sha256:401daee68a60daa7d39855d4efc034489a4af830e16179db9f1f16fc70c5354c",
+  "sourceDigest": "sha256:401daee68a60daa7d39855d4efc034489a4af830e16179db9f1f16fc70c5354c",
+  "sources": [
+    {
+      "alias": "sgreview",
+      "id": "org.0al.specgraph.review.ontology-overview",
+      "namespace": "sgreview",
+      "sourceByteDigest": "sha256:401daee68a60daa7d39855d4efc034489a4af830e16179db9f1f16fc70c5354c",
+      "sourceDigest": "sha256:401daee68a60daa7d39855d4efc034489a4af830e16179db9f1f16fc70c5354c",
+      "version": "0.3.0-draft.1"
+    },
+    {
+      "alias": "pubverify",
+      "id": "org.0al.specgraph.publication-verification",
+      "namespace": "pubverify",
+      "sourceByteDigest": "sha256:4c7933225808e570a1b0b8ca29e372369e9469b9130a6de34cef96af8a037204",
+      "sourceDigest": "sha256:4c7933225808e570a1b0b8ca29e372369e9469b9130a6de34cef96af8a037204",
+      "version": "0.1.0-draft.1"
+    },
+    {
+      "alias": "sgcore",
+      "id": "org.0al.specgraph.core",
+      "namespace": "sgcore",
+      "sourceByteDigest": "sha256:56dbc9f05f439eb7bf6b028433906c3bcf87b10486fdb6bef23332defa5281f8",
+      "sourceDigest": "sha256:56dbc9f05f439eb7bf6b028433906c3bcf87b10486fdb6bef23332defa5281f8",
+      "version": "0.3.0"
+    },
+    {
+      "alias": "sgpromotion",
+      "id": "org.0al.specgraph.proposal-promotion",
+      "namespace": "sgpromotion",
+      "sourceByteDigest": "sha256:f1cf64ab336347b0aa9c4105413aac6462eeb0d847793692b607740a7e3cde4f",
+      "sourceDigest": "sha256:f1cf64ab336347b0aa9c4105413aac6462eeb0d847793692b607740a7e3cde4f",
+      "version": "0.3.0-draft.1"
+    },
+    {
+      "alias": "sgproposal",
+      "id": "org.0al.specgraph.intent-proposal",
+      "namespace": "sgproposal",
+      "sourceByteDigest": "sha256:f97facc5a1f85c6a95435097359ea88061ce1bae5bf2f6e1cbfdc28538d251de",
+      "sourceDigest": "sha256:f97facc5a1f85c6a95435097359ea88061ce1bae5bf2f6e1cbfdc28538d251de",
+      "version": "0.4.0-draft.1"
+    }
+  ],
+  "stateMachines": [],
+  "version": "0.3.0-draft.1",
+  "view": "full"
+}

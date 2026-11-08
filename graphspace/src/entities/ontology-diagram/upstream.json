@@ -1,6 +1,6 @@
 {
   "repository": "https://github.com/0al-spec/Ontology",
-  "revision": "b1a0da17ddd9256c74c36d6ea83f50d96af10e48",
+  "revision": "6fb50a9cb2fdf335c3eb115c42b265c4ffdef65c",
   "license": "MIT",
   "files": {
     "GraphCanvas.tsx": {
@@ -21,7 +21,7 @@
     },
     "graph.ts": {
       "source": "tools/ontology-viewer/src/graph.ts",
-      "sha256": "45499858ebae9403010b62d6b1965c1834107b0782fe8f8791d1f977fa30bea1"
+      "sha256": "4d9b86ddba9ff7cf3a8d3389cec9fb3b34aedc537d4e1b95d5f0dcb1a1d89863"
     },
     "packages.ts": {
       "source": "tools/ontology-viewer/src/packages.ts",

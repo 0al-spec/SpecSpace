@@ -4,6 +4,37 @@ import path from "node:path";
 
 const fixture = path.resolve("src/widgets/ontology-explorer/model/membership.fixture.json");
 
+test("imported action fields navigate to their loaded SpecGraph core classes", async ({ page }) => {
+  // A source-preserving subset of the SpecGraph overview at 940e5b3a.
+  const imported = path.resolve(
+    "src/widgets/ontology-explorer/model/specgraph-imported-ref.fixture.json",
+  );
+  await page.goto("/ontology?source=local");
+  await page.getByLabel("Open ontology artifact").setInputFiles(imported);
+  await page.getByLabel("Graph direction").selectOption("types");
+  await page.getByRole("radio", { name: "Curve", exact: true }).check();
+  const canvas = page.getByLabel("Ontology graph", { exact: true });
+  const inspector = page.getByLabel("Inspector");
+  for (const [relation, action, field, target] of [
+    ["interpretsIntentForProposal", "InterpretIntentForProposal", "candidateProposal", "Proposal"],
+    ["interpretsFragmentForDraft", "InterpretFragmentForDraft", "candidateDraft", "IntentDraft"],
+  ]) {
+    const owner = `sgproposal:${action}`;
+    const targetId = `sgcore:${target}`;
+    const edge = canvas.locator(`.react-flow__edge[data-id="field/${owner}/${field}"]`);
+    await expect(edge).toHaveAttribute(
+      "aria-label",
+      `Edge from classes/${targetId} to classes/${owner}`,
+    );
+    await expect(canvas.locator(`[data-id="external/scoped/${owner}/${targetId}"]`)).toHaveCount(0);
+    await page.getByRole("button", { name: `sgproposal:${relation} relation` }).click();
+    await inspector.getByRole("button", { name: owner }).click();
+    await inspector.getByRole("button", { name: `${field}: Ref<${target}>` }).click();
+    await expect(inspector.getByRole("heading", { name: targetId })).toBeVisible();
+    await expect(inspector).toContainText("org.0al.specgraph.core");
+  }
+});
+
 for (const width of [390, 1280]) {
   test(`action and reference ports remain connected in all layouts at ${width}px`, async ({
     page,
@@ -78,7 +109,13 @@ for (const width of [390, 1280]) {
                   };
                 }),
               )
-              .toEqual({ startX: true, startY: true, endX: true, endY: true, forward: true });
+              .toEqual({
+                startX: true,
+                startY: true,
+                endX: true,
+                endY: true,
+                forward: true,
+              });
           }
         }
       }
