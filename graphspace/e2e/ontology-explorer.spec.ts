@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { readFileSync } from "node:fs";
+import { deflateRawSync } from "node:zlib";
 import path from "node:path";
 const fixture = path.resolve("src/widgets/ontology-explorer/model/motivation-full.fixture.json");
 const legacy = path.resolve(
@@ -94,6 +95,19 @@ for (const mobile of [false, true]) {
         buffer: archive,
       });
       await expect(page.getByRole("alert")).toContainText("expanded-size limit");
+      await expect(canvas.locator(".react-flow__node").first()).toBeVisible();
+      // Exercise the browser's real deflate-raw stream, including a lying
+      // uncompressed-size header, before returning to the existing view.
+      const compressed = deflateRawSync(Buffer.from("hello"));
+      const malformedZip = Buffer.concat([archive, compressed]);
+      malformedZip.writeUInt32LE(compressed.length, 18);
+      malformedZip.writeUInt32LE(4, 22);
+      await page.getByLabel("Open ontology artifact").setInputFiles({
+        name: "wrong-size.zip",
+        mimeType: "application/zip",
+        buffer: malformedZip,
+      });
+      await expect(page.getByRole("alert")).toContainText("declared uncompressed size");
       await expect(canvas.locator(".react-flow__node").first()).toBeVisible();
       await page.evaluate(() => {
         const original = File.prototype.arrayBuffer;

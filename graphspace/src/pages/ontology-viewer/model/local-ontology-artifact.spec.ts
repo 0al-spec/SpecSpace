@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { deflateRawSync } from "node:zlib";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { deflateRawSync, inflateRawSync } from "node:zlib";
 import { localOntologyLimits } from "./local-ontology-limits";
 import {
   expandLocalOntologyArtifactFiles,
@@ -142,8 +142,34 @@ function zipDeflated(text: string, declaredSize: number) {
   return bytes;
 }
 
+// Node 18's DecompressionStream has no deflate-raw. Keep the bounded-stream
+// tests executable there; browser E2E separately exercises the native decoder.
+function installTestRawDecoder() {
+  class TestRawDecoder {
+    readable: ReadableStream<Uint8Array>;
+    writable: WritableStream<Uint8Array>;
+    constructor() {
+      const chunks: Uint8Array[] = [];
+      const stream = new TransformStream<Uint8Array, Uint8Array>({
+        transform(chunk) {
+          chunks.push(chunk);
+        },
+        flush(controller) {
+          controller.enqueue(new Uint8Array(inflateRawSync(Buffer.concat(chunks))));
+        },
+      });
+      this.readable = stream.readable;
+      this.writable = stream.writable;
+    }
+  }
+  vi.stubGlobal("DecompressionStream", TestRawDecoder);
+}
+
 describe("local ontology artifact loading", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
   it("bounds real decompressed bytes even when ZIP metadata lies", async () => {
+    installTestRawDecoder();
     const bytes = zipDeflated("x".repeat(1024), 1);
     const result = await expandLocalOntologyArtifactFiles(
       [{ name: "bomb.zip", path: "bomb.zip", text: "", bytes }],
@@ -172,6 +198,7 @@ describe("local ontology artifact loading", () => {
   });
 
   it("rejects a deflated member whose declared size is incorrect", async () => {
+    installTestRawDecoder();
     const bytes = zipDeflated("hello", 4);
     const result = await expandLocalOntologyArtifactFiles([
       { name: "wrong.zip", path: "wrong.zip", text: "", bytes },
