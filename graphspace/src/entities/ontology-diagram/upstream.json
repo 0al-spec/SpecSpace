@@ -1,6 +1,6 @@
 {
   "repository": "https://github.com/0al-spec/Ontology",
-  "revision": "6fb50a9cb2fdf335c3eb115c42b265c4ffdef65c",
+  "revision": "a31935ab7e4051fec60651eec4196d71c2a5d265",
   "license": "MIT",
   "files": {
     "GraphCanvas.tsx": {
@@ -9,7 +9,7 @@
     },
     "Inspector.tsx": {
       "source": "tools/ontology-viewer/src/Inspector.tsx",
-      "sha256": "b3583f7ad8be787bc923edfc4b24a84007cc2fcf4d9c8f0b43898a893cb75617"
+      "sha256": "bd2cdd270d79619bdaf82644adcf9414d1d117bc34892aac60f1b1df943007b5"
     },
     "FilterPanel.tsx": {
       "source": "tools/ontology-viewer/src/FilterPanel.tsx",
@@ -17,19 +17,19 @@
     },
     "filters.ts": {
       "source": "tools/ontology-viewer/src/filters.ts",
-      "sha256": "de4fe3aeda9e3531c0c523e34d14c9e54fc7574158d9834dab5922751d7ae5e7"
+      "sha256": "1555307527f7eb9be913b38986a98388cfc05ed9b941e79d0e2c3c73b9f1a84c"
     },
     "graph.ts": {
       "source": "tools/ontology-viewer/src/graph.ts",
-      "sha256": "4d9b86ddba9ff7cf3a8d3389cec9fb3b34aedc537d4e1b95d5f0dcb1a1d89863"
+      "sha256": "0bc8b9286994239608ad1742d8248ce3aa907a9ad22b35b4c51d3551e67379b1"
     },
     "packages.ts": {
       "source": "tools/ontology-viewer/src/packages.ts",
-      "sha256": "2833bd45b1541b214964a0417a83806c2ef55433871bf29f64c99893bd71fdf5"
+      "sha256": "a97fa74f8478cd4ae68aced88886bf1fd0a5f7b7db0f1c59d528c31266f83f97"
     },
     "projection.ts": {
       "source": "tools/ontology-viewer/src/projection.ts",
-      "sha256": "810a884f3e214fc15f24de7a764bdd02e15c73b8e3129d3c7134f960f22db4e5"
+      "sha256": "99d8979f74d2b6e8d842973a5236c9d7dbe55b024eedb92830a556e060434845"
     },
     "selection.ts": {
       "source": "tools/ontology-viewer/src/selection.ts",

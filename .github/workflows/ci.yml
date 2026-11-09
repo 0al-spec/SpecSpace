@@ -118,7 +118,7 @@ jobs:
           npm run e2e:ui-started --
           ontology-explorer.spec.ts ontology-legacy-edges.spec.ts
           ontology-action-integration.spec.ts ontology-namespace-badge.spec.ts
-          ui-catalog.spec.ts --workers=1
+          ontology-foundation.spec.ts ui-catalog.spec.ts --workers=1
 
       - name: Upload Ontology Viewer browser evidence
         if: always()
