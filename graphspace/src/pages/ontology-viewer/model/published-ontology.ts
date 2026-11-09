@@ -23,6 +23,8 @@ const bootstrap = "specgraph-bootstrap";
 export const draftOverviewGraph =
   "specs/models/review/ontology-overview/generated/ontology.graph.json";
 const currentCoreGraph =
+  "ontology/packages/specgraph-core/versions/0.4.0/generated/ontology.graph.json";
+const previousCoreGraph =
   "ontology/packages/specgraph-core/versions/0.3.0/generated/ontology.graph.json";
 const object = (value: unknown): Record<string, unknown> => {
   if (!value || typeof value !== "object" || Array.isArray(value))
@@ -117,6 +119,8 @@ function selectCandidate(
     if (overview) return overview;
     const current = available.find((item) => item.path === currentCoreGraph);
     if (current) return current;
+    const previous = available.find((item) => item.path === previousCoreGraph);
+    if (previous) return previous;
   }
   return available.length === 1 ? available[0] : undefined;
 }
@@ -152,7 +156,8 @@ export async function loadPublishedOntology(
       "ontology/packages/specgraph-core/generated/ontology.graph.json",
       "/api/v1/public-specgraph-ontology-graph",
     ],
-    [currentCoreGraph, "/api/v1/public-specgraph-ontology-030-graph"],
+    [currentCoreGraph, "/api/v1/public-specgraph-ontology-040-graph"],
+    [previousCoreGraph, "/api/v1/public-specgraph-ontology-030-graph"],
     [draftOverviewGraph, "/api/v1/public-specgraph-ontology-overview-graph"],
   ]);
   const publicRoute = isPublicBootstrap ? publicRoutes.get(selected.path) : undefined;

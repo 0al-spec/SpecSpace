@@ -120,7 +120,7 @@ describe("published ontology selection", () => {
     expect(fetchMock.mock.calls[1][0]).toBe("/api/v1/public-specgraph-ontology-graph");
   });
   it("opens the published combined draft overview ahead of the core", async () => {
-    const core = "ontology/packages/specgraph-core/versions/0.3.0/generated/ontology.graph.json";
+    const core = "ontology/packages/specgraph-core/versions/0.4.0/generated/ontology.graph.json";
     const overview = "specs/models/review/ontology-overview/generated/ontology.graph.json";
     const source = { provider: "http", artifact_base_url: "https://specgraph.tech" };
     const fetchMock = vi.fn((url: string) => {
@@ -150,6 +150,50 @@ describe("published ontology selection", () => {
     );
     expect(result.kind === "loaded" && result.candidate.path).toBe(overview);
     expect(fetchMock.mock.calls[1][0]).toBe("/api/v1/public-specgraph-ontology-overview-graph");
+  });
+  it("prefers core 0.4.0 over 0.3.0 and allows explicitly loading the older graph", async () => {
+    const previous =
+      "ontology/packages/specgraph-core/versions/0.3.0/generated/ontology.graph.json";
+    const current = "ontology/packages/specgraph-core/versions/0.4.0/generated/ontology.graph.json";
+    const source = { provider: "http", artifact_base_url: "https://specgraph.tech" };
+    const fetchMock = vi.fn((url: string) => {
+      const common = { api_version: "v1", schema_version: 1, read_only: true, source };
+      const isCurrent = url === "/api/v1/public-specgraph-ontology-040-graph";
+      const isPrevious = url === "/api/v1/public-specgraph-ontology-030-graph";
+      const payload =
+        isCurrent || isPrevious
+          ? {
+              ...common,
+              artifact_kind: "specspace_artifact_content",
+              path: isCurrent ? current : previous,
+              content_kind: "json",
+              sha256: "a".repeat(64),
+              data: graph,
+            }
+          : {
+              ...common,
+              artifact_kind: "specspace_artifact_catalog",
+              artifacts: [row(previous), row(current)],
+            };
+      return Promise.resolve(new Response(JSON.stringify(payload), { status: 200 }));
+    });
+    const signal = new AbortController().signal;
+    const selected = await loadPublishedOntology(
+      "specgraph-bootstrap",
+      signal,
+      undefined,
+      fetchMock as typeof fetch,
+    );
+    expect(selected.kind === "loaded" && selected.candidate.path).toBe(current);
+    expect(fetchMock.mock.calls[1][0]).toBe("/api/v1/public-specgraph-ontology-040-graph");
+    const older = await loadPublishedOntology(
+      "specgraph-bootstrap",
+      signal,
+      previous,
+      fetchMock as typeof fetch,
+    );
+    expect(older.kind === "loaded" && older.candidate.path).toBe(previous);
+    expect(fetchMock.mock.calls[3][0]).toBe("/api/v1/public-specgraph-ontology-030-graph");
   });
   it("prefers the versioned published core but honors explicit legacy selection", async () => {
     const oldPath = "ontology/packages/specgraph-core/generated/ontology.graph.json";
