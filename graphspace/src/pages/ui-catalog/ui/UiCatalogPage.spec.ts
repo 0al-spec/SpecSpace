@@ -9,6 +9,9 @@ describe("UiCatalogPage", () => {
 
     expect(html).toContain("Design system workbench");
     expect(html).toContain('id="ontology-explorer"');
+    expect(html).toContain('id="ontology-foundation-inspector"');
+    expect(html).toContain("specgraph.foundation");
+    expect(html).toContain("ontology.foundation@0.1.0");
     expect(html).toContain("org.0al.motivation.core");
     expect(html).toContain('id="utility-panel-components"');
     expect(html).toContain('id="shared-primitives"');

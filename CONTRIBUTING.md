@@ -88,6 +88,7 @@
   - `Auto` edge detail должен учитывать активный layout: для плотных layouts вроде `Spine` и `Status` держим sparse `Main` дольше, а явные `Core`/`Links`/`All` не переопределяем;
   - `refines` в graph contract хранится как `child -> parent`, но Tree/Linear/Spine/Status показывают hierarchy projection `parent -> child`; Canonical должен оставаться raw-direction layout;
   - в послойной проекции онтологии проверяем не только координаты узлов, но и реальные концы SVG-линий, расположение портов и направление стрелок: визуальное `base -> subtype` должно иметь подпись `extended by`, а Inspector — сохранять исходное `subtype extends base`;
+  - foundation definition показываем как загруженное только при наличии в проекции каталога, привязанного к import identity/version/alias; Inspector отдельно показывает identity импорта и каталога, но не удостоверяет происхождение данных, а отсутствующие определения остаются external;
   - subtree collapse должен скрывать descendants на уровне visible graph перед layout calculation, иначе на canvas остаются большие пустые разрывы от спрятанных веток;
   - legacy `Force` был отдельной D3 SVG-сценой, а не React Flow layout preset, поэтому возвращаем его только как guarded/opt-in режим с явным budget и smoke;
   - dense labels, long always-on edges, animations and dashed/filtered SVG effects требуют отдельного performance pass;

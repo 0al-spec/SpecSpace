@@ -36,3 +36,16 @@ The original export SHA-256 is `2b3520a76b70089e3a9a0b5ddf6fa22278e978a9edfeb820
 the formatted fixture SHA-256 is `96bd0a1699e705b573790f3c988a5ea5122846db44b0381184dc4543a5d68525`.
 It is a draft declaration projection, not evidence of canonical acceptance or
 runtime policy execution. The foundation import is not expanded in this export.
+
+## Foundation catalog fixture
+
+`foundation-model.fixture.json` is a formatted copy of the JSON projection of
+`Examples/package-visualization/domain-ontology-package.yaml` exported with
+Ontology commit `f3b6a327b022dc9e3fc4d86cd62c25160d508edf` and its explicitly
+supplied `SPECS/ontology/foundation/0.1.0/model.json`. The original projection
+SHA-256 is `c96bdfcbbf350d1ec485f8d17abaa8cdea1bbf5984dd387529b94ea8026fcb86`;
+the source package SHA-256 is
+`7b87c27205c1079b983456f710eb413672724a242a28fdc0ce48ccdd0e75a009`.
+The formatted fixture SHA-256 is
+`ba42b1a654c225138bddf9e17cfbc23ee5ea944af47c6ae66a06903f08711c26`.
+The fixture is declaration data, not evidence of source authentication.
