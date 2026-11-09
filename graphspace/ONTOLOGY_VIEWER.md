@@ -6,6 +6,11 @@ no upload, YAML save, canonical mutation or publication. Existing normalized IR
 packages and ZIP imports continue through the legacy viewer. Select one format
 at a time; competing projections are rejected explicitly. A failed load preserves
 the previous valid view. Opening another valid diagram resets its display state.
+To bound local import memory, one selection accepts at most 128 files and 64 MiB
+of input. Across all selected ZIPs, at most 512 entries and 64 MiB of expanded
+data are accepted; an individual expanded entry is limited to 32 MiB. Limits
+are checked while decompressing, including when a ZIP header claims a smaller
+size. A rejected import reports the reason and leaves the previous view open.
 
 The compiler declaration view supports search/focus, node/relation inspection,
 source package/version, logical YAML pointers and file digests. Filter node types,

@@ -78,19 +78,32 @@ for (const mobile of [false, true]) {
     await page.getByLabel("Open ontology artifact").setInputFiles(fixture);
     await expect(page.getByText("PACKAGE · READ ONLY")).toBeVisible();
     if (!mobile) {
+      // A tiny archive whose header declares an oversized expansion is rejected
+      // without replacing the currently displayed graph.
+      const name = Buffer.from("large.json");
+      const archive = Buffer.alloc(30 + name.length);
+      archive.writeUInt32LE(0x04034b50, 0);
+      archive.writeUInt16LE(20, 4);
+      archive.writeUInt16LE(8, 8);
+      archive.writeUInt32LE(33 * 1024 * 1024, 22);
+      archive.writeUInt16LE(name.length, 26);
+      name.copy(archive, 30);
+      await page.getByLabel("Open ontology artifact").setInputFiles({
+        name: "oversized.zip",
+        mimeType: "application/zip",
+        buffer: archive,
+      });
+      await expect(page.getByRole("alert")).toContainText("expanded-size limit");
+      await expect(canvas.locator(".react-flow__node").first()).toBeVisible();
       await page.evaluate(() => {
         const original = File.prototype.arrayBuffer;
         File.prototype.arrayBuffer = async function () {
+          if (this.name === "unreadable.json") throw new Error("Simulated unreadable file");
           if (this.name === "slow.json") {
             await new Promise((resolve) => setTimeout(resolve, 300));
             (window as unknown as Record<string, unknown>).slowReadFinished = true;
           }
           return original.call(this);
-        };
-        const originalText = File.prototype.text;
-        File.prototype.text = async function () {
-          if (this.name === "unreadable.json") throw new Error("Simulated unreadable file");
-          return originalText.call(this);
         };
       });
       await page.getByLabel("Open ontology artifact").setInputFiles({
