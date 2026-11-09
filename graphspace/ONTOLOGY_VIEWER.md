@@ -96,11 +96,14 @@ Without a workspace parameter it selects `specgraph-bootstrap`; invalid IDs neve
 fall back to bootstrap. `?source=local` disables the initial automatic request.
 Manual selection cancels automatic loading; Reload published ontology retries.
 
-One optional `ontology.graph.json` in the selected runs root is preferred. If no
-diagram is published, the existing normalized IR is shown in the explicitly
-labeled legacy view. Multiple candidates require a selection. A declared broken
-diagram never silently falls back to another artifact. The current SpecGraph
-producer does not yet emit this diagram in its bundle; its existing IR works now.
+For the public bootstrap workspace, the combined draft overview is preferred.
+When that is absent, the Viewer prefers the source-bound core `0.4.0` diagram,
+then the historical `0.3.0` diagram. The historical version remains accessible
+through its fixed public endpoint. For other workspaces, multiple diagram
+candidates require a selection; a single diagram is opened automatically. If no
+diagram is published, the normalized IR is shown in the explicitly labeled
+legacy view. A declared broken diagram never silently falls back to another
+artifact.
 
 The UI validates path/workspace/envelope and compares catalog/content digests when
 the catalog supplies one. No digest is invented for older file catalogs. Missing,
@@ -108,7 +111,9 @@ HTTP-error, malformed and future-schema states remain visible alongside manual
 loading. Content SHA-256 is an additive field of the existing content API; it
 binds the bytes read by the provider and does not prove approval or source truth.
 
-The published `specgraph-bootstrap` core ontology is public and loads without an
-operator session through a dedicated endpoint restricted to the published
-`specgraph.tech` artifact. The general artifact-content API remains operator-only;
-other workspace artifacts may require authentication.
+The published `specgraph-bootstrap` overview and core ontology are public and
+load without an operator session through dedicated endpoints restricted to fixed
+`specgraph.tech` artifacts. The general artifact-content API remains
+operator-only; other workspace artifacts may require authentication. The 0.4.0
+route is usable after the corresponding SpecGraph bundle is deployed; until
+then, the 0.3.0 fallback remains available.

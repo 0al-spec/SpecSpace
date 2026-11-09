@@ -1333,6 +1333,17 @@ def handle_v1_public_specgraph_ontology_030_graph(handler: SpecSpaceV1Handler) -
     json_response(handler, status, payload)
 
 
+def handle_v1_public_specgraph_ontology_040_graph(handler: SpecSpaceV1Handler) -> None:
+    """Expose the graph invariant draft without opening arbitrary artifact paths."""
+    provider = specspace_provider.HttpSpecGraphProvider(
+        base_url="https://specgraph.tech", cache=specspace_provider.HttpArtifactCache()
+    )
+    status, payload = provider.read_artifact_content(
+        "ontology/packages/specgraph-core/versions/0.4.0/generated/ontology.graph.json"
+    )
+    json_response(handler, status, payload)
+
+
 def handle_v1_public_specgraph_ontology_overview_graph(handler: SpecSpaceV1Handler) -> None:
     """Expose the published draft overview without arbitrary artifact access."""
     provider = specspace_provider.HttpSpecGraphProvider(

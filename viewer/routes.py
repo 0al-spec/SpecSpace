@@ -102,6 +102,9 @@ GET_ROUTES: dict[str, RouteSpec] = {
     "/api/v1/public-specgraph-ontology-030-graph": RouteSpec(
         "handle_v1_public_specgraph_ontology_030_graph"
     ),
+    "/api/v1/public-specgraph-ontology-040-graph": RouteSpec(
+        "handle_v1_public_specgraph_ontology_040_graph"
+    ),
     "/api/v1/public-specgraph-ontology-overview-graph": RouteSpec(
         "handle_v1_public_specgraph_ontology_overview_graph"
     ),
@@ -195,6 +198,7 @@ PUBLIC_GET_PATHS = frozenset(
         "/api/v1/public-specgraph-ontology",
         "/api/v1/public-specgraph-ontology-graph",
         "/api/v1/public-specgraph-ontology-030-graph",
+        "/api/v1/public-specgraph-ontology-040-graph",
         "/api/v1/public-specgraph-ontology-overview-graph",
         "/api/v1/capabilities",
         "/api/v1/health",
