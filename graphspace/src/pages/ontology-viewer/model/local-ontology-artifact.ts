@@ -2,6 +2,8 @@ import {
   projectOntologyNormalizedIr,
   type OntologyGraphProjection,
 } from "./ontology-graph-contract";
+import { localOntologyLimits, type LocalOntologyLimits } from "./local-ontology-limits";
+import { readZipEntries } from "./local-ontology-archive";
 
 export type LocalOntologyArtifactFile = {
   name: string;
@@ -131,19 +133,6 @@ function isViewerArchiveManifestPath(path: string): boolean {
   );
 }
 
-function normalizeArchivePath(path: string): string {
-  return path.replaceAll("\\", "/").replace(/^\/+/, "").replace(/\/+/g, "/");
-}
-
-function isUnsafeArchivePath(path: string): boolean {
-  return (
-    path.length === 0 ||
-    path.startsWith("/") ||
-    /^[A-Za-z]:\//.test(path) ||
-    path.split("/").includes("..")
-  );
-}
-
 function byShortestPath(left: LocalOntologyArtifactFile, right: LocalOntologyArtifactFile) {
   return left.path.length - right.path.length || left.path.localeCompare(right.path);
 }
@@ -226,20 +215,22 @@ function parseViewerArchiveManifest(
 
   const packageObject = objectField(root.package) ?? {};
   const artifactRecords = Array.isArray(root.artifacts) ? root.artifacts : [];
-  const artifacts = artifactRecords.flatMap((record): LocalOntologyViewerArchiveManifest["artifacts"][number][] => {
-    const artifact = objectField(record);
-    if (!artifact) return [];
-    const path = stringField(artifact.path);
-    const role = stringField(artifact.role);
-    if (!path || !role) return [];
-    return [
-      {
-        path,
-        role,
-        required: artifact.required === true,
-      },
-    ];
-  });
+  const artifacts = artifactRecords.flatMap(
+    (record): LocalOntologyViewerArchiveManifest["artifacts"][number][] => {
+      const artifact = objectField(record);
+      if (!artifact) return [];
+      const path = stringField(artifact.path);
+      const role = stringField(artifact.role);
+      if (!path || !role) return [];
+      return [
+        {
+          path,
+          role,
+          required: artifact.required === true,
+        },
+      ];
+    },
+  );
 
   return {
     kind: "parsed",
@@ -259,20 +250,26 @@ export function selectViewerArchiveManifest(
   files: readonly LocalOntologyArtifactFile[],
 ): ViewerArchiveManifestSelection | null {
   const candidates = files
-    .filter((file) => isViewerArchiveManifestPath(file.path) || isViewerArchiveManifestPath(file.name))
+    .filter(
+      (file) => isViewerArchiveManifestPath(file.path) || isViewerArchiveManifestPath(file.name),
+    )
     .sort(byShortestPath);
 
   for (const file of candidates) {
     const parsed = parseViewerArchiveManifest(file, true);
     if (parsed.kind === "parsed") return { kind: "selected", file, manifest: parsed.manifest };
-    if (parsed.kind === "invalid") return { kind: "invalid", file, diagnostics: [parsed.diagnostic] };
+    if (parsed.kind === "invalid")
+      return { kind: "invalid", file, diagnostics: [parsed.diagnostic] };
   }
 
-  for (const file of files.filter((file) => file.name.endsWith(".json") || file.path.endsWith(".json"))) {
+  for (const file of files.filter(
+    (file) => file.name.endsWith(".json") || file.path.endsWith(".json"),
+  )) {
     if (!maybeContainsViewerArchiveManifestKind(file)) continue;
     const parsed = parseViewerArchiveManifest(file, false);
     if (parsed.kind === "parsed") return { kind: "selected", file, manifest: parsed.manifest };
-    if (parsed.kind === "invalid") return { kind: "invalid", file, diagnostics: [parsed.diagnostic] };
+    if (parsed.kind === "invalid")
+      return { kind: "invalid", file, diagnostics: [parsed.diagnostic] };
   }
 
   return null;
@@ -280,10 +277,7 @@ export function selectViewerArchiveManifest(
 
 function maybeContainsViewerArchiveManifestKind(file: LocalOntologyArtifactFile): boolean {
   const prefix = file.text.slice(0, 8192);
-  return (
-    prefix.includes("artifact_kind") &&
-    prefix.includes("ontology_viewer_archive_manifest")
-  );
+  return prefix.includes("artifact_kind") && prefix.includes("ontology_viewer_archive_manifest");
 }
 
 function unquoteYamlScalar(value: string): string {
@@ -297,9 +291,7 @@ function unquoteYamlScalar(value: string): string {
   return trimmed;
 }
 
-function parseDomainOntologyPackageMetadata(
-  file: LocalOntologyArtifactFile,
-): {
+function parseDomainOntologyPackageMetadata(file: LocalOntologyArtifactFile): {
   metadata: LocalOntologyPackageMetadata | null;
   diagnostics: LocalOntologyArtifactDiagnostic[];
 } {
@@ -460,10 +452,14 @@ export function loadLocalOntologyArtifact(
   const manifest = manifestSelection?.kind === "selected" ? manifestSelection.manifest : null;
   const normalizedIr =
     findManifestArtifactFile(files, manifest, "normalized_ir") ??
-    (manifestDeclaresRole(manifest, "normalized_ir") ? null : selectOntologyNormalizedIrFile(files));
+    (manifestDeclaresRole(manifest, "normalized_ir")
+      ? null
+      : selectOntologyNormalizedIrFile(files));
   const metadataFile =
     findManifestArtifactFile(files, manifest, "package_source") ??
-    (manifestDeclaresRole(manifest, "package_source") ? null : selectDomainOntologyPackageFile(files));
+    (manifestDeclaresRole(manifest, "package_source")
+      ? null
+      : selectDomainOntologyPackageFile(files));
   const parsedMetadata = metadataFile
     ? parseDomainOntologyPackageMetadata(metadataFile)
     : { metadata: metadataFromManifest(manifest), diagnostics: [] };
@@ -589,151 +585,19 @@ export type LocalOntologyArchiveExpandResult = {
   diagnostics: readonly LocalOntologyArtifactDiagnostic[];
 };
 
-function readUint16(bytes: Uint8Array, offset: number): number {
-  return bytes[offset] | (bytes[offset + 1] << 8);
-}
-
-function readUint32(bytes: Uint8Array, offset: number): number {
-  return (
-    (bytes[offset] |
-      (bytes[offset + 1] << 8) |
-      (bytes[offset + 2] << 16) |
-      (bytes[offset + 3] << 24)) >>>
-    0
-  );
-}
-
-async function inflateRaw(bytes: Uint8Array): Promise<Uint8Array> {
-  if (typeof DecompressionStream === "undefined") {
-    throw new Error("DecompressionStream is not available");
-  }
-
-  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
-  const buffer = await new Response(stream).arrayBuffer();
-  return new Uint8Array(buffer);
-}
-
-async function readZipEntries(
-  file: LocalOntologyArtifactFile,
-): Promise<LocalOntologyArchiveExpandResult> {
-  const bytes = file.bytes;
-  if (!bytes) {
-    return {
-      files: [],
-      diagnostics: [
-        {
-          severity: "error",
-          code: "zip_bytes_missing",
-          message: "ZIP file bytes are unavailable for local archive import.",
-          path: file.path,
-        },
-      ],
-    };
-  }
-
-  const files: LocalOntologyArtifactFile[] = [];
-  const diagnostics: LocalOntologyArtifactDiagnostic[] = [];
-  const decoder = new TextDecoder();
-  let offset = 0;
-
-  while (offset + 30 <= bytes.length) {
-    const signature = readUint32(bytes, offset);
-    if (signature !== 0x04034b50) break;
-
-    const flags = readUint16(bytes, offset + 6);
-    const compressionMethod = readUint16(bytes, offset + 8);
-    const compressedSize = readUint32(bytes, offset + 18);
-    const fileNameLength = readUint16(bytes, offset + 26);
-    const extraLength = readUint16(bytes, offset + 28);
-    const nameStart = offset + 30;
-    const nameEnd = nameStart + fileNameLength;
-    const dataStart = nameEnd + extraLength;
-    const dataEnd = dataStart + compressedSize;
-
-    if (flags & 0x08) {
-      diagnostics.push({
-        severity: "error",
-        code: "zip_data_descriptor_unsupported",
-        message: "ZIP archives using data descriptors are not supported by this local viewer.",
-        path: file.path,
-      });
-      break;
-    }
-
-    if (nameEnd > bytes.length || dataEnd > bytes.length) {
-      diagnostics.push({
-        severity: "error",
-        code: "zip_entry_truncated",
-        message: "ZIP archive ended before an entry could be read.",
-        path: file.path,
-      });
-      break;
-    }
-
-    const entryPath = normalizeArchivePath(decoder.decode(bytes.slice(nameStart, nameEnd)));
-    const entryBytes = bytes.slice(dataStart, dataEnd);
-    offset = dataEnd;
-
-    if (!entryPath || entryPath.endsWith("/")) continue;
-
-    if (isUnsafeArchivePath(entryPath)) {
-      diagnostics.push({
-        severity: "warning",
-        code: "zip_entry_unsafe_path",
-        message: `${entryPath} was skipped because archive paths must be relative and stay inside the archive.`,
-        path: `${file.path}!/${entryPath}`,
-      });
-      continue;
-    }
-
-    let textBytes: Uint8Array;
-    if (compressionMethod === 0) {
-      textBytes = entryBytes;
-    } else if (compressionMethod === 8) {
-      try {
-        textBytes = await inflateRaw(entryBytes);
-      } catch {
-        diagnostics.push({
-          severity: "error",
-          code: "zip_deflate_unavailable",
-          message:
-            "A deflated ZIP entry could not be decompressed in this browser environment.",
-          path: `${file.path}!/${entryPath}`,
-        });
-        continue;
-      }
-    } else {
-      diagnostics.push({
-        severity: "warning",
-        code: "zip_entry_compression_unsupported",
-        message: `${entryPath} uses an unsupported ZIP compression method (${compressionMethod}).`,
-        path: `${file.path}!/${entryPath}`,
-      });
-      continue;
-    }
-
-    files.push({
-      name: entryPath.split("/").at(-1) ?? entryPath,
-      path: `${file.path}!/${entryPath}`,
-      text: decoder.decode(textBytes),
-      bytes: textBytes,
-    });
-  }
-
-  return { files, diagnostics };
-}
-
 export async function expandLocalOntologyArtifactFiles(
   files: readonly LocalOntologyArtifactFile[],
+  limits: LocalOntologyLimits = localOntologyLimits,
 ): Promise<LocalOntologyArchiveExpandResult> {
   const expandedFiles: LocalOntologyArtifactFile[] = [];
   const diagnostics: LocalOntologyArtifactDiagnostic[] = [];
+  const budget = { bytes: 0, entries: 0 };
 
   for (const file of files) {
     expandedFiles.push(file);
     if (!isZipPath(file.path) && !isZipPath(file.name)) continue;
 
-    const expanded = await readZipEntries(file);
+    const expanded = await readZipEntries(file, budget, limits);
     expandedFiles.push(...expanded.files);
     diagnostics.push(...expanded.diagnostics);
 
