@@ -1,4 +1,4 @@
-import { selectDiagramArtifact } from "./diagram-artifact";
+import { selectDiagramArtifact, type DiagramSelection } from "./diagram-artifact";
 import {
   loadLocalOntologyArtifact,
   type LocalOntologyArtifactFile,
@@ -17,6 +17,7 @@ export type PublishedResult =
       file: LocalOntologyArtifactFile;
       candidate: PublishedCandidate;
       digestMatched: boolean;
+      diagram: Extract<DiagramSelection, { kind: "diagram" }> | null;
     };
 const bootstrap = "specgraph-bootstrap";
 export const draftOverviewGraph =
@@ -171,13 +172,18 @@ export async function loadPublishedOntology(
     name: selected.format === "diagram" ? "ontology.graph.json" : "ontology.normalized.json",
     text: JSON.stringify(content.data),
   };
-  if (selected.format === "diagram") selectDiagramArtifact([file]);
-  else if (loadLocalOntologyArtifact([file]).kind !== "loaded")
+  let diagram: Extract<DiagramSelection, { kind: "diagram" }> | null = null;
+  if (selected.format === "diagram") {
+    const prepared = selectDiagramArtifact([file]);
+    if (prepared.kind !== "diagram") throw new Error("Published diagram is invalid");
+    diagram = prepared;
+  } else if (loadLocalOntologyArtifact([file]).kind !== "loaded")
     throw new Error("Published normalized IR is invalid");
   return {
     kind: "loaded",
     candidate: selected,
     file,
+    diagram,
     digestMatched: !!selected.sha256,
   };
 }

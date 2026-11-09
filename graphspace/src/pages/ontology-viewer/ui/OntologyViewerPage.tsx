@@ -2,8 +2,7 @@ import { publishedWorkspace } from "../model/published-ontology";
 import { usePublishedOntology } from "../model/use-published-ontology";
 import { PublishedOntologyStatus } from "./PublishedOntologyStatus";
 import { OntologyExplorer } from "@/widgets/ontology-explorer";
-import type { Projection } from "@/entities/ontology-diagram";
-import { selectDiagramArtifact } from "../model/diagram-artifact";
+import { selectDiagramArtifact, type DiagramSelection } from "../model/diagram-artifact";
 import { readLocalOntologyFiles } from "../model/local-ontology-file-reader";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from "react";
 import {
@@ -70,7 +69,9 @@ export function OntologyViewerPage() {
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const loadSequence = useRef(0);
-  const [diagram, setDiagram] = useState<{ projection: Projection; sequence: number } | null>(null);
+  const [diagram, setDiagram] = useState<
+    (Extract<DiagramSelection, { kind: "diagram" }> & { sequence: number }) | null
+  >(null);
   const [loadError, setLoadError] = useState("");
   const [loading, setLoading] = useState(false);
   const workspace = useMemo(() => {
@@ -91,8 +92,7 @@ export function OntologyViewerPage() {
     if (!automatic || published.kind !== "loaded") return;
     const sequence = ++loadSequence.current;
     const files = [published.file];
-    const selected = selectDiagramArtifact(files);
-    if (selected.kind === "diagram") setDiagram({ projection: selected.projection, sequence });
+    if (published.diagram) setDiagram({ ...published.diagram, sequence });
     else {
       const result = loadLocalOntologyArtifact(files);
       if (result.kind === "loaded") {
@@ -118,7 +118,7 @@ export function OntologyViewerPage() {
       requireCompleteArchive(expanded.diagnostics);
       const selected = selectDiagramArtifact(expanded.files);
       if (selected.kind === "diagram") {
-        setDiagram({ projection: selected.projection, sequence });
+        setDiagram({ ...selected, sequence });
         setOrigin("local");
         return;
       }
@@ -223,7 +223,11 @@ export function OntologyViewerPage() {
             Could not open artifact. {loadError} The previous view is retained.
           </p>
         )}
-        <OntologyExplorer key={diagram.sequence} projection={diagram.projection} />
+        <OntologyExplorer
+          key={diagram.sequence}
+          projection={diagram.projection}
+          preparedGraph={diagram.graph}
+        />
       </main>
     );
 

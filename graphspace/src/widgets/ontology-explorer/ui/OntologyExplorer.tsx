@@ -32,7 +32,13 @@ const descriptions = new Map([
 ]);
 
 /** Read-only composition. It has no filesystem, HTTP or workspace-editor client. */
-export function OntologyExplorer({ projection }: Readonly<{ projection: Projection }>) {
+export function OntologyExplorer({
+  projection,
+  preparedGraph,
+}: Readonly<{
+  projection: Projection;
+  preparedGraph?: ReturnType<typeof buildGraph>;
+}>) {
   const [query, setQuery] = useState("");
   const [direction, setDirection] = useState<"LR" | "RL" | "directed" | "relations" | "types">(
     "LR",
@@ -42,7 +48,10 @@ export function OntologyExplorer({ projection }: Readonly<{ projection: Projecti
   const [focusNode, setFocusNode] = useState<{ id: string } | null>(null);
   const [focusRelationship, setFocusRelationship] = useState(false);
   const searchId = useId();
-  const original = useMemo(() => buildGraph(projection), [projection]);
+  const original = useMemo(
+    () => preparedGraph ?? buildGraph(projection),
+    [preparedGraph, projection],
+  );
   const graph = useMemo(() => {
     if (direction === "RL") return mirrorGraph(original);
     if (direction === "directed") return directedLayout(original);

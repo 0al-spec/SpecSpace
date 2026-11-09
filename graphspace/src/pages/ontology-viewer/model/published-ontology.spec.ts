@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import * as ontologyDiagram from "@/entities/ontology-diagram";
 import { loadPublishedOntology, publishedWorkspace } from "./published-ontology";
 import { readFileSync } from "node:fs";
 const graph = JSON.parse(
@@ -48,6 +49,9 @@ function fetcher(rows: object[], content: object = {}) {
 const load = (fn: ReturnType<typeof fetcher>, path?: string) =>
   loadPublishedOntology("product-one", new AbortController().signal, path, fn as typeof fetch);
 describe("published ontology selection", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
   it("loads only the published bootstrap ontology through the public route", async () => {
     const path = "ontology/packages/specgraph-core/generated/ontology.normalized.json";
     const fetchMock = vi
@@ -88,6 +92,7 @@ describe("published ontology selection", () => {
     expect(fetchMock.mock.calls[1][0]).toBe("/api/v1/public-specgraph-ontology");
   });
   it("loads the published diagram using only its fixed public endpoint", async () => {
+    const build = vi.spyOn(ontologyDiagram, "buildGraph");
     const path = "ontology/packages/specgraph-core/generated/ontology.graph.json";
     const source = { provider: "http", artifact_base_url: "https://specgraph.tech" };
     const fetchMock = vi.fn((url: string) => {
@@ -110,6 +115,8 @@ describe("published ontology selection", () => {
       fetchMock as typeof fetch,
     );
     expect(result.kind).toBe("loaded");
+    expect(build).toHaveBeenCalledTimes(1);
+    expect(result.kind === "loaded" && result.diagram?.graph.nodes.length).toBeGreaterThan(0);
     expect(fetchMock.mock.calls[1][0]).toBe("/api/v1/public-specgraph-ontology-graph");
   });
   it("opens the published combined draft overview ahead of the core", async () => {
