@@ -1,8 +1,8 @@
 {
   "artifact_kind": "specspace_static_quality_metrics",
   "schema_version": 1,
-  "source_revision": "6524b2c8fa486bd7eb52884bdedaadf473756d18",
-  "workflow_run_id": "42527663123",
+  "source_revision": "567bf0d967c2f8fe3305fa047886ed74ed8fe8db",
+  "workflow_run_id": "42537770509",
   "profile_digest": "c8a0e542e277c67bbbb4a56b1507a94a777dafec06a728e0f04225d87ca3c1e9",
   "report_sha256": "e170e56329a67912aec7bcad46952976c58932736515a0635350d942593ee4ef",
   "findings": {
