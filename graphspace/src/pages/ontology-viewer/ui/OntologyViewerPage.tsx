@@ -4,6 +4,7 @@ import { PublishedOntologyStatus } from "./PublishedOntologyStatus";
 import { OntologyExplorer } from "@/widgets/ontology-explorer";
 import type { Projection } from "@/entities/ontology-diagram";
 import { selectDiagramArtifact } from "../model/diagram-artifact";
+import { readLocalOntologyFiles } from "../model/local-ontology-file-reader";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from "react";
 import {
   Background,
@@ -21,7 +22,6 @@ import {
   expandLocalOntologyArtifactFiles,
   loadLocalOntologyArtifact,
   type LocalOntologyArtifactDiagnostic,
-  type LocalOntologyArtifactFile,
   type LocalOntologyArtifactLoadResult,
 } from "../model/local-ontology-artifact";
 import { toOntologyFlowElements, type OntologyFlowNode } from "../model/ontology-flow-elements";
@@ -49,23 +49,9 @@ type ImportState =
 
 type DisplayDiagnostic = LocalOntologyArtifactDiagnostic | OntologyGraphDiagnostic;
 
-function filePath(file: File): string {
-  const withRelativePath = file as File & { webkitRelativePath?: string };
-  return withRelativePath.webkitRelativePath || file.name;
-}
-
-async function filesFromList(fileList: FileList): Promise<LocalOntologyArtifactFile[]> {
-  return Promise.all(
-    [...fileList].map(async (file) => {
-      const bytes = new Uint8Array(await file.arrayBuffer());
-      return {
-        name: file.name,
-        path: filePath(file),
-        text: await file.text(),
-        bytes,
-      };
-    }),
-  );
+function requireCompleteArchive(diagnostics: readonly LocalOntologyArtifactDiagnostic[]) {
+  const errors = diagnostics.filter((item) => item.severity === "error");
+  if (errors.length > 0) throw new Error(errors.map((item) => item.message).join(" "));
 }
 
 function diagnosticLocation(diagnostic: DisplayDiagnostic): string {
@@ -126,13 +112,12 @@ export function OntologyViewerPage() {
     setLoadError("");
     setLoading(true);
     try {
-      const files = await filesFromList(fileList);
+      const files = await readLocalOntologyFiles(fileList);
       const expanded = await expandLocalOntologyArtifactFiles(files);
       if (sequence !== loadSequence.current) return;
+      requireCompleteArchive(expanded.diagnostics);
       const selected = selectDiagramArtifact(expanded.files);
       if (selected.kind === "diagram") {
-        if (expanded.diagnostics.some((item) => item.severity === "error"))
-          throw new Error("Archive could not be read completely.");
         setDiagram({ projection: selected.projection, sequence });
         setOrigin("local");
         return;

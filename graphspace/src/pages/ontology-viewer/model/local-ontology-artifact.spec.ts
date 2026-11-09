@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { deflateRawSync, inflateRawSync } from "node:zlib";
+import { localOntologyLimits } from "./local-ontology-limits";
 import {
   expandLocalOntologyArtifactFiles,
   loadLocalOntologyArtifact,
@@ -124,7 +126,85 @@ function zipStore(entries: readonly (readonly [string, string])[]) {
   return bytes;
 }
 
+function zipDeflated(text: string, declaredSize: number) {
+  const name = new TextEncoder().encode("ontology.graph.json");
+  const compressed = deflateRawSync(Buffer.from(text));
+  const bytes = new Uint8Array(30 + name.length + compressed.length);
+  const header = new DataView(bytes.buffer);
+  header.setUint32(0, 0x04034b50, true);
+  header.setUint16(4, 20, true);
+  header.setUint16(8, 8, true);
+  header.setUint32(18, compressed.length, true);
+  header.setUint32(22, declaredSize, true);
+  header.setUint16(26, name.length, true);
+  bytes.set(name, 30);
+  bytes.set(compressed, 30 + name.length);
+  return bytes;
+}
+
+// Node 18's DecompressionStream has no deflate-raw. Keep the bounded-stream
+// tests executable there; browser E2E separately exercises the native decoder.
+function installTestRawDecoder() {
+  class TestRawDecoder {
+    readable: ReadableStream<Uint8Array>;
+    writable: WritableStream<Uint8Array>;
+    constructor() {
+      const chunks: Uint8Array[] = [];
+      const stream = new TransformStream<Uint8Array, Uint8Array>({
+        transform(chunk) {
+          chunks.push(chunk);
+        },
+        flush(controller) {
+          controller.enqueue(new Uint8Array(inflateRawSync(Buffer.concat(chunks))));
+        },
+      });
+      this.readable = stream.readable;
+      this.writable = stream.writable;
+    }
+  }
+  vi.stubGlobal("DecompressionStream", TestRawDecoder);
+}
+
 describe("local ontology artifact loading", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("bounds real decompressed bytes even when ZIP metadata lies", async () => {
+    installTestRawDecoder();
+    const bytes = zipDeflated("x".repeat(1024), 1);
+    const result = await expandLocalOntologyArtifactFiles(
+      [{ name: "bomb.zip", path: "bomb.zip", text: "", bytes }],
+      { ...localOntologyLimits, maxEntryBytes: 100, maxExpandedBytes: 100 },
+    );
+    expect(result.diagnostics.map((item) => item.code)).toEqual(["zip_expanded_limit"]);
+    expect(result.files).toHaveLength(1);
+  });
+
+  it("shares archive entry and expansion budgets across all selected ZIPs", async () => {
+    const bytes = zipStore([["a.txt", "12345"]]);
+    const files = [
+      { name: "one.zip", path: "one.zip", text: "", bytes },
+      { name: "two.zip", path: "two.zip", text: "", bytes },
+    ];
+    const size = await expandLocalOntologyArtifactFiles(files, {
+      ...localOntologyLimits,
+      maxExpandedBytes: 9,
+    });
+    expect(size.diagnostics.map((item) => item.code)).toEqual(["zip_expanded_limit"]);
+    const count = await expandLocalOntologyArtifactFiles(files, {
+      ...localOntologyLimits,
+      maxArchiveEntries: 1,
+    });
+    expect(count.diagnostics.map((item) => item.code)).toEqual(["zip_entry_count_limit"]);
+  });
+
+  it("rejects a deflated member whose declared size is incorrect", async () => {
+    installTestRawDecoder();
+    const bytes = zipDeflated("hello", 4);
+    const result = await expandLocalOntologyArtifactFiles([
+      { name: "wrong.zip", path: "wrong.zip", text: "", bytes },
+    ]);
+    expect(result.diagnostics.map((item) => item.code)).toEqual(["zip_entry_size_mismatch"]);
+  });
   it("selects ontology.normalized.json from generated package paths", () => {
     const selected = selectOntologyNormalizedIrFile([
       file("domain-ontology-package.yaml", "metadata"),
@@ -183,10 +263,7 @@ describe("local ontology artifact loading", () => {
       namespace: "local",
       version: "0.1.0",
     });
-    expect(result.projection.nodes.map((node) => node.id)).toEqual([
-      "local:Leaf",
-      "local:Root",
-    ]);
+    expect(result.projection.nodes.map((node) => node.id)).toEqual(["local:Leaf", "local:Root"]);
     expect(result.projection.edges.map((edge) => edge.id)).toEqual([
       "extends:local:Leaf->local:Root",
       "relation:local:hasLeaf->local:Leaf",
@@ -219,9 +296,7 @@ describe("local ontology artifact loading", () => {
   });
 
   it("reports missing normalized IR", () => {
-    const result = loadLocalOntologyArtifact([
-      file("domain-ontology-package.yaml", packageYaml),
-    ]);
+    const result = loadLocalOntologyArtifact([file("domain-ontology-package.yaml", packageYaml)]);
 
     expect(result.kind).toBe("failed");
     if (result.kind !== "failed") return;
@@ -281,9 +356,7 @@ describe("local ontology artifact loading", () => {
     expect(result.kind).toBe("loaded");
     if (result.kind !== "loaded") return;
     expect(result.packageShape.archiveFileCount).toBe(2);
-    expect(result.packageMetadata?.path).toBe(
-      "package.zip!/package/domain-ontology-package.yaml",
-    );
+    expect(result.packageMetadata?.path).toBe("package.zip!/package/domain-ontology-package.yaml");
     expect(result.packageShape.normalizedIrPath).toBe(
       "package.zip!/package/generated/ontology.normalized.json",
     );
@@ -299,15 +372,9 @@ describe("local ontology artifact loading", () => {
 
     expect(result.kind).toBe("loaded");
     if (result.kind !== "loaded") return;
-    expect(result.packageShape.manifestPath).toBe(
-      "bundle/ontology-viewer-archive-manifest.json",
-    );
-    expect(result.packageShape.packageMetadataPath).toBe(
-      "bundle/domain-ontology-package.yaml",
-    );
-    expect(result.packageShape.normalizedIrPath).toBe(
-      "bundle/generated/ontology.normalized.json",
-    );
+    expect(result.packageShape.manifestPath).toBe("bundle/ontology-viewer-archive-manifest.json");
+    expect(result.packageShape.packageMetadataPath).toBe("bundle/domain-ontology-package.yaml");
+    expect(result.packageShape.normalizedIrPath).toBe("bundle/generated/ontology.normalized.json");
     expect(result.diagnostics).toEqual([]);
   });
 
