@@ -64,7 +64,9 @@ before `Child` in `classes`. The parent and contracts files instead import
 Render `model.yaml` with `--format json`, `--import parent.yaml`,
 `--import contracts.yaml`, and both versioned `--foundation-model` files
 from `SPECS/ontology/foundation/<version>/model.json` at that revision.
-The unmodified output SHA-256 is
+The original projection SHA-256 is
 `9bb00d9edd12fbd56cbc0798f072948661a245f182d9018d0886e7e8bd3df2c2`.
+The formatted fixture SHA-256 is
+`29263ab2cc9b7c6111e19d76b36fa711aaf2326ecfe878abddadbf971561dfb7`.
 This public fixture covers the GitView pilot's direct and transitive topology
 and the two catalog bindings without including GitView declarations.
