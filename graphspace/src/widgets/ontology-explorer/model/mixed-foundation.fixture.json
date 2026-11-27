@@ -1,0 +1,947 @@
+{
+  "classes": [
+    {
+      "aliases": [],
+      "central": false,
+      "description": "An inherited tracked entity.",
+      "extends": "source:Base",
+      "fqid": "consumer:Child",
+      "id": "Child",
+      "implements": [],
+      "kind": "Base",
+      "source": {
+        "id": "example.protocol-consumer",
+        "pointer": "/spec/classes/Child",
+        "sourceByteDigest": "sha256:e9c65d7a163131bb57909c33f1bb78e40c7d7a4e1f1723781fb1bf13f8edc628",
+        "sourceDigest": "sha256:e9c65d7a163131bb57909c33f1bb78e40c7d7a4e1f1723781fb1bf13f8edc628",
+        "version": "1.0.0"
+      },
+      "uri": "ontology://example.protocol-consumer/1.0.0/classes/Child"
+    },
+    {
+      "aliases": [],
+      "central": false,
+      "description": "A local foundation entity.",
+      "extends": "ont:DomainEntity",
+      "fqid": "consumer:RootEntity",
+      "id": "RootEntity",
+      "implements": [],
+      "kind": "DomainEntity",
+      "source": {
+        "id": "example.protocol-consumer",
+        "pointer": "/spec/classes/RootEntity",
+        "sourceByteDigest": "sha256:e9c65d7a163131bb57909c33f1bb78e40c7d7a4e1f1723781fb1bf13f8edc628",
+        "sourceDigest": "sha256:e9c65d7a163131bb57909c33f1bb78e40c7d7a4e1f1723781fb1bf13f8edc628",
+        "version": "1.0.0"
+      },
+      "uri": "ontology://example.protocol-consumer/1.0.0/classes/RootEntity"
+    },
+    {
+      "aliases": [],
+      "central": false,
+      "description": "Run a check on a local entity.",
+      "extends": "ont:Action",
+      "fqid": "consumer:RunCheck",
+      "id": "RunCheck",
+      "implements": [],
+      "kind": "Action",
+      "source": {
+        "id": "example.protocol-consumer",
+        "pointer": "/spec/classes/RunCheck",
+        "sourceByteDigest": "sha256:e9c65d7a163131bb57909c33f1bb78e40c7d7a4e1f1723781fb1bf13f8edc628",
+        "sourceDigest": "sha256:e9c65d7a163131bb57909c33f1bb78e40c7d7a4e1f1723781fb1bf13f8edc628",
+        "version": "1.0.0"
+      },
+      "uri": "ontology://example.protocol-consumer/1.0.0/classes/RunCheck"
+    },
+    {
+      "aliases": [],
+      "central": false,
+      "description": "A contract.",
+      "diagramOrigin": "example.protocol-contracts@1.0.0",
+      "extends": "pkg-foundation-180774f3e9d6:DomainEntity",
+      "fqid": "pkg-protocol-contracts-ab0564cae42c:Contract",
+      "id": "Contract",
+      "implements": [],
+      "kind": "DomainEntity",
+      "source": {
+        "id": "example.protocol-contracts",
+        "pointer": "/spec/classes/Contract",
+        "sourceByteDigest": "sha256:50dcce71547f93c5869f715aad689c90715010c18039346261cf6272777672d2",
+        "sourceDigest": "sha256:50dcce71547f93c5869f715aad689c90715010c18039346261cf6272777672d2",
+        "version": "1.0.0"
+      },
+      "uri": "ontology://example.protocol-contracts/1.0.0/classes/Contract"
+    },
+    {
+      "aliases": [],
+      "central": false,
+      "description": "A tracked entity from another package.",
+      "diagramOrigin": "example.protocol-parent@1.0.0",
+      "extends": "pkg-foundation-180774f3e9d6:DomainEntity",
+      "fields": [
+        {
+          "id": "serial",
+          "required": true,
+          "source": {
+            "id": "example.protocol-parent",
+            "pointer": "/spec/classes/Base/fields/serial",
+            "sourceByteDigest": "sha256:681d8f809f485189452cb209904278af0483da502ae9e0cda0ff6e9bbd691a10",
+            "sourceDigest": "sha256:681d8f809f485189452cb209904278af0483da502ae9e0cda0ff6e9bbd691a10",
+            "version": "1.0.0"
+          },
+          "type": "string"
+        },
+        {
+          "id": "trace",
+          "required": true,
+          "source": {
+            "id": "example.protocol-parent",
+            "pointer": "/spec/classes/Base/fields/trace",
+            "sourceByteDigest": "sha256:681d8f809f485189452cb209904278af0483da502ae9e0cda0ff6e9bbd691a10",
+            "sourceDigest": "sha256:681d8f809f485189452cb209904278af0483da502ae9e0cda0ff6e9bbd691a10",
+            "version": "1.0.0"
+          },
+          "type": "string"
+        }
+      ],
+      "fqid": "source:Base",
+      "id": "Base",
+      "implements": ["pkg-protocol-contracts-ab0564cae42c:Tracked"],
+      "kind": "DomainEntity",
+      "source": {
+        "id": "example.protocol-parent",
+        "pointer": "/spec/classes/Base",
+        "sourceByteDigest": "sha256:681d8f809f485189452cb209904278af0483da502ae9e0cda0ff6e9bbd691a10",
+        "sourceDigest": "sha256:681d8f809f485189452cb209904278af0483da502ae9e0cda0ff6e9bbd691a10",
+        "version": "1.0.0"
+      },
+      "uri": "ontology://example.protocol-parent/1.0.0/classes/Base"
+    }
+  ],
+  "externalImports": [
+    {
+      "alias": "pkg-foundation-180774f3e9d6",
+      "id": "specgraph.foundation",
+      "version": "0.1.0"
+    }
+  ],
+  "foundationCatalogs": [
+    {
+      "alias": "ont",
+      "catalog": {
+        "classes": {
+          "Action": {
+            "declaration": "export interface Action extends OntologyNode {\n  readonly kind: \"Action\";\n}",
+            "extends": "OntologyNode",
+            "properties": [
+              {
+                "name": "kind",
+                "optional": false,
+                "type": "\"Action\""
+              }
+            ]
+          },
+          "Capability": {
+            "declaration": "export interface Capability extends OntologyNode {\n  readonly kind: \"Capability\";\n}",
+            "extends": "OntologyNode",
+            "properties": [
+              {
+                "name": "kind",
+                "optional": false,
+                "type": "\"Capability\""
+              }
+            ]
+          },
+          "Command": {
+            "declaration": "export interface Command extends OntologyNode {\n  readonly kind: \"Command\";\n}",
+            "extends": "OntologyNode",
+            "properties": [
+              {
+                "name": "kind",
+                "optional": false,
+                "type": "\"Command\""
+              }
+            ]
+          },
+          "DomainEntity": {
+            "declaration": "export interface DomainEntity extends OntologyNode {\n  readonly kind: \"DomainEntity\";\n  readonly lifecycle?: StateMachineRef;\n}",
+            "extends": "OntologyNode",
+            "properties": [
+              {
+                "name": "kind",
+                "optional": false,
+                "type": "\"DomainEntity\""
+              },
+              {
+                "name": "lifecycle",
+                "optional": true,
+                "type": "StateMachineRef"
+              }
+            ]
+          },
+          "Event": {
+            "declaration": "export interface Event extends OntologyNode {\n  readonly kind: \"Event\";\n}",
+            "extends": "OntologyNode",
+            "properties": [
+              {
+                "name": "kind",
+                "optional": false,
+                "type": "\"Event\""
+              }
+            ]
+          },
+          "Invariant": {
+            "declaration": "export interface Invariant extends OntologyNode {\n  readonly kind: \"Invariant\";\n  readonly appliesTo: readonly ConceptRef[];\n}",
+            "extends": "OntologyNode",
+            "properties": [
+              {
+                "name": "kind",
+                "optional": false,
+                "type": "\"Invariant\""
+              },
+              {
+                "name": "appliesTo",
+                "optional": false,
+                "type": "readonly ConceptRef[]"
+              }
+            ]
+          },
+          "Policy": {
+            "declaration": "export interface Policy extends OntologyNode {\n  readonly kind: \"Policy\";\n  readonly enforceability: \"design\" | \"runtime\" | \"manual\" | \"audit\";\n  readonly appliesTo: readonly ConceptRef[];\n}",
+            "extends": "OntologyNode",
+            "properties": [
+              {
+                "name": "kind",
+                "optional": false,
+                "type": "\"Policy\""
+              },
+              {
+                "name": "enforceability",
+                "optional": false,
+                "type": "\"design\" | \"runtime\" | \"manual\" | \"audit\""
+              },
+              {
+                "name": "appliesTo",
+                "optional": false,
+                "type": "readonly ConceptRef[]"
+              }
+            ]
+          },
+          "StateMachine": {
+            "declaration": "export interface StateMachine extends OntologyNode {\n  readonly kind: \"StateMachine\";\n  readonly states: readonly string[];\n  readonly transitions: readonly StateTransition[];\n}",
+            "extends": "OntologyNode",
+            "properties": [
+              {
+                "name": "kind",
+                "optional": false,
+                "type": "\"StateMachine\""
+              },
+              {
+                "name": "states",
+                "optional": false,
+                "type": "readonly string[]"
+              },
+              {
+                "name": "transitions",
+                "optional": false,
+                "type": "readonly StateTransition[]"
+              }
+            ]
+          },
+          "ValueObject": {
+            "declaration": "export interface ValueObject extends OntologyNode {\n  readonly kind: \"ValueObject\";\n}",
+            "extends": "OntologyNode",
+            "properties": [
+              {
+                "name": "kind",
+                "optional": false,
+                "type": "\"ValueObject\""
+              }
+            ]
+          }
+        },
+        "id": "ontology.foundation",
+        "namespace": "ont",
+        "protocols": {
+          "Approvable": {
+            "declaration": "export interface Approvable {\n  readonly approvalStatus: \"draft\" | \"submitted\" | \"approved\" | \"rejected\";\n  readonly approvedBy?: string;\n}",
+            "properties": [
+              {
+                "name": "approvalStatus",
+                "optional": false,
+                "type": "\"draft\" | \"submitted\" | \"approved\" | \"rejected\""
+              },
+              {
+                "name": "approvedBy",
+                "optional": true,
+                "type": "string"
+              }
+            ]
+          },
+          "Auditable": {
+            "declaration": "export interface Auditable {\n  readonly auditRefs?: readonly string[];\n}",
+            "properties": [
+              {
+                "name": "auditRefs",
+                "optional": true,
+                "type": "readonly string[]"
+              }
+            ]
+          },
+          "DeviceBound": {
+            "declaration": "export interface DeviceBound {\n  readonly deviceRef?: string;\n}",
+            "properties": [
+              {
+                "name": "deviceRef",
+                "optional": true,
+                "type": "string"
+              }
+            ]
+          },
+          "RestrictableCapability": {
+            "declaration": "export interface RestrictableCapability {\n  readonly restrictionMode?: \"allow\" | \"deny\" | \"conditional\";\n}",
+            "properties": [
+              {
+                "name": "restrictionMode",
+                "optional": true,
+                "type": "\"allow\" | \"deny\" | \"conditional\""
+              }
+            ]
+          },
+          "Signable": {
+            "declaration": "export interface Signable {\n  readonly signature?: {\n    readonly algorithm: string;\n    readonly publicKeyRef: string;\n    readonly value?: string;\n  };\n}",
+            "properties": [
+              {
+                "name": "signature",
+                "optional": true,
+                "type": "{\n    readonly algorithm: string;\n    readonly publicKeyRef: string;\n    readonly value?: string;\n  }"
+              }
+            ]
+          },
+          "TimeBound": {
+            "declaration": "export interface TimeBound {\n  readonly validFrom?: string;\n  readonly validUntil?: string;\n}",
+            "properties": [
+              {
+                "name": "validFrom",
+                "optional": true,
+                "type": "string"
+              },
+              {
+                "name": "validUntil",
+                "optional": true,
+                "type": "string"
+              }
+            ]
+          },
+          "Versioned": {
+            "declaration": "export interface Versioned {\n  readonly version: string;\n}",
+            "properties": [
+              {
+                "name": "version",
+                "optional": false,
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "schemaVersion": "ontology.foundation-model/v1",
+        "source": {
+          "path": "model.md",
+          "revision": "40672c189f33dee2b8c6fdac903758e90d9fba86",
+          "sha256": "48a80575141b48b5778f637409831eac94a91a557d953d52835de7c13a1975ac"
+        },
+        "supportingTypes": {
+          "ConceptKind": {
+            "declaration": "export type ConceptKind =\n  | \"Action\"\n  | \"DomainEntity\"\n  | \"ValueObject\"\n  | \"Capability\"\n  | \"Command\"\n  | \"Event\"\n  | \"Policy\"\n  | \"Invariant\"\n  | \"StateMachine\";"
+          },
+          "ConceptRef": {
+            "declaration": "export interface ConceptRef<\n  TOntology extends string = string,\n  TVersion extends string = string,\n  TConcept extends string = string,\n  TKind extends ConceptKind = ConceptKind\n> {\n  readonly ontology: TOntology;\n  readonly version: TVersion;\n  readonly namespace: string;\n  readonly concept: TConcept;\n  readonly kind: TKind;\n  readonly alias: `${string}:${string}`;\n  readonly uri: `ontology://${TOntology}/${TVersion}/${string}`;\n}",
+            "properties": [
+              {
+                "name": "ontology",
+                "optional": false,
+                "type": "TOntology"
+              },
+              {
+                "name": "version",
+                "optional": false,
+                "type": "TVersion"
+              },
+              {
+                "name": "namespace",
+                "optional": false,
+                "type": "string"
+              },
+              {
+                "name": "concept",
+                "optional": false,
+                "type": "TConcept"
+              },
+              {
+                "name": "kind",
+                "optional": false,
+                "type": "TKind"
+              },
+              {
+                "name": "alias",
+                "optional": false,
+                "type": "`${string}:${string}`"
+              },
+              {
+                "name": "uri",
+                "optional": false,
+                "type": "`ontology://${TOntology}/${TVersion}/${string}`"
+              }
+            ]
+          },
+          "OntologyNode": {
+            "declaration": "export interface OntologyNode {\n  readonly id: string;\n  readonly fqid: string;\n  readonly uri: string;\n  readonly kind: ConceptKind;\n  readonly description?: string;\n  readonly aliases?: readonly string[];\n}",
+            "properties": [
+              {
+                "name": "id",
+                "optional": false,
+                "type": "string"
+              },
+              {
+                "name": "fqid",
+                "optional": false,
+                "type": "string"
+              },
+              {
+                "name": "uri",
+                "optional": false,
+                "type": "string"
+              },
+              {
+                "name": "kind",
+                "optional": false,
+                "type": "ConceptKind"
+              },
+              {
+                "name": "description",
+                "optional": true,
+                "type": "string"
+              },
+              {
+                "name": "aliases",
+                "optional": true,
+                "type": "readonly string[]"
+              }
+            ]
+          },
+          "StateMachineRef": {
+            "declaration": "export interface StateMachineRef {\n  readonly alias: `${string}:${string}`;\n}",
+            "properties": [
+              {
+                "name": "alias",
+                "optional": false,
+                "type": "`${string}:${string}`"
+              }
+            ]
+          },
+          "StateTransition": {
+            "declaration": "export interface StateTransition {\n  readonly from: string;\n  readonly to: string;\n  readonly command?: ConceptRef;\n  readonly event?: ConceptRef;\n}",
+            "properties": [
+              {
+                "name": "from",
+                "optional": false,
+                "type": "string"
+              },
+              {
+                "name": "to",
+                "optional": false,
+                "type": "string"
+              },
+              {
+                "name": "command",
+                "optional": true,
+                "type": "ConceptRef"
+              },
+              {
+                "name": "event",
+                "optional": true,
+                "type": "ConceptRef"
+              }
+            ]
+          }
+        },
+        "version": "0.2.0"
+      },
+      "catalogByteDigest": "sha256:2f43dbd772c8356de107e3ea48cd548405023edb6a641702ddbec52c4942033b",
+      "id": "ontology.foundation",
+      "policyBases": ["Policy"],
+      "version": "0.2.0"
+    },
+    {
+      "alias": "pkg-foundation-180774f3e9d6",
+      "catalog": {
+        "classes": {
+          "Actor": {
+            "declaration": "export interface Actor extends OntologyNode {\n  readonly kind: \"Actor\";\n}",
+            "extends": "OntologyNode",
+            "properties": [
+              {
+                "name": "kind",
+                "optional": false,
+                "type": "\"Actor\""
+              }
+            ]
+          },
+          "Capability": {
+            "declaration": "export interface Capability extends OntologyNode {\n  readonly kind: \"Capability\";\n}",
+            "extends": "OntologyNode",
+            "properties": [
+              {
+                "name": "kind",
+                "optional": false,
+                "type": "\"Capability\""
+              }
+            ]
+          },
+          "Command": {
+            "declaration": "export interface Command extends OntologyNode {\n  readonly kind: \"Command\";\n}",
+            "extends": "OntologyNode",
+            "properties": [
+              {
+                "name": "kind",
+                "optional": false,
+                "type": "\"Command\""
+              }
+            ]
+          },
+          "DomainEntity": {
+            "declaration": "export interface DomainEntity extends OntologyNode {\n  readonly kind: \"DomainEntity\";\n  readonly lifecycle?: StateMachineRef;\n}",
+            "extends": "OntologyNode",
+            "properties": [
+              {
+                "name": "kind",
+                "optional": false,
+                "type": "\"DomainEntity\""
+              },
+              {
+                "name": "lifecycle",
+                "optional": true,
+                "type": "StateMachineRef"
+              }
+            ]
+          },
+          "Event": {
+            "declaration": "export interface Event extends OntologyNode {\n  readonly kind: \"Event\";\n}",
+            "extends": "OntologyNode",
+            "properties": [
+              {
+                "name": "kind",
+                "optional": false,
+                "type": "\"Event\""
+              }
+            ]
+          },
+          "Invariant": {
+            "declaration": "export interface Invariant extends OntologyNode {\n  readonly kind: \"Invariant\";\n  readonly appliesTo: readonly ConceptRef[];\n}",
+            "extends": "OntologyNode",
+            "properties": [
+              {
+                "name": "kind",
+                "optional": false,
+                "type": "\"Invariant\""
+              },
+              {
+                "name": "appliesTo",
+                "optional": false,
+                "type": "readonly ConceptRef[]"
+              }
+            ]
+          },
+          "Policy": {
+            "declaration": "export interface Policy extends OntologyNode {\n  readonly kind: \"Policy\";\n  readonly enforceability: \"design\" | \"runtime\" | \"manual\" | \"audit\";\n  readonly appliesTo: readonly ConceptRef[];\n}",
+            "extends": "OntologyNode",
+            "properties": [
+              {
+                "name": "kind",
+                "optional": false,
+                "type": "\"Policy\""
+              },
+              {
+                "name": "enforceability",
+                "optional": false,
+                "type": "\"design\" | \"runtime\" | \"manual\" | \"audit\""
+              },
+              {
+                "name": "appliesTo",
+                "optional": false,
+                "type": "readonly ConceptRef[]"
+              }
+            ]
+          },
+          "StateMachine": {
+            "declaration": "export interface StateMachine extends OntologyNode {\n  readonly kind: \"StateMachine\";\n  readonly states: readonly string[];\n  readonly transitions: readonly StateTransition[];\n}",
+            "extends": "OntologyNode",
+            "properties": [
+              {
+                "name": "kind",
+                "optional": false,
+                "type": "\"StateMachine\""
+              },
+              {
+                "name": "states",
+                "optional": false,
+                "type": "readonly string[]"
+              },
+              {
+                "name": "transitions",
+                "optional": false,
+                "type": "readonly StateTransition[]"
+              }
+            ]
+          },
+          "SystemActor": {
+            "declaration": "export interface SystemActor extends OntologyNode {\n  readonly kind: \"SystemActor\";\n}",
+            "extends": "OntologyNode",
+            "properties": [
+              {
+                "name": "kind",
+                "optional": false,
+                "type": "\"SystemActor\""
+              }
+            ]
+          },
+          "ValueObject": {
+            "declaration": "export interface ValueObject extends OntologyNode {\n  readonly kind: \"ValueObject\";\n}",
+            "extends": "OntologyNode",
+            "properties": [
+              {
+                "name": "kind",
+                "optional": false,
+                "type": "\"ValueObject\""
+              }
+            ]
+          }
+        },
+        "id": "ontology.foundation",
+        "namespace": "ont",
+        "protocols": {
+          "Approvable": {
+            "declaration": "export interface Approvable {\n  readonly approvalStatus: \"draft\" | \"submitted\" | \"approved\" | \"rejected\";\n  readonly approvedBy?: string;\n}",
+            "properties": [
+              {
+                "name": "approvalStatus",
+                "optional": false,
+                "type": "\"draft\" | \"submitted\" | \"approved\" | \"rejected\""
+              },
+              {
+                "name": "approvedBy",
+                "optional": true,
+                "type": "string"
+              }
+            ]
+          },
+          "Auditable": {
+            "declaration": "export interface Auditable {\n  readonly auditRefs?: readonly string[];\n}",
+            "properties": [
+              {
+                "name": "auditRefs",
+                "optional": true,
+                "type": "readonly string[]"
+              }
+            ]
+          },
+          "DeviceBound": {
+            "declaration": "export interface DeviceBound {\n  readonly deviceRef?: string;\n}",
+            "properties": [
+              {
+                "name": "deviceRef",
+                "optional": true,
+                "type": "string"
+              }
+            ]
+          },
+          "RestrictableCapability": {
+            "declaration": "export interface RestrictableCapability {\n  readonly restrictionMode?: \"allow\" | \"deny\" | \"conditional\";\n}",
+            "properties": [
+              {
+                "name": "restrictionMode",
+                "optional": true,
+                "type": "\"allow\" | \"deny\" | \"conditional\""
+              }
+            ]
+          },
+          "Signable": {
+            "declaration": "export interface Signable {\n  readonly signature?: {\n    readonly algorithm: string;\n    readonly publicKeyRef: string;\n    readonly value?: string;\n  };\n}",
+            "properties": [
+              {
+                "name": "signature",
+                "optional": true,
+                "type": "{\n    readonly algorithm: string;\n    readonly publicKeyRef: string;\n    readonly value?: string;\n  }"
+              }
+            ]
+          },
+          "TimeBound": {
+            "declaration": "export interface TimeBound {\n  readonly validFrom?: string;\n  readonly validUntil?: string;\n}",
+            "properties": [
+              {
+                "name": "validFrom",
+                "optional": true,
+                "type": "string"
+              },
+              {
+                "name": "validUntil",
+                "optional": true,
+                "type": "string"
+              }
+            ]
+          },
+          "Versioned": {
+            "declaration": "export interface Versioned {\n  readonly version: string;\n}",
+            "properties": [
+              {
+                "name": "version",
+                "optional": false,
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "schemaVersion": "ontology.foundation-model/v1",
+        "source": {
+          "path": "model.md",
+          "revision": "c52553f872f440dde26c61abf9193f5fff171d98",
+          "sha256": "322d149e9cd68f89012feeab56987f57d6b339139056f35f96506093667f6f7b"
+        },
+        "supportingTypes": {
+          "ConceptKind": {
+            "declaration": "export type ConceptKind =\n  | \"Actor\"\n  | \"SystemActor\"\n  | \"DomainEntity\"\n  | \"ValueObject\"\n  | \"Capability\"\n  | \"Command\"\n  | \"Event\"\n  | \"Policy\"\n  | \"Invariant\"\n  | \"StateMachine\";"
+          },
+          "ConceptRef": {
+            "declaration": "export interface ConceptRef<\n  TOntology extends string = string,\n  TVersion extends string = string,\n  TConcept extends string = string,\n  TKind extends ConceptKind = ConceptKind\n> {\n  readonly ontology: TOntology;\n  readonly version: TVersion;\n  readonly namespace: string;\n  readonly concept: TConcept;\n  readonly kind: TKind;\n  readonly alias: `${string}:${string}`;\n  readonly uri: `ontology://${TOntology}/${TVersion}/${string}`;\n}",
+            "properties": [
+              {
+                "name": "ontology",
+                "optional": false,
+                "type": "TOntology"
+              },
+              {
+                "name": "version",
+                "optional": false,
+                "type": "TVersion"
+              },
+              {
+                "name": "namespace",
+                "optional": false,
+                "type": "string"
+              },
+              {
+                "name": "concept",
+                "optional": false,
+                "type": "TConcept"
+              },
+              {
+                "name": "kind",
+                "optional": false,
+                "type": "TKind"
+              },
+              {
+                "name": "alias",
+                "optional": false,
+                "type": "`${string}:${string}`"
+              },
+              {
+                "name": "uri",
+                "optional": false,
+                "type": "`ontology://${TOntology}/${TVersion}/${string}`"
+              }
+            ]
+          },
+          "OntologyNode": {
+            "declaration": "export interface OntologyNode {\n  readonly id: string;\n  readonly fqid: string;\n  readonly uri: string;\n  readonly kind: ConceptKind;\n  readonly description?: string;\n  readonly aliases?: readonly string[];\n}",
+            "properties": [
+              {
+                "name": "id",
+                "optional": false,
+                "type": "string"
+              },
+              {
+                "name": "fqid",
+                "optional": false,
+                "type": "string"
+              },
+              {
+                "name": "uri",
+                "optional": false,
+                "type": "string"
+              },
+              {
+                "name": "kind",
+                "optional": false,
+                "type": "ConceptKind"
+              },
+              {
+                "name": "description",
+                "optional": true,
+                "type": "string"
+              },
+              {
+                "name": "aliases",
+                "optional": true,
+                "type": "readonly string[]"
+              }
+            ]
+          },
+          "StateMachineRef": {
+            "declaration": "export interface StateMachineRef {\n  readonly alias: `${string}:${string}`;\n}",
+            "properties": [
+              {
+                "name": "alias",
+                "optional": false,
+                "type": "`${string}:${string}`"
+              }
+            ]
+          },
+          "StateTransition": {
+            "declaration": "export interface StateTransition {\n  readonly from: string;\n  readonly to: string;\n  readonly command?: ConceptRef;\n  readonly event?: ConceptRef;\n}",
+            "properties": [
+              {
+                "name": "from",
+                "optional": false,
+                "type": "string"
+              },
+              {
+                "name": "to",
+                "optional": false,
+                "type": "string"
+              },
+              {
+                "name": "command",
+                "optional": true,
+                "type": "ConceptRef"
+              },
+              {
+                "name": "event",
+                "optional": true,
+                "type": "ConceptRef"
+              }
+            ]
+          }
+        },
+        "version": "0.1.0"
+      },
+      "catalogByteDigest": "sha256:7999a4ce110535c8093f177493532420a04ab7db9ff86492db802580531d7e48",
+      "id": "specgraph.foundation",
+      "policyBases": ["Policy"],
+      "version": "0.1.0"
+    }
+  ],
+  "id": "example.protocol-consumer",
+  "imports": [
+    {
+      "id": "example.protocol-parent",
+      "namespace": "source",
+      "version": "1.0.0"
+    },
+    {
+      "id": "ontology.foundation",
+      "version": "0.2.0"
+    }
+  ],
+  "namespace": "consumer",
+  "policies": [],
+  "protocols": [
+    {
+      "description": "Requires identity and trace in the current SDK contract.",
+      "diagramOrigin": "example.protocol-contracts@1.0.0",
+      "fqid": "pkg-protocol-contracts-ab0564cae42c:Tracked",
+      "id": "Tracked",
+      "requiredFields": ["id", "trace"],
+      "requiredRelations": ["pkg-protocol-contracts-ab0564cae42c:auditLink"],
+      "source": {
+        "id": "example.protocol-contracts",
+        "pointer": "/spec/protocols/Tracked",
+        "sourceByteDigest": "sha256:50dcce71547f93c5869f715aad689c90715010c18039346261cf6272777672d2",
+        "sourceDigest": "sha256:50dcce71547f93c5869f715aad689c90715010c18039346261cf6272777672d2",
+        "version": "1.0.0"
+      },
+      "uri": "ontology://example.protocol-contracts/1.0.0/protocols/Tracked"
+    }
+  ],
+  "relations": [
+    {
+      "description": "A local relation.",
+      "domain": "consumer:Child",
+      "fqid": "consumer:links",
+      "id": "links",
+      "range": "consumer:Child",
+      "source": {
+        "id": "example.protocol-consumer",
+        "pointer": "/spec/relations/links",
+        "sourceByteDigest": "sha256:e9c65d7a163131bb57909c33f1bb78e40c7d7a4e1f1723781fb1bf13f8edc628",
+        "sourceDigest": "sha256:e9c65d7a163131bb57909c33f1bb78e40c7d7a4e1f1723781fb1bf13f8edc628",
+        "version": "1.0.0"
+      },
+      "uri": "ontology://example.protocol-consumer/1.0.0/relations/links"
+    },
+    {
+      "description": "A contract relation.",
+      "diagramOrigin": "example.protocol-contracts@1.0.0",
+      "domain": "pkg-protocol-contracts-ab0564cae42c:Contract",
+      "fqid": "pkg-protocol-contracts-ab0564cae42c:links",
+      "id": "pkg-protocol-contracts-ab0564cae42c:links",
+      "range": "pkg-protocol-contracts-ab0564cae42c:Contract",
+      "source": {
+        "id": "example.protocol-contracts",
+        "pointer": "/spec/relations/links",
+        "sourceByteDigest": "sha256:50dcce71547f93c5869f715aad689c90715010c18039346261cf6272777672d2",
+        "sourceDigest": "sha256:50dcce71547f93c5869f715aad689c90715010c18039346261cf6272777672d2",
+        "version": "1.0.0"
+      },
+      "uri": "ontology://example.protocol-contracts/1.0.0/relations/links"
+    },
+    {
+      "description": "A declaration-level relation.",
+      "diagramOrigin": "example.protocol-parent@1.0.0",
+      "domain": "source:Base",
+      "fqid": "source:auditLink",
+      "id": "source:auditLink",
+      "range": "source:Base",
+      "source": {
+        "id": "example.protocol-parent",
+        "pointer": "/spec/relations/auditLink",
+        "sourceByteDigest": "sha256:681d8f809f485189452cb209904278af0483da502ae9e0cda0ff6e9bbd691a10",
+        "sourceDigest": "sha256:681d8f809f485189452cb209904278af0483da502ae9e0cda0ff6e9bbd691a10",
+        "version": "1.0.0"
+      },
+      "uri": "ontology://example.protocol-parent/1.0.0/relations/auditLink"
+    }
+  ],
+  "schemaVersion": "ontology.diagram-projection/v1",
+  "sourceByteDigest": "sha256:e9c65d7a163131bb57909c33f1bb78e40c7d7a4e1f1723781fb1bf13f8edc628",
+  "sourceDigest": "sha256:e9c65d7a163131bb57909c33f1bb78e40c7d7a4e1f1723781fb1bf13f8edc628",
+  "sources": [
+    {
+      "alias": "consumer",
+      "id": "example.protocol-consumer",
+      "namespace": "consumer",
+      "sourceByteDigest": "sha256:e9c65d7a163131bb57909c33f1bb78e40c7d7a4e1f1723781fb1bf13f8edc628",
+      "sourceDigest": "sha256:e9c65d7a163131bb57909c33f1bb78e40c7d7a4e1f1723781fb1bf13f8edc628",
+      "version": "1.0.0"
+    },
+    {
+      "alias": "pkg-protocol-contracts-ab0564cae42c",
+      "id": "example.protocol-contracts",
+      "namespace": "contracts",
+      "sourceByteDigest": "sha256:50dcce71547f93c5869f715aad689c90715010c18039346261cf6272777672d2",
+      "sourceDigest": "sha256:50dcce71547f93c5869f715aad689c90715010c18039346261cf6272777672d2",
+      "version": "1.0.0"
+    },
+    {
+      "alias": "source",
+      "id": "example.protocol-parent",
+      "namespace": "parent",
+      "sourceByteDigest": "sha256:681d8f809f485189452cb209904278af0483da502ae9e0cda0ff6e9bbd691a10",
+      "sourceDigest": "sha256:681d8f809f485189452cb209904278af0483da502ae9e0cda0ff6e9bbd691a10",
+      "version": "1.0.0"
+    }
+  ],
+  "stateMachines": [],
+  "version": "1.0.0",
+  "view": "full"
+}
